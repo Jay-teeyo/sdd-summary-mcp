@@ -21,8 +21,51 @@ This builds the server and generates config files for whichever environments you
 ## Prerequisites
 
 - **Node.js 18+**
-- **A Genesys Cloud OAuth2 client** with all 7 required scopes — see [`docs/oauth-setup.md`](docs/oauth-setup.md)
+- **A Genesys Cloud OAuth2 client** configured as below
 - One of the supported AI coding environments below
+
+---
+
+## Genesys Cloud OAuth Client Setup
+
+### 1. Create the OAuth client
+
+In Genesys Admin → **Integrations → OAuth → Add Client**:
+
+| Field | Value |
+|---|---|
+| **App Name** | `SDD Summary MCP` (or any name) |
+| **Grant Types** | ✅ **Code Authorization** (required) · ✅ **Client Credentials** (optional fallback) |
+| **Redirect URI** | `http://localhost:8787/callback` |
+
+Copy the **Client ID** shown after saving (secret is not needed for the user login flow).
+
+### 2. Add all 7 required scopes
+
+Under the **Scope** tab, add every scope below. Add them all now — missing any will block specific tools later.
+
+| Scope | Why it's needed |
+|---|---|
+| `ai-studio` | Summary config CRUD and preview summary generation |
+| `analytics` | Conversation search and communication ID resolution |
+| `conversations` | Summary settings endpoints (`/api/v2/conversations/summaries/...`) |
+| `notifications` | Preview API delivers results via WebSocket notification channel |
+| `speechandtextanalytics` | Transcript URL fetch and existing summary retrieval |
+| `users` | Resolves current user ID for WebSocket topic construction |
+| `assistants` | Agent Copilot config — lists assistants and queue associations |
+| `routing` | Resolves queue display names from IDs |
+
+### 3. Find your Authorization URL
+
+In Genesys Admin → **IT and Integrations → OAuth** → open your client → scroll to the bottom. Copy the full **Authorization URL** field:
+
+```
+https://login.{your-region}/oauth/authorize?client_id=abc123-...&response_type=...
+```
+
+This URL is the only thing you need — client ID and region are extracted from it automatically.
+
+> Full OAuth setup reference including troubleshooting: [`docs/oauth-setup.md`](docs/oauth-setup.md)
 
 ---
 
