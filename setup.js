@@ -92,19 +92,17 @@ const ALWAYS_ALLOW = [
   'generate_eval_run_dashboard', 'generate_improvements_dashboard', 'generate_dashboard',
 ];
 
-function buildEnv(region, clientId) {
+function buildEnv() {
   return {
-    GENESYS_CLIENT_ID: clientId,
-    GENESYS_REGION: region,
     SDDSUM_STORAGE_PATH: STORAGE_PATH,
   };
 }
 
-function buildConfig(region, clientId, withAlwaysAllow = false) {
+function buildConfig(withAlwaysAllow = false) {
   const server = {
     command: 'node',
     args: [SERVER_DIST],
-    env: buildEnv(region, clientId),
+    env: buildEnv(),
   };
   if (withAlwaysAllow) server.alwaysAllow = ALWAYS_ALLOW;
   return { mcpServers: { 'sdd-summary': server } };
@@ -134,20 +132,10 @@ async function main() {
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-  // ── Step 1: Credentials ──
-  console.log(bold('\n  Genesys Cloud credentials\n'));
-  console.log('  Leave blank to use placeholders — you can fill them in after.\n');
-
-  const region   = await prompt(rl, 'Genesys region domain', '');
-  const clientId = await prompt(rl, 'OAuth2 client_id     ', '');
-
-  const finalClientId   = clientId || 'YOUR_CLIENT_ID_HERE';
-  const hasPlaceholders = !clientId;
-
-  // ── Step 2: Environments ──
+  // ── Step 1: Environments ──
   console.log(bold('\n  Which environments do you want to configure?\n'));
   const setupCursor     = await promptYesNo(rl, 'Cursor                        ', true);
-  const setupClaudeCode = await promptYesNo(rl, 'Claude Code / VS Code (.mcp.json)', true);
+  const setupClaudeCode = await promptYesNo(rl, 'Claude Code / VS Code (.mcp.json)', false);
   const setupKiro       = await promptYesNo(rl, 'Kiro                          ', false);
 
   rl.close();
@@ -180,21 +168,21 @@ async function main() {
 
   if (setupCursor) {
     const p = path.join(ROOT, '.cursor', 'mcp.json');
-    if (writeConfig(p, buildConfig(region, finalClientId, true), '.cursor/mcp.json')) {
+    if (writeConfig(p, buildConfig(true), '.cursor/mcp.json')) {
       written.push('.cursor/mcp.json');
     }
   }
 
   if (setupClaudeCode) {
     const p = path.join(ROOT, '.mcp.json');
-    if (writeConfig(p, buildConfig(region, finalClientId, false), '.mcp.json')) {
+    if (writeConfig(p, buildConfig(false), '.mcp.json')) {
       written.push('.mcp.json');
     }
   }
 
   if (setupKiro) {
     const p = path.join(ROOT, '.kiro', 'settings', 'mcp.json');
-    if (writeConfig(p, buildConfig(region, finalClientId, false), '.kiro/settings/mcp.json')) {
+    if (writeConfig(p, buildConfig(false), '.kiro/settings/mcp.json')) {
       written.push('.kiro/settings/mcp.json');
     }
   }
@@ -205,20 +193,17 @@ async function main() {
   console.log(bold('  Setup complete!'));
   hr();
 
-  if (hasPlaceholders && written.length > 0) {
-    console.log(yellow('\n  ⚠  Credentials placeholder — fill these in before using:'));
+  if (written.length > 0) {
+    console.log(green('\n  Config files written:'));
     written.forEach((f) => console.log(`     → ${f}`));
-    console.log('\n     Replace YOUR_CLIENT_ID_HERE with your real client_id.');
-    console.log('     Get it from: Genesys Admin → IT and Integrations → OAuth → your client\n');
   }
 
-  console.log('  Next steps:');
-  console.log('    1. Fill in credentials (if you used placeholders above)');
-  console.log('    2. Reload your AI coding environment to pick up the new MCP config');
-  console.log('    3. Start a new chat and run:');
-  console.log('         login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=YOUR_CLIENT_ID")');
-  console.log('    4. After browser login: complete_login()');
-  console.log('    5. Verify:         smoke_test_auth()\n');
+  console.log('\n  Next steps:');
+  console.log('    1. Reload your AI coding environment to pick up the new MCP config');
+  console.log('    2. Start a new chat and run:');
+  console.log('         login(authorization_url="<paste your Authorization URL from Genesys Admin → IT and Integrations → OAuth → your client>")');
+  console.log('    3. After browser login: complete_login()');
+  console.log('    4. Verify:         smoke_test_auth()\n');
   console.log('  Detailed setup guide: docs/setup.md');
   console.log('  Pipeline reference:   ask the agent to call get_pipeline_guide()\n');
 }
