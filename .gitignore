@@ -1,0 +1,34 @@
+# ─── Credentials and MCP configs (contain live OAuth client IDs and tokens) ───
+# These files are machine-specific and must NEVER be committed.
+# Each developer generates their own via setup.js or by hand.
+.cursor/mcp.json
+.kiro/settings/mcp.json
+.mcp.json
+.env
+.env.local
+
+# ─── Runtime credential and token storage ─────────────────────────────────────
+# Written by the MCP server at login time. Contains bearer tokens and client IDs.
+# Covered at BOTH the repo root and mcp-server/ (server may write to either
+# location depending on its working directory when started).
+.sdd-summary/
+mcp-server/.sdd-summary/
+
+# ─── Node build output and dependencies ───────────────────────────────────────
+mcp-server/dist/
+mcp-server/node_modules/
+
+# ─── One-off scripts (not part of the package) ────────────────────────────────
+mcp-server/scripts/
+
+# ─── Summary config lifecycle data ───────────────────────────────────────────
+# Contains customer transcripts (PII), eval runs, test data, and credentials.
+# Nothing under this directory should ever be committed.
+.summaryconfig-lifecycle/
+
+# ─── Local archive (contains credentials, test data, build artifacts) ─────────
+archived/
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store

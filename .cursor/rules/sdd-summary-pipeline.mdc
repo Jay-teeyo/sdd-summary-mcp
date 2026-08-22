@@ -1,0 +1,488 @@
+---
+description: SDD Summary MCP server — full testing pipeline for coding agents
+alwaysApply: true
+---
+
+# SDD Summary Testing Pipeline
+
+This project is an MCP server for testing and iterating on Genesys Cloud summary configurations (Agent Copilot / AI Studio summaries). The full tool reference is in `docs/workflow.md`. The complete tool catalog is in `mcp-server/src/tools/definitions.ts`.
+
+## Pipeline Order
+
+```
+1. login()                          → complete_login()
+2. build_interaction_filter(copilot_name=...)
+3. fetch_transcripts_bulk(...)
+4. fetch_existing_summaries_bulk(...)
+5. [test / iterate / evaluate]
+```
+
+Always run steps 3 and 4 together — 3 fetches transcripts, 4 enriches them with production summaries and strips rawJson.
+
+---
+
+## Step 1 — Authentication
+
+**First login** (paste the full Authorization URL from Genesys Admin → IT and Integrations → OAuth → your client → "Authorization URL" field at the bottom):
+```
+login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
+```
+
+**All subsequent logins** — the URL is stored, no argument needed:
+```
+login()
+```
+
+After the browser confirms login, call:
+```
+complete_login()
+```
+
+Expect **7/7 scopes**. If fewer, the OAuth client is missing scopes — see `docs/oauth-setup.md`.
+
+### Auth gotchas
+- If `login()` uses the wrong `client_id` (wrong org), it's because an env var (`GENESYS_CLIENT_ID`) is shadowing the stored config. The code bypasses env vars after parsing the Authorization URL — re-run `login()` with no args (it will use the stored `lastAuthorizationUrl` from file config).
+- Tokens last ~30 min as user tokens. On expiry, any API call auto-reopens the browser. Log in and retry the last call.
+- The browser is opened by the MCP server process. If it doesn't open, the `login()` response includes the full URL — share it as a clickable link.
+
+---
+
+## Step 2 — Interaction Filter
+
+```
+build_interaction_filter(copilot_name="Acme_Copilot")
+```
+
+- Takes the **Agent Copilot name** (from Genesys Admin → Agent Copilot), not the summary config name.
+- Fetches queues via `GET /api/v2/assistants/{assistantId}/queues` (direct association endpoint — do NOT use routing queues API with `assistantId` filter, that returns all org queues).
+- Resolves queue display names via routing API (requires `routing` scope).
+- Names the working directory after the **summary config name** (fetched from `getSummarySetting`), NOT the copilot name.
+- Saves to `.summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json`.
+- If the copilot has multiple summary settings (multi-language), it will ask which one to use — re-call with `summary_setting_id=...`.
+
+---
+
+## Step 3 — Bulk Fetch Transcripts
+
+```
+fetch_transcripts_bulk(
+  summary_config_name="Acme_CallSummary",
+  date_from="2026-01-01T00:00:00Z",
+  date_to="2026-01-31T23:59:59Z",
+  max_conversations=100,
+  concurrency=5
+)
+```
+
+- Reads queue IDs from `interaction-filter.json` automatically — do not pass queue IDs manually.
+- Included media types: `voice`, `message`, `callback`. Excluded: `email`, `chat`, `cobrowse`, `screenshare`, `video`.
+- The Genesys analytics API does **not** support `notMatches` operator — exclusions are handled as an allowlist (`includeMediaTypes` OR filter).
+- Transcript strategy (STA-first, messaging fallback):
+  1. Try `GET /speechandtextanalytics/conversations/{id}/communications/{commId}/transcriptUrls` → S3 download — works for both voice and messaging when STA transcription is enabled on the queue.
+  2. If STA fails and conversation is messaging: try `GET /conversations/messages/{id}` → `POST .../messages/bulk?useNormalizedMessage=true`.
+- `rawJson` is **not stored** — only `plainText` (the `Speaker: utterance` format ready for the preview API).
+- Safe to re-run — already-saved conversations are skipped.
+
+---
+
+## Step 4 — Enrich with Existing Summaries
+
+```
+fetch_existing_summaries_bulk(
+  summary_config_name="Acme_CallSummary",
+  concurrency=5
+)
+```
+
+- Calls `GET /api/v2/speechandtextanalytics/conversations/{id}/summaries` for each transcript.
+- Summary selection: prefers `summaryType: "Agent"` (the configured summary prompt output), falls back to `"Conversation"`, then first available.
+- Before/after detection: if `generated: false` (agent-edited) and `generated: true` (AI output) both exist for `summaryType: "Agent"`, stores:
+  - `existingSummary` = agent-edited version (the "after")
+  - `aiGeneratedSummary` = original AI output (the "before")
+- Also strips any `rawJson` from existing transcripts (in case they were saved before this was enforced).
+- Safe to re-run — already-enriched transcripts are skipped unless `overwrite=true`.
+
+---
+
+## Stored Transcript Schema
+
+After steps 3 + 4, each file in `transcripts/static/` looks like:
+
+```json
+{
+  "id": "<conversationId>",
+  "conversationId": "<conversationId>",
+  "communicationId": "<commId>",            // voice only; absent for messaging
+  "plainText": "Agent: ...\nCustomer: ...", // Speaker: utterance format
+  "existingSummary": "...",                 // agent-accepted final summary
+  "aiGeneratedSummary": "...",              // AI original (only when agent edited it)
+  "createdAt": "..."
+  // rawJson: intentionally absent
+}
+```
+
+---
+
+## Requirements and Test Case Authoring
+
+Full methodology: `docs/requirements-guide.md` (requirements) and `docs/test-case-guide.md` (test cases + test sets).
+
+### Requirements
+- Live in `requirements/final/requirements.md` using IDs: `BR-{SummaryConfigName}-{NNN}`
+- Raw artefacts (emails, QA feedback, complaint logs) go in `requirements/artefacts/`
+- **`settingType: "Prompt"` — the `prompt` field is the sole source of instructions.** All other config fields (`summaryType`, `format`, `participantLabels`, `predefinedInsights`, `maskPII`, etc.) are platform metadata — ignore them when deriving requirements or authoring test cases.
+
+### Test Cases
+- One test case per requirement category; file name: `{Category}-{DescriptiveName}.json` in `test-cases/`
+- Each dimension references `requirementIds: ["BR-..."]` for traceability
+- Scores are decimal **0–1** (0 = total failure, 1 = perfect pass, 0.5 = half pass)
+- `passThreshold` sets the minimum score to pass a dimension — use `1.0` for binary must/must-not rules, `0.8` for coverage and style rules
+- `passCriteria` must describe the scoring gradient with anchor points (e.g. "Score 1.0: ... Score 0.5 if ... Score 0: ...")
+- Every `BR-` ID in requirements must be covered by at least one dimension
+
+**`applicabilityCondition` — required on every dimension, always present:**
+- Set to `"always"` for dimensions that apply unconditionally to every transcript
+- Set to a plain-English condition string for conditional dimensions (e.g. `"Summary contains bullets."`, `"Only applies when a third party participated."`)
+- When a condition is not met for a transcript, evaluators must submit `score: null` — this marks the dimension as N/A
+- N/A dimensions are excluded from pass-rate and average-score calculations entirely — they neither pass nor fail
+- Pass rate = passes / evaluated (not passes / total), keeping conditional dimension stats honest
+- **NEVER omit this field** — every dimension must have it
+- **When authoring test cases and uncertain whether a dimension is `"always"` or conditional — ask the user. Never silently default to `"always"`.** The `generate_test_case` instruction enforces this interactively.
+
+### Test Sets
+- File: `test-sets/{SummaryConfigName}-{DescriptiveName}.json`
+- `testCaseNames` = list of test case filenames (no `.json`); `transcriptIds` = IDs from `transcripts/static/`
+- Standard full suite: all test cases × all static transcripts, named `{ConfigName}-Full-Test-Suite`
+
+---
+
+## Running Evaluations
+
+Full guide: `docs/eval-guide.md`. Two modes — use the same three-tool flow:
+
+```
+start_eval_run  →  [subagents: submit_eval_scores × N]  →  finalize_eval_run
+```
+
+### Mode 1 — Evaluate existing summaries (`mode: "existing"`)
+- Reads `existingSummary` already stored on each transcript — no API calls
+- Use to measure current production quality (requires `fetch_existing_summaries_bulk` to have run)
+
+### Mode 2 — Test a candidate prompt (`mode: "prompt_test"`)
+- Provide `prompt` with the candidate prompt text
+- Generates new summaries via Genesys preview API using the existing transcripts in `transcripts/static/` — **no new conversations are fetched**
+- Requires user login
+
+### Model generating summaries
+
+The Genesys Cloud AI Studio model is **Claude Haiku 4.5** (stored as `SUMMARY_MODEL_NAME` in `mcp-server/src/config.ts`). All prompt improvement work must be tailored to this model. Key characteristics to account for when writing improvements:
+
+- **Highly instruction-literal** — follows the prompt precisely; if the prompt doesn't say to include something, it won't.
+- **Terse by default** — will produce minimal output unless length or detail requirements are explicit.
+- **Omits contextual detail** — must be explicitly told to include reasons, context, or elaboration.
+- **Responds well to explicit output templates** — provide a concrete structure (e.g. numbered sections, labelled fields) for reliable formatting compliance.
+- **Responds well to numbered instruction lists** — sequential "You MUST..." clauses are more reliably followed than open-ended guidance.
+
+### Subagent setup
+- `start_eval_run` returns `run_number`, `total_batches`, `batches` (transcript + summary data), and `test_cases` (dimensions)
+- Spawn **one subagent per batch** using model `composer-2.5-fast`
+- Each subagent calls `submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)` once per transcript × test case
+- Scores are decimal 0–1 (0 = total failure, 0.5 = half pass, 1 = perfect); pass/fail computed automatically against each dimension's `passThreshold`
+- Submit `score: null` when a dimension's `applicabilityCondition` is not met for the transcript — null scores are excluded from all aggregation
+- After all subagents complete, call `finalize_eval_run(run_number)`:
+  - Merges all intermediate per-transcript files → one `{TestCaseName}.json` per test case (all transcripts inside)
+  - Computes overall and per-test-case pass rates and average scores
+  - Writes final stats to `_pending.json`
+  - **Auto-generates `dashboard.html`** via the standard dashboard template
+  - Returns a human-readable breakdown
+
+### Dashboard output — MANDATORY RULES
+
+`finalize_eval_run` **automatically generates both dashboards**. Never write dashboard HTML manually.
+
+| Dashboard | Tool | Location | When updated |
+|---|---|---|---|
+| Run dashboard | `generate_eval_run_dashboard` | `eval-runs/{testSet}/{NNNN}/dashboard.html` | Auto on every `finalize_eval_run` |
+| Improvements dashboard | `generate_improvements_dashboard` | `eval-runs/{testSet}/improvements.html` | Auto on every `finalize_eval_run` |
+
+**Run dashboard** (`dashboard.html`) shows:
+- Overall pass rate for this run
+- Per-test-case pass rates + avg scores (click to drill into transcript-level results)
+- Dimension-by-dimension scores and reasoning per transcript (expandable rows)
+- Failure themes auto-derived from scoring data
+- Prioritised prompt improvement recommendations
+
+**Improvements dashboard** (`improvements.html`) shows:
+- Overall pass rate sparkline across all runs for this test set
+- Colour-coded table: test cases as rows, runs as columns — green ≥80%, amber 50–79%, red <50%
+- Delta indicators (↑↓→) between consecutive runs to show direction of change
+- Links to each individual run dashboard
+
+**Rules for coding agents:**
+- NEVER generate dashboard HTML manually or via any other method
+- ALWAYS use `generate_eval_run_dashboard` to regenerate a run dashboard
+- ALWAYS use `generate_improvements_dashboard` to regenerate the improvements dashboard
+- Both are called automatically by `finalize_eval_run` — only call them explicitly to force a regeneration
+- The shared template is in `mcp-server/src/dashboardHtml.ts` — edit it there if the design needs changing; the change applies to all future generations automatically
+
+---
+
+## Post-Eval: Improvement Recommendations (improvements.md)
+
+**After every `finalize_eval_run` call you MUST write `improvements.md`.**
+
+`finalize_eval_run` returns everything needed inline:
+- The prompt text used to generate summaries (or a note if unavailable)
+- A per-dimension failure analysis: which dimensions failed, pass rate, and sample evaluator reasoning
+- Explicit instructions for what to write and which tool to call
+
+### Required steps
+
+1. Call `finalize_eval_run` — read its full response carefully
+2. Using the failure analysis and prompt provided, synthesize `improvements.md` (structure below)
+3. Call `save_improvement_recommendations(summary_config_name, test_set_name, run_number, content)` to persist it
+
+### improvements.md required structure
+
+```markdown
+# Prompt Improvement Recommendations — Run {NNNN}
+
+**Summary config:** {configName}
+**Test set:** {testSetName}
+**Model:** Claude Haiku 4.5
+**Run date:** {date}
+**Mode:** {existing summaries | prompt test}
+**Overall pass rate:** {X}%
+
+---
+
+## Test Case Results
+
+| Test Case | Pass Rate | Avg Score | Status |
+|---|---|---|---|
+| ... | ...% | 0.XX | ✅ / ❌ |
+
+---
+
+## Failing Dimension Analysis
+
+### {TestCaseName} — {DimensionName} ({passRate}% pass)
+
+**What it tests:** {from passCriteria}
+**Failure pattern:** {synthesized from the evaluator reasoning samples}
+**Root cause in prompt:** {what the prompt is missing or stating ambiguously}
+
+[repeat for each failing dimension]
+
+---
+
+## Prompt Improvement Suggestions
+
+### 1. {Descriptive title for change}
+
+**Why:** {link to the failure pattern above}
+**Change:** Add / modify / remove the following in the prompt:
+
+> {specific text, as it should appear in the prompt}
+
+**Claude Haiku 4.5 note:** {any model-specific consideration}
+
+[repeat for each suggestion]
+
+---
+
+## Proposed Improved Prompt
+
+` `` `
+{complete revised prompt text}
+` `` `
+```
+
+### Model context — Claude Haiku 4.5
+
+Every improvement suggestion must account for how this model processes prompts:
+- **Literal instruction follower** — if the prompt doesn't say to include something, it won't appear in the output. Add explicit "You MUST include..." clauses for required elements.
+- **Terse by default** — if output length or detail level matters, state it explicitly (e.g. "Write 3–5 sentences", "Include at least one example").
+- **Needs output templates** — for structured summaries, provide a concrete template with labelled sections rather than describing the structure in prose.
+- **Ordered lists work better than paragraphs** — when there are multiple constraints, number them; the model reliably follows sequential numbered instructions.
+- **Avoids inference** — it will not infer what the agent "should" do from context. State expected behaviour explicitly.
+
+---
+
+## Version Management — Local Candidates and Deployment
+
+### Versioning tools
+
+| Tool | Purpose |
+|---|---|
+| `save_version` | Snapshots the **currently live Genesys config** to `version-history/summary-configuration-N.json`. Call before deploying a change to preserve history. |
+| `list_versions` | Lists all snapshots in version-history for a config. |
+| `update_summary_setting` | Pushes a prompt update **directly to the live Genesys config**. This goes live immediately — only call when explicitly approved. |
+
+### Local candidate versions (do not auto-deploy)
+
+Version snapshots with `"status": "candidate"` are **local-only drafts**. They are never pushed to Genesys automatically. They exist so agents can author, review, and track prompt changes before a deployment decision is made.
+
+**Naming:** `version-history/summary-configuration-N.json` (same numbering as deployed versions)  
+**Key field:** `"status": "candidate"` distinguishes a local draft from a deployed snapshot  
+**Changes array:** Each candidate version includes a `changes` array documenting every prompt modification, the affected test dimension, run evidence, and the reasoning
+
+To create a local candidate version, write the JSON file directly — do NOT call `save_version` (which only snapshots live state):
+
+```json
+{
+  "version": 1,
+  "status": "candidate",
+  "setting": { ...same shape as version 0, with updated prompt... },
+  "notes": "Candidate version — NOT yet deployed.",
+  "snapshotAt": "...",
+  "changes": [
+    {
+      "change": "Description of what changed",
+      "affectedDimension": "TestCaseName / DimensionName",
+      "runEvidence": "X/Y transcripts failed in run NNNN. Description of failure pattern.",
+      "reason": "Why this specific change addresses the failure for Claude Haiku 4.5."
+    }
+  ]
+}
+```
+
+### Deploying a candidate version
+
+**Only deploy when the user explicitly approves.** The flow is:
+
+```
+1. save_version()                          ← snapshot current live state FIRST
+2. update_summary_setting(id, prompt)      ← push approved candidate prompt to Genesys
+3. Update "status" in the candidate file from "candidate" → "deployed"
+```
+
+Never call `update_summary_setting` proactively. Always wait for explicit user approval.
+
+### Testing a candidate prompt (without deploying)
+
+**MANDATORY: A version with `"status": "candidate"` MUST be tested using `mode: "prompt_test"`. Never use `mode: "existing"` for a candidate — existing mode evaluates production summaries that were generated by the currently live prompt, not the candidate.**
+
+**Always pass `version_number` rather than inlining the prompt directly.** This records which version was tested in `_pending.json`, shows version + status in `finalize_eval_run` output, and renders a version badge + collapsible prompt block in the dashboard. Without `version_number`, the run has no traceable link back to the version file.
+
+**For any prompt_test run, ALWAYS use `prepare_prompt_test` first to pre-generate and cache previews in safe batches before calling `start_eval_run`.** Generating all summaries inside a single `start_eval_run` call exceeds the MCP client timeout on any test set larger than ~10 transcripts.
+
+```
+# 1. Pre-generate summaries in batches of 8 — repeat until complete: YES
+prepare_prompt_test(
+  summary_config_name="Acme_CallSummary",
+  test_set_name="Acme_CallSummary-Full-Test-Suite",
+  version_number=1,
+  batch_size=8          ← safe limit; do not exceed 10 (see Rate Limiting section)
+)
+# → repeat until response shows: complete: YES ✓
+
+# 2. Start the eval run — reads previews from cache, no API calls made here
+start_eval_run(
+  summary_config_name="Acme_CallSummary",
+  test_set_name="Acme_CallSummary-Full-Test-Suite",
+  mode="prompt_test",
+  version_number=1
+)
+```
+
+Every eval run records:
+- `promptText` — the full prompt used to generate summaries
+- `promptVersionNumber` — the version file number (e.g. `1`)
+- `promptVersionStatus` — `"candidate"` or `"deployed"`
+
+These appear in: `_pending.json`, the `finalize_eval_run` output ("Version: 1 (candidate)"), and the run dashboard header (coloured badge + "View prompt" collapsible).
+
+Subagents receive the pre-generated summaries and make **no Genesys API calls** — they only score and write results to disk.
+
+---
+
+## Rate Limiting — What Happens Automatically
+
+All Genesys Platform API calls go through a single `request()` function in `mcp-server/src/genesys/client.ts`. Rate limit handling is built in — **you do not need to do anything special**.
+
+### Automatic behaviour
+
+| Response | Action |
+|---|---|
+| `429 Too Many Requests` | Reads `Retry-After` header (seconds), adds ±30% random jitter, sleeps, retries — up to **4 times** |
+| `5xx` **with** `Retry-After` | Same wait + retry — up to **2 times** |
+| `5xx` **without** `Retry-After` | Throws immediately — Genesys docs say do not auto-retry these |
+| Retries exhausted | Throws `GenesysApiError` with a clear message |
+
+Every retry logs to stderr: `[rate-limit] 429 on GET /api/v2/... — waiting 12.3s (retry 1/4)`
+
+### Why jitter?
+
+Bulk operations (`fetch_transcripts_bulk`, parallel eval subagents) fire many concurrent requests. Without jitter, all workers hit 429 together and retry in lockstep — triggering a second wave. The ±30% randomisation spreads retries out so they don't pile up.
+
+### Preview API — confirmed limits and safe batch size
+
+The Genesys preview summary API has two relevant limits:
+
+- **`token.rate.per.minute`: 300** — applies to all API calls for the authenticated token
+- **Notification channel burst sensitivity** — each preview request creates a short-lived notification channel (`POST /api/v2/notifications/channels`). This endpoint is sensitive to concurrent bursts independent of the per-minute token budget. In testing, firing **≥ 15 concurrent** preview requests reliably triggers `429 Failed to create notification channel`; **8 concurrent requests** is safe.
+
+**Safe `batch_size` for `prepare_prompt_test`: 8.** Do not exceed 10. The retry logic will recover from a channel 429, but it adds latency and unnecessary API pressure. Staying at batch_size=8 gives full parallel throughput without hitting the burst threshold.
+
+### What agents should know
+
+- **Long pauses during bulk operations are normal.** If you see `[rate-limit]` log lines, the server is honouring Genesys's `Retry-After` header — just wait, do not cancel or restart.
+- **Do not reduce `concurrency` preemptively.** The retry logic handles bursts gracefully. Only reduce concurrency if you are consistently exhausting all 4 retries on 429s.
+- **Token expiry during a long backoff wait is handled.** The token is re-fetched at the start of every retry attempt, so a 65-second wait will not cause auth failures.
+- **`Retry-After` values from Genesys are in seconds.** A typical value is 10–30 s; the cap in code is 65 s (including jitter).
+- **`prepare_prompt_test` uses `batch_size=8` by default.** Do not override it above 10 without expecting possible 429s on notification channel creation.
+
+---
+
+## Key API Facts (do not guess)
+
+| Concern | Correct API |
+|---------|------------|
+| Queues for an assistant | `GET /api/v2/assistants/{assistantId}/queues` (cursor pagination with `after`/`nextUri`) |
+| Queue display names | `GET /api/v2/routing/queues?id=id1&id=id2...` |
+| Voice transcript URL | `GET /api/v2/speechandtextanalytics/conversations/{id}/communications/{commId}/transcriptUrls` |
+| Messaging messages | `GET /api/v2/conversations/messages/{id}` + `POST .../messages/bulk?useNormalizedMessage=true` |
+| Existing summaries | `GET /api/v2/speechandtextanalytics/conversations/{id}/summaries` |
+| Summary settings | `GET /api/v2/conversations/summaries/settings` |
+| Analytics filter operators | Only `matches`, `exists`, `notExists` — `notMatches` is NOT supported |
+| Analytics date range limit | 7 days max per query window |
+
+---
+
+## Lifecycle Folder Structure
+
+```
+.summaryconfig-lifecycle/
+└── {summaryConfigName}/
+    ├── interaction-filter.json
+    ├── requirements/
+    │   ├── artefacts/             ← raw inputs: emails, docs, screenshots
+    │   └── final/
+    │       └── requirements.md    ← BR-{ConfigName}-NNN requirements table
+    ├── transcripts/
+    │   ├── static/                ← bulk-fetched + enriched transcripts
+    │   └── dynamic/
+    ├── test-cases/
+    │   └── {Category}-{Name}.json
+    ├── test-sets/
+    │   └── {ConfigName}-{Name}.json
+    ├── version-history/
+    │   └── summary-configuration-0.json  ← baseline snapshot (auto-created)
+    └── eval-runs/
+        └── {test-set-name}/
+            └── {NNNN}/            ← zero-padded run number
+                ├── _pending.json  ← run metadata + aggregate stats
+                ├── {TestCaseName}.json  ← one file per test case, all transcripts inside
+                └── ...
+```
+
+**`{TestCaseName}.json` structure:** `{ testCaseName, totalTranscripts, passRate, averageScore, results: [...] }` — written by `finalize_eval_run` after merging subagent outputs.
+
+---
+
+## Required OAuth Scopes (all 7)
+
+`users`, `ai-studio`, `analytics`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
+
+Run `smoke_test_auth()` after login to verify.
