@@ -119,6 +119,20 @@ function writeConfig(filePath, config, label) {
   return true;
 }
 
+// ─── Workspace root detection ─────────────────────────────────────────────────
+// Cursor reads .cursor/mcp.json from the workspace root only.
+// Warn if this repo appears to be nested inside another workspace
+// (i.e. a .cursor/ folder exists in a parent directory).
+function detectParentWorkspace() {
+  let dir = path.dirname(ROOT);
+  const fsRoot = path.parse(dir).root;
+  while (dir !== fsRoot) {
+    if (fs.existsSync(path.join(dir, '.cursor'))) return dir;
+    dir = path.dirname(dir);
+  }
+  return null;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('\n');
@@ -128,7 +142,17 @@ async function main() {
   console.log('\n  This script will:');
   console.log('    1. Build the MCP server (if not already built)');
   console.log('    2. Generate config files for your chosen AI coding environments');
-  console.log('    3. Show you what to fill in next\n');
+  console.log('    3. Show you what to do next\n');
+
+  // ── Workspace root check (Cursor only) ──
+  const parentWorkspace = detectParentWorkspace();
+  if (parentWorkspace) {
+    console.log(yellow('  ⚠  Heads up — Cursor workspace root mismatch detected'));
+    console.log(`     This repo is inside: ${parentWorkspace}`);
+    console.log(`     Cursor reads .cursor/mcp.json from the workspace root, not subfolders.`);
+    console.log(`     To use this MCP server in Cursor, open this folder as your workspace:`);
+    console.log(`       File → Open Folder → ${ROOT}\n`);
+  }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -199,11 +223,13 @@ async function main() {
   }
 
   console.log('\n  Next steps:');
-  console.log('    1. Reload your AI coding environment to pick up the new MCP config');
-  console.log('    2. Start a new chat and run:');
-  console.log('         login(authorization_url="<paste your Authorization URL from Genesys Admin → IT and Integrations → OAuth → your client>")');
-  console.log('    3. After browser login: complete_login()');
-  console.log('    4. Verify:         smoke_test_auth()\n');
+  console.log('    1. Open THIS folder as your Cursor workspace (File → Open Folder)');
+  console.log('       Cursor reads .cursor/mcp.json from the workspace root — not subfolders.');
+  console.log('    2. Reload MCP servers (Cmd+Shift+P → "MCP: Reload Servers")');
+  console.log('    3. Start a new chat and run:');
+  console.log('         login(authorization_url="<paste Authorization URL from Genesys Admin → IT and Integrations → OAuth → your client>")');
+  console.log('    4. After browser login: complete_login()');
+  console.log('    5. Verify all 7 scopes: smoke_test_auth()\n');
   console.log('  Detailed setup guide: docs/setup.md');
   console.log('  Pipeline reference:   ask the agent to call get_pipeline_guide()\n');
 }
