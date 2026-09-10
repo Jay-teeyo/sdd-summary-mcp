@@ -1,13 +1,48 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import type { AppConfig, GenesysConfig } from "./types.js";
+
+/**
+ * Turn a configured directory into an absolute path.
+ *
+ * Cursor can expand ${workspaceFolder} to a tilde-prefixed path such as
+ * `~/Documents/project`. Node never expands `~`, and treats the value as
+ * relative, so writing to it silently produces a literal `~` directory nested
+ * under the CWD — taking the tokens and all lifecycle data with it. Expand the
+ * tilde ourselves and resolve, so the path lands where the user expects.
+ *
+ * If a `${...}` placeholder survived unexpanded there is no sane path to derive,
+ * so fall back to the CWD (which is the project root for a Cursor-launched
+ * server) rather than creating a directory named after the placeholder.
+ */
+function resolveConfiguredDir(value: string | undefined, fallbackName: string): string {
+  const fallback = path.join(process.cwd(), fallbackName);
+  if (!value) return fallback;
+
+  if (value.includes("${")) {
+    process.stderr.write(
+      `[sdd-summary] Ignoring unexpanded path "${value}" — falling back to ${fallback}\n`,
+    );
+    return fallback;
+  }
+
+  let expanded = value;
+  if (expanded === "~") {
+    expanded = os.homedir();
+  } else if (expanded.startsWith("~/") || expanded.startsWith("~\\")) {
+    expanded = path.join(os.homedir(), expanded.slice(2));
+  }
+
+  return path.resolve(expanded);
+}
 
 /**
  * Resolve the .sdd-summary storage directory (global config + legacy data).
  * Priority: SDDSUM_STORAGE_PATH env var → CWD/.sdd-summary
  */
 export function getStorageDir(): string {
-  return process.env.SDDSUM_STORAGE_PATH ?? path.join(process.cwd(), ".sdd-summary");
+  return resolveConfiguredDir(process.env.SDDSUM_STORAGE_PATH, ".sdd-summary");
 }
 
 /**
@@ -16,7 +51,7 @@ export function getStorageDir(): string {
  * Priority: SDDSUM_LIFECYCLE_PATH env var → CWD/.summaryconfig-lifecycle
  */
 export function getLifecycleDir(): string {
-  return process.env.SDDSUM_LIFECYCLE_PATH ?? path.join(process.cwd(), ".summaryconfig-lifecycle");
+  return resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, ".summaryconfig-lifecycle");
 }
 
 const CONFIG_FILE = "config.json";

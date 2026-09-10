@@ -216,6 +216,7 @@ The Genesys Cloud AI Studio model is **Claude Haiku 4.5**. All prompt improvemen
 - `start_eval_run` returns `run_number`, `total_batches`, `batches` (transcript + summary data), and `test_cases` (dimensions)
 - Spawn **one subagent per batch** using model `composer-2.5-fast`
 - Each subagent calls `submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)` once per transcript × test case
+- **Only the `submit_eval_scores` tool may record scores.** Never spawn a second copy of the server (`node`/`npx`/`tsx`/`python`, the MCP client SDK, or any script) and never write score files directly — a separately spawned server misses the configured storage paths, so its writes land elsewhere and `finalize_eval_run` never sees them. If a storage path looks wrong, stop and report it instead of working around it.
 - Scores are decimal 0–1 (0 = total failure, 0.5 = half pass, 1 = perfect); pass/fail computed automatically against each dimension's `passThreshold`
 - Submit `score: null` when a dimension's `applicabilityCondition` is not met for the transcript — null scores are excluded from all aggregation
 - After all subagents complete, call `finalize_eval_run(run_number)`:

@@ -292,6 +292,13 @@ start_eval_run(summary_config_name=..., test_set_name=..., mode="prompt_test", v
 ### Subagent setup
 - \`start_eval_run\` returns \`run_number\`, \`total_batches\`, \`batches\`, and \`test_cases\`
 - Spawn **one subagent per batch** using model \`composer-2.5-fast\`
+
+**Scores may ONLY be submitted by calling the \`submit_eval_scores\` tool.** Never start a second copy
+of this server (\`node\`/\`npx\`/\`tsx\`/\`python\`, the MCP client SDK, or any script), and never write score
+or result files directly. A separately spawned server does not receive the configured storage paths, so
+its writes land somewhere else and are invisible to \`finalize_eval_run\` — silently splitting the run.
+If a tool response shows a storage path that looks wrong, STOP and report it rather than working around
+it: a wrong path is a server configuration bug, not something for a subagent to route around.
 - Each subagent calls \`submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)\` once per transcript × test case
 - Scores: decimal 0–1 (0 = total failure, 0.5 = half pass, 1 = perfect); submit \`score: null\` when a dimension's \`applicabilityCondition\` is not met for the transcript — null scores are excluded from all aggregation
 - After all subagents complete, call \`finalize_eval_run(run_number)\`
