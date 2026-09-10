@@ -26,7 +26,6 @@ import { generateEvalRunDashboardHtml, generateImprovementsDashboardHtml } from 
 import type {
   SummarySetting,
   StoredTranscript,
-  Rubric,
   TestRun,
   TranscriptResult,
   TestCase,
@@ -1155,7 +1154,25 @@ export async function create_summary_setting(args: Args) {
 
 export async function update_summary_setting(args: Args) {
   return withTokenRefresh(async () => {
-    const id = str(args, "summary_setting_id");
+    // The rest of the pipeline is keyed on summary_config_name, so accept that too
+    // and resolve the ID from the interaction filter built for that config.
+    let id: string;
+    if (args.summary_setting_id) {
+      id = str(args, "summary_setting_id");
+    } else if (args.summary_config_name) {
+      const configName = str(args, "summary_config_name");
+      const filter = storage.loadInteractionFilter(configName);
+      if (!filter?.summarySettingId) {
+        throw new Error(
+          `Cannot resolve a summary setting for config "${configName}" — no interaction filter found. ` +
+          `Run build_interaction_filter first, or pass summary_setting_id explicitly.`,
+        );
+      }
+      id = filter.summarySettingId;
+    } else {
+      throw new Error("Either summary_setting_id or summary_config_name is required");
+    }
+
     const patch: Partial<SummarySetting> = { prompt: str(args, "prompt") };
     if (args.name) patch.name = str(args, "name");
     const updated = await updateSummarySetting(id, patch);
@@ -1673,6 +1690,16 @@ export async function save_version(args: Args) {
   const configName = str(args, "summary_config_name");
   const notes = optStr(args, "notes");
 
+  const rawStatus = optStr(args, "status");
+  if (rawStatus && rawStatus !== "candidate" && rawStatus !== "deployed") {
+    throw new Error(`Invalid status: "${rawStatus}". Must be "candidate" or "deployed".`);
+  }
+  // Reading a setting back from Genesys captures what is live; an inline prompt is
+  // a local draft. Either default can be overridden explicitly.
+  const status: "candidate" | "deployed" =
+    (rawStatus as "candidate" | "deployed" | undefined) ??
+    (args.summary_setting_id ? "deployed" : "candidate");
+
   let setting: SummarySetting;
   if (args.summary_setting_id) {
     setting = await getSummarySetting(str(args, "summary_setting_id"));
@@ -1693,10 +1720,11 @@ export async function save_version(args: Args) {
     throw new Error("Either summary_setting_id or prompt is required");
   }
 
-  const snapshot = storage.saveVersionSnapshot(configName, setting, notes);
+  const snapshot = storage.saveVersionSnapshot(configName, setting, notes, status);
   return json({
     success: true,
     version: snapshot.version,
+    status: snapshot.status,
     summaryConfigName: configName,
     snapshotAt: snapshot.snapshotAt,
     notes: snapshot.notes,
@@ -1708,6 +1736,8 @@ export async function list_versions(args: Args) {
   return json(
     storage.listVersionSnapshots(configName).map((v) => ({
       version: v.version,
+      // Snapshots predating the status field are treated as deployed.
+      status: v.status ?? "deployed",
       snapshotAt: v.snapshotAt,
       notes: v.notes,
       promptPreview: v.setting.prompt.slice(0, 100) + (v.setting.prompt.length > 100 ? "..." : ""),
@@ -2557,228 +2587,6 @@ export async function generate_improvements_dashboard(args: Args) {
     `Improvements dashboard generated: ${filePath}\n` +
     `Covers ${allMetas.length} run${allMetas.length !== 1 ? "s" : ""}: ` +
     allMetas.map((m) => `Run ${String(m.runNumber).padStart(4, "0")} (${Math.round((m.aggregatePassRate ?? 0) * 100)}%)`).join(" → "),
-  );
-}
-
-// ─── Legacy: Rubric tools (kept for backward compatibility) ───────────────────
-
-export async function generate_rubric(args: Args) {
-  const transcriptIds = strArr(args, "sample_transcript_ids");
-  const sampleSummaries = strArr(args, "sample_summaries");
-  const rubricName = str(args, "rubric_name");
-  const focusAreas = Array.isArray(args.focus_areas) ? args.focus_areas.map(String) : [];
-
-  if (transcriptIds.length !== sampleSummaries.length) {
-    throw new Error("sample_transcript_ids and sample_summaries must have the same length");
-  }
-
-  return json({
-    instruction:
-      "NOTE: generate_rubric is deprecated — use generate_test_case instead, which scopes rubrics to a summary configuration. " +
-      "Based on the provided samples, generate a rubric JSON and call save_test_case with a summary_config_name.",
-    rubric_name: rubricName,
-    focus_areas: focusAreas,
-    sample_count: transcriptIds.length,
-  });
-}
-
-export async function save_rubric(args: Args) {
-  const name = str(args, "name");
-  const rawDimensions = Array.isArray(args.dimensions) ? args.dimensions : [];
-
-  const rubric: Rubric = {
-    id: uuidv4(),
-    name,
-    description: optStr(args, "description") ?? "",
-    dimensions: rawDimensions.map((d: unknown) => {
-      const dim = d as Record<string, unknown>;
-      return {
-        name: String(dim.name ?? ""),
-        description: String(dim.description ?? ""),
-        weight: Number(dim.weight ?? 3),
-        passCriteria: String(dim.pass_criteria ?? ""),
-        failCriteria: String(dim.fail_criteria ?? ""),
-      };
-    }),
-    createdAt: new Date().toISOString(),
-  };
-
-  storage.saveRubric(rubric);
-  return json({
-    id: rubric.id,
-    name: rubric.name,
-    dimensions: rubric.dimensions.length,
-    note: "Saved to legacy storage. Use save_test_case with a summary_config_name for new work.",
-  });
-}
-
-export async function list_rubrics(_args: Args) {
-  return json(
-    storage.listRubrics().map((r) => ({
-      id: r.id,
-      name: r.name,
-      description: r.description,
-      dimensions: r.dimensions.map((d) => d.name),
-      createdAt: r.createdAt,
-    })),
-  );
-}
-
-export async function evaluate_summary_legacy(args: Args) {
-  const rubricId = str(args, "rubric_id");
-  const rubric = storage.getRubric(rubricId);
-  if (!rubric) throw new Error(`Rubric not found: ${rubricId}`);
-
-  return json({
-    instruction:
-      "Evaluate the summary below against each rubric dimension. For each dimension, determine whether it PASSED or FAILED based on the criteria, provide a score (0.0–1.0), and give brief reasoning. Then call save_test_run with the results.",
-    rubric: {
-      id: rubric.id,
-      name: rubric.name,
-      dimensions: rubric.dimensions.map((d) => ({
-        name: d.name,
-        description: d.description,
-        weight: d.weight,
-        pass_criteria: d.passCriteria,
-        fail_criteria: d.failCriteria,
-      })),
-    },
-    transcript: str(args, "transcript_text"),
-    summary: str(args, "summary_text"),
-    score_template: rubric.dimensions.map((d) => ({
-      dimension: d.name,
-      passed: null,
-      score: null,
-      reasoning: "",
-    })),
-  });
-}
-
-// ─── Legacy: Test runs (kept for backward compatibility) ──────────────────────
-
-const pendingRuns = new Map<string, Omit<TestRun, "results" | "aggregatePassRate">>();
-
-export async function run_test_suite_legacy(args: Args) {
-  const prompt = str(args, "prompt");
-  const transcriptIds = strArr(args, "transcript_ids");
-  const rubricId = str(args, "rubric_id");
-  const label = optStr(args, "label") ?? `Run ${new Date().toISOString()}`;
-  const language = optStr(args, "language") ?? "en-au";
-
-  const rubric = storage.getRubric(rubricId);
-  if (!rubric) throw new Error(`Rubric not found: ${rubricId}`);
-
-  let setting: SummarySetting;
-  if (args.summary_setting_id) {
-    setting = await getSummarySetting(str(args, "summary_setting_id"));
-    setting.prompt = prompt;
-  } else {
-    setting = {
-      name: label,
-      prompt,
-      language,
-      summaryType: "Concise",
-      format: "TextBlock",
-      maskPII: { all: false },
-      predefinedInsights: [],
-      settingType: "Prompt",
-      serviceType: "Native",
-      timeoutDuration: 20,
-    };
-  }
-
-  return json({
-    instruction:
-      "NOTE: run_test_suite_legacy uses the old flat storage. Use run_test_suite with a summary_config_name and test_set_name for new work.",
-    rubric_id: rubricId,
-    transcript_ids: transcriptIds,
-    prompt_used: prompt,
-  });
-}
-
-export async function save_test_run(args: Args) {
-  const runId = str(args, "test_run_id");
-  const rawResults = Array.isArray(args.results) ? args.results : [];
-  const suggestedImprovements = optStr(args, "suggested_improvements");
-
-  const pending = pendingRuns.get(runId);
-  if (!pending) {
-    throw new Error(
-      `No pending test run found with id ${runId}. Use run_test_suite (new) or run_test_suite_legacy.`,
-    );
-  }
-
-  const results: TranscriptResult[] = rawResults.map((r: unknown) => {
-    const row = r as Record<string, unknown>;
-    const tId = String(row.transcript_id ?? "");
-    const stored = storage.getRubric(tId);
-    const rawScores = Array.isArray(row.dimension_scores) ? row.dimension_scores : [];
-    const dimensionScores = rawScores.map((s: unknown) => {
-      const sc = s as Record<string, unknown>;
-      const dimName = String(sc.dimension ?? "");
-      if (sc.score === null) {
-        return { dimension: dimName, score: null as null, na: true, passed: true, reasoning: String(sc.reasoning ?? "") };
-      }
-      return {
-        dimension: dimName,
-        passed: Boolean(sc.passed),
-        score: Number(sc.score ?? 0),
-        na: false,
-        reasoning: String(sc.reasoning ?? ""),
-      };
-    });
-    const scoredDims = dimensionScores.filter((d) => !d.na);
-    const overallScore =
-      scoredDims.length > 0
-        ? scoredDims.reduce((sum, d) => sum + (d.score as number), 0) / scoredDims.length
-        : 0;
-    const overallPassed = scoredDims.length === 0 || scoredDims.every((d) => d.passed);
-    return {
-      transcriptId: tId,
-      transcriptLabel: stored?.name ?? tId,
-      summary: "",
-      dimensionScores,
-      overallPassed,
-      overallScore,
-    };
-  });
-
-  const aggregatePassRate =
-    results.length > 0
-      ? results.filter((r) => r.overallPassed).length / results.length
-      : 0;
-
-  const run: TestRun = {
-    ...pending,
-    results,
-    aggregatePassRate,
-    suggestedImprovements,
-  };
-
-  storage.saveTestRun(run);
-  pendingRuns.delete(runId);
-
-  return json({
-    success: true,
-    test_run_id: runId,
-    aggregate_pass_rate: `${(aggregatePassRate * 100).toFixed(1)}%`,
-  });
-}
-
-export async function list_test_runs(args: Args) {
-  const runs = storage.listTestRuns(optStr(args, "summary_setting_id"));
-  return json(
-    runs.map((r) => ({
-      id: r.id,
-      label: r.label,
-      prompt: r.summarySetting.prompt.slice(0, 100) + (r.summarySetting.prompt.length > 100 ? "..." : ""),
-      rubricId: r.rubricId,
-      transcriptCount: r.transcriptIds.length,
-      passRate: `${(r.aggregatePassRate * 100).toFixed(1)}%`,
-      promptVersion: r.promptVersion,
-      createdAt: r.createdAt,
-      note: "Legacy test run. Use list_eval_runs for new-style results.",
-    })),
   );
 }
 

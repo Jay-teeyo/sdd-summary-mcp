@@ -339,8 +339,16 @@ export function getEvalRunResults(
   const dir = evalRunDir(configName, testSetName, runNumber);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
-    .filter((f) => f.endsWith(".json") && f !== "_meta.json")
-    .map((f) => readJson<EvalRunResult>(path.join(dir, f)));
+    // `_`-prefixed files are run metadata (`_meta.json`, `_pending.json`), not results.
+    .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
+    .flatMap((f) => {
+      const parsed = readJson<EvalRunResult | TestCaseEvalFile>(path.join(dir, f));
+      // The legacy flow wrote one EvalRunResult per file; the start/submit/finalize
+      // flow writes a TestCaseEvalFile that wraps many results under `results`.
+      return Array.isArray((parsed as TestCaseEvalFile).results)
+        ? (parsed as TestCaseEvalFile).results
+        : [parsed as EvalRunResult];
+    });
 }
 
 export function listEvalRuns(
@@ -362,10 +370,45 @@ export function listEvalRuns(
       .filter((f) => fs.statSync(path.join(tsDir, f)).isDirectory())
       .sort();
     for (const rDir of runDirs) {
+      const runNumber = parseInt(rDir, 10);
       const metaPath = path.join(tsDir, rDir, "_meta.json");
       if (fs.existsSync(metaPath)) {
         const meta = readJson<EvalRunMeta>(metaPath);
-        runs.push({ ...meta, runNumber: parseInt(rDir, 10) });
+        runs.push({ ...meta, runNumber });
+        continue;
+      }
+      // The start/submit/finalize flow writes `_pending.json` instead, so without
+      // this fallback every run produced by the current pipeline is invisible here.
+      const pendingPath = path.join(tsDir, rDir, "_pending.json");
+      if (fs.existsSync(pendingPath)) {
+        const pending = readJson<EvalRunPendingMeta>(pendingPath);
+        // Skip runs still being scored — they have no pass rate yet.
+        if (!pending.finalizedAt) continue;
+        const prompt = pending.promptText ?? "";
+        runs.push({
+          runNumber,
+          testSetName: pending.testSetName,
+          summaryConfigName: pending.summaryConfigName,
+          prompt,
+          // This flow stores only the prompt text, not a full setting. Synthesize a
+          // minimal one so consumers reading `summarySetting.prompt` still work.
+          summarySetting: {
+            name: pending.testSetName,
+            prompt,
+            language: "en-au",
+            summaryType: "Concise",
+            format: "TextBlock",
+            maskPII: { all: false },
+            predefinedInsights: [],
+            settingType: "Prompt",
+            serviceType: "Native",
+            timeoutDuration: 20,
+          },
+          transcriptIds: pending.transcriptIds,
+          testCaseNames: pending.testCaseNames,
+          aggregatePassRate: pending.aggregatePassRate ?? 0,
+          createdAt: pending.startedAt,
+        });
       }
     }
   }
@@ -601,10 +644,12 @@ export function saveVersionSnapshot(
   configName: string,
   setting: SummarySetting,
   notes?: string,
+  status?: "candidate" | "deployed",
 ): VersionSnapshot {
   const version = getLatestVersionNumber(configName) + 1;
   const snapshot: VersionSnapshot = {
     version,
+    status,
     setting,
     notes,
     snapshotAt: new Date().toISOString(),

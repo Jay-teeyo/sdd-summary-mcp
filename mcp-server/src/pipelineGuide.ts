@@ -26,7 +26,7 @@ Spawn one subagent per batch in parallel using the Task tool with model composer
 ALWAYS call save_improvement_recommendations after finalize_eval_run — do not skip this.
 
 ## Version Management — CRITICAL RULES
-- save_version() creates a LOCAL candidate snapshot; it does NOT push anything to Genesys.
+- save_version() only ever writes to version-history/ locally; it NEVER pushes anything to Genesys.
 - NEVER call update_summary_setting (deploy) without prior prompt_test eval evidence showing improvement.
 - To test a candidate: start_eval_run(mode="prompt_test", version_number=N, ...)
 - To deploy after approval: update_summary_setting → then save_version with status="deployed" to record it.
@@ -384,9 +384,9 @@ All prompt improvement work must be tailored to this model's characteristics:
 
 ### Creating a candidate version
 
-**Do NOT call \`save_version()\` to create a candidate.** \`save_version\` only snapshots the currently live Genesys config.
-
-To author a local draft, write the JSON file directly to \`version-history/summary-configuration-N.json\`:
+\`save_version(summary_config_name=..., prompt=...)\` records a local draft (status defaults to \`candidate\`), but it cannot
+write the \`changes[]\` evidence trail. Since every candidate should carry that trail, author the file directly instead —
+write the JSON to \`version-history/summary-configuration-N.json\`:
 
 \`\`\`json
 {
@@ -435,8 +435,9 @@ start_eval_run(
 ### Deploying (only after approval)
 1. Review eval results — candidate must show measurable improvement
 2. Get explicit user approval before deploying
-3. \`update_summary_setting(summary_config_name=..., prompt=...)\` — pushes to Genesys
-4. \`save_version(..., status="deployed")\` — records the deployed state
+3. \`save_version(summary_config_name=..., summary_setting_id=...)\` — snapshots the still-live prompt as the rollback point
+4. \`update_summary_setting(summary_config_name=..., prompt=...)\` — pushes to Genesys (resolves the setting ID from the interaction filter)
+5. \`save_version(summary_config_name=..., prompt=..., status="deployed")\` — records the newly live state
 
 **NEVER call \`update_summary_setting\` without prior prompt_test eval evidence and user approval.**
 

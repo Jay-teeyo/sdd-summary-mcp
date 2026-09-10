@@ -18,7 +18,7 @@ Choose a scope first, because it determines which projects the tooling is active
 | Mechanism | `.cursor/` files in the target project | Cursor plugin |
 | Use when | Normal use — this is a specialised tool | You genuinely want Genesys tooling everywhere |
 
-**Project scope is the default recommendation.** This server exposes 47 Genesys tools and an always-applied pipeline rule. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~488 lines of guidance into every request. Cursor has no documented way to disable a user-scoped plugin per project, so scope is chosen at install time.
+**Project scope is the default recommendation.** This server exposes 42 Genesys tools and an always-applied pipeline rule. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~488 lines of guidance into every request. Cursor has no documented way to disable a user-scoped plugin per project, so scope is chosen at install time.
 
 ### Option A — Project scope (recommended)
 
@@ -52,7 +52,7 @@ Run it from the project root. `deploy.js` deploys into the current directory by 
 
 This step is manual and easy to miss — **writing the config does not enable the server**, and Cursor has no setting that can pre-enable it.
 
-Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **47 tools**.
+Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **42 tools**.
 
 If the entry isn't there at all, the config wasn't found — check that step 1 opened the project folder itself and not something above or below it.
 

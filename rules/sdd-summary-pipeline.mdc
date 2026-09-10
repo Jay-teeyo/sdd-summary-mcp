@@ -344,9 +344,9 @@ Every improvement suggestion must account for how this model processes prompts:
 
 | Tool | Purpose |
 |---|---|
-| `save_version` | Snapshots the **currently live Genesys config** to `version-history/summary-configuration-N.json`. Call before deploying a change to preserve history. |
-| `list_versions` | Lists all snapshots in version-history for a config. |
-| `update_summary_setting` | Pushes a prompt update **directly to the live Genesys config**. This goes live immediately — only call when explicitly approved. |
+| `save_version` | Snapshots a config to `version-history/summary-configuration-N.json`. With `summary_setting_id` it captures the **currently live Genesys config** (status defaults to `deployed`); with `prompt` it records a local draft (defaults to `candidate`). Call before deploying to preserve history. |
+| `list_versions` | Lists all snapshots in version-history for a config, with each one's status. |
+| `update_summary_setting` | Pushes a prompt update **directly to the live Genesys config**. Accepts `summary_config_name` (resolves the setting ID from the interaction filter) or `summary_setting_id`. This goes live immediately — only call when explicitly approved. |
 
 ### Local candidate versions (do not auto-deploy)
 
@@ -356,7 +356,7 @@ Version snapshots with `"status": "candidate"` are **local-only drafts**. They a
 **Key field:** `"status": "candidate"` distinguishes a local draft from a deployed snapshot  
 **Changes array:** Each candidate version includes a `changes` array documenting every prompt modification, the affected test dimension, run evidence, and the reasoning
 
-To create a local candidate version, write the JSON file directly — do NOT call `save_version` (which only snapshots live state):
+`save_version(summary_config_name=..., prompt=...)` records a draft as `candidate`, but it cannot write the `changes` array. Because every candidate must carry that evidence trail, author the file directly:
 
 ```json
 {
@@ -381,9 +381,9 @@ To create a local candidate version, write the JSON file directly — do NOT cal
 **Only deploy when the user explicitly approves.** The flow is:
 
 ```
-1. save_version()                          ← snapshot current live state FIRST
-2. update_summary_setting(id, prompt)      ← push approved candidate prompt to Genesys
-3. Update "status" in the candidate file from "candidate" → "deployed"
+1. save_version(summary_config_name, summary_setting_id)        ← snapshot current live state FIRST
+2. update_summary_setting(summary_config_name, prompt)          ← push approved candidate prompt to Genesys
+3. save_version(summary_config_name, prompt, status="deployed") ← record the newly live state
 ```
 
 Never call `update_summary_setting` proactively. Always wait for explicit user approval.

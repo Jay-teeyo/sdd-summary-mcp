@@ -7243,7 +7243,7 @@ async function request(method, path3, body) {
   const config2 = getGenesysConfig();
   if (!config2) {
     throw new Error(
-      "Genesys credentials not configured. Call configure_credentials first, or set GENESYS_CLIENT_ID, GENESYS_CLIENT_SECRET, GENESYS_REGION environment variables."
+      "Genesys credentials not configured. Call login to authenticate, or set GENESYS_CLIENT_ID, GENESYS_CLIENT_SECRET, GENESYS_REGION environment variables for machine-to-machine auth."
     );
   }
   const MAX_RETRIES_429 = 4;
@@ -14474,7 +14474,7 @@ var TOOL_DEFINITIONS = [
   },
   {
     name: "configure_credentials",
-    description: "Store Genesys Cloud OAuth2 credentials. client_secret is only required for machine-to-machine (client credentials) auth. For user login (recommended), set client_id and region, then call the login tool. If login fails with an incorrect URL, also provide login_url \u2014 copy it from your OAuth client's Authorization URL in Genesys Admin (Admin \u2192 Integrations \u2192 OAuth \u2192 your client).",
+    description: "ADVANCED ESCAPE HATCH \u2014 do not use for normal sign-in. `login` is the only supported way to authenticate a user; it collects the client ID and region itself, so calling this first is never required and usually sends the user down the wrong path. Use this tool only for machine-to-machine (client credentials) auth, which needs a client_secret, or to override login_url when `login` derives the wrong region host.",
     inputSchema: {
       type: "object",
       properties: {
@@ -14691,15 +14691,22 @@ var TOOL_DEFINITIONS = [
   },
   {
     name: "update_summary_setting",
-    description: "\u26A0\uFE0F  LIVE DEPLOYMENT \u2014 pushes a prompt change directly to Genesys. This goes live immediately and affects all real conversations.\n\nNEVER call this tool unless the user has explicitly approved the change for deployment. Do not call proactively, do not infer approval from context \u2014 wait for an explicit instruction.\n\nREQUIRED STEPS BEFORE CALLING:\n  1. Confirm the candidate version has been evaluated (start_eval_run \u2192 finalize_eval_run) and results reviewed.\n  2. Call save_version first to snapshot the currently live prompt \u2014 this creates a rollback point.\n  3. Only then call update_summary_setting with the approved prompt.\n  4. After deploying, update the candidate version file in version-history/ from status='candidate' to status='deployed'.",
+    description: "\u26A0\uFE0F  LIVE DEPLOYMENT \u2014 pushes a prompt change directly to Genesys. This goes live immediately and affects all real conversations.\n\nNEVER call this tool unless the user has explicitly approved the change for deployment. Do not call proactively, do not infer approval from context \u2014 wait for an explicit instruction.\n\nREQUIRED STEPS BEFORE CALLING:\n  1. Confirm the candidate version has been evaluated (start_eval_run \u2192 finalize_eval_run) and results reviewed.\n  2. Call save_version first to snapshot the currently live prompt \u2014 this creates a rollback point.\n  3. Only then call update_summary_setting with the approved prompt.\n  4. After deploying, call save_version with status='deployed' to record the newly live state.",
     inputSchema: {
       type: "object",
       properties: {
-        summary_setting_id: { type: "string", description: "The summary setting ID to update" },
+        summary_config_name: {
+          type: "string",
+          description: "Name of the summary configuration. The setting ID is resolved from its interaction filter. Use this OR summary_setting_id."
+        },
+        summary_setting_id: {
+          type: "string",
+          description: "The summary setting ID to update, if you already have it."
+        },
         prompt: { type: "string", description: "The new prompt text" },
         name: { type: "string", description: "Optional new name" }
       },
-      required: ["summary_setting_id", "prompt"]
+      required: ["prompt"]
     }
   },
   // ─── Summary generation ──────────────────────────────────────────────────────
@@ -15091,7 +15098,7 @@ var TOOL_DEFINITIONS = [
   // ─── Version history ──────────────────────────────────────────────────────────
   {
     name: "save_version",
-    description: "Snapshot the CURRENTLY LIVE Genesys summary configuration to version-history/summary-configuration-N.json. Call this immediately BEFORE calling update_summary_setting to preserve the current live state.\n\nIMPORTANT \u2014 this tool only captures what is live in Genesys right now. It does NOT create local candidate (draft) versions. To author a new candidate version for testing, write the JSON file directly to version-history/ with status='candidate' and a changes[] array \u2014 do NOT use this tool for that.\n\nThe snapshot written by this tool should be treated as status='deployed'. After writing, the version number increments automatically.",
+    description: "Snapshot a summary configuration to version-history/summary-configuration-N.json. Call this immediately BEFORE update_summary_setting to preserve the current live state as a rollback point, and again AFTER deploying with status='deployed' to record the newly live prompt.\n\nPassing summary_setting_id fetches and snapshots what is live in Genesys right now (defaults to status='deployed'). Passing prompt snapshots that text as a local draft instead (defaults to status='candidate').\n\nNOTE \u2014 a candidate that needs a changes[] evidence trail (linking each edit to the eval run that justified it) must still be written to version-history/ directly; this tool does not author that array. The version number increments automatically.",
     inputSchema: {
       type: "object",
       properties: {
@@ -15108,6 +15115,11 @@ var TOOL_DEFINITIONS = [
           description: "Prompt text to snapshot directly (when summary_setting_id is not provided)"
         },
         language: { type: "string", description: "Language code (used when snapshotting a raw prompt)" },
+        status: {
+          type: "string",
+          enum: ["candidate", "deployed"],
+          description: "'deployed' \u2014 was live in Genesys at snapshot time. 'candidate' \u2014 a local draft not yet pushed. Defaults to 'deployed' when summary_setting_id is given, 'candidate' when only prompt is given."
+        },
         notes: {
           type: "string",
           description: "Optional notes describing this version (e.g. 'Before adding edge-case handling')"
@@ -15295,62 +15307,6 @@ var TOOL_DEFINITIONS = [
       },
       required: []
     }
-  },
-  // ─── Legacy (deprecated) ─────────────────────────────────────────────────────
-  {
-    name: "generate_rubric",
-    description: "DEPRECATED \u2014 use generate_test_case instead. Returns a migration notice pointing to the new lifecycle-scoped tools.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        sample_transcript_ids: { type: "array", items: { type: "string" } },
-        sample_summaries: { type: "array", items: { type: "string" } },
-        rubric_name: { type: "string" },
-        focus_areas: { type: "array", items: { type: "string" } }
-      },
-      required: ["sample_transcript_ids", "sample_summaries", "rubric_name"]
-    }
-  },
-  {
-    name: "save_rubric",
-    description: "DEPRECATED \u2014 use save_test_case with a summary_config_name instead. Saves to legacy flat storage for backward compatibility.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        description: { type: "string" },
-        dimensions: { type: "array", items: { type: "object" } }
-      },
-      required: ["name", "dimensions"]
-    }
-  },
-  {
-    name: "list_rubrics",
-    description: "DEPRECATED \u2014 use list_test_cases with a summary_config_name instead. Lists legacy rubrics from flat storage.",
-    inputSchema: { type: "object", properties: {} }
-  },
-  {
-    name: "save_test_run",
-    description: "DEPRECATED \u2014 use save_eval_run instead. Saves legacy test runs to flat storage.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        test_run_id: { type: "string" },
-        results: { type: "array", items: { type: "object" } },
-        suggested_improvements: { type: "string" }
-      },
-      required: ["test_run_id", "results"]
-    }
-  },
-  {
-    name: "list_test_runs",
-    description: "DEPRECATED \u2014 use list_eval_runs with a summary_config_name instead. Lists legacy test runs from flat storage.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        summary_setting_id: { type: "string" }
-      }
-    }
   }
 ];
 
@@ -15429,7 +15385,7 @@ Spawn one subagent per batch in parallel using the Task tool with model composer
 ALWAYS call save_improvement_recommendations after finalize_eval_run \u2014 do not skip this.
 
 ## Version Management \u2014 CRITICAL RULES
-- save_version() creates a LOCAL candidate snapshot; it does NOT push anything to Genesys.
+- save_version() only ever writes to version-history/ locally; it NEVER pushes anything to Genesys.
 - NEVER call update_summary_setting (deploy) without prior prompt_test eval evidence showing improvement.
 - To test a candidate: start_eval_run(mode="prompt_test", version_number=N, ...)
 - To deploy after approval: update_summary_setting \u2192 then save_version with status="deployed" to record it.
@@ -15786,9 +15742,9 @@ All prompt improvement work must be tailored to this model's characteristics:
 
 ### Creating a candidate version
 
-**Do NOT call \`save_version()\` to create a candidate.** \`save_version\` only snapshots the currently live Genesys config.
-
-To author a local draft, write the JSON file directly to \`version-history/summary-configuration-N.json\`:
+\`save_version(summary_config_name=..., prompt=...)\` records a local draft (status defaults to \`candidate\`), but it cannot
+write the \`changes[]\` evidence trail. Since every candidate should carry that trail, author the file directly instead \u2014
+write the JSON to \`version-history/summary-configuration-N.json\`:
 
 \`\`\`json
 {
@@ -15837,8 +15793,9 @@ start_eval_run(
 ### Deploying (only after approval)
 1. Review eval results \u2014 candidate must show measurable improvement
 2. Get explicit user approval before deploying
-3. \`update_summary_setting(summary_config_name=..., prompt=...)\` \u2014 pushes to Genesys
-4. \`save_version(..., status="deployed")\` \u2014 records the deployed state
+3. \`save_version(summary_config_name=..., summary_setting_id=...)\` \u2014 snapshots the still-live prompt as the rollback point
+4. \`update_summary_setting(summary_config_name=..., prompt=...)\` \u2014 pushes to Genesys (resolves the setting ID from the interaction filter)
+5. \`save_version(summary_config_name=..., prompt=..., status="deployed")\` \u2014 records the newly live state
 
 **NEVER call \`update_summary_setting\` without prior prompt_test eval evidence and user approval.**
 
@@ -15946,38 +15903,8 @@ function listJsonFiles(dir) {
 function legacyDir(subdir) {
   return ensureDir(path2.join(getStorageDir(), subdir));
 }
-function legacyFilePath(baseDir, id) {
-  return path2.join(baseDir(), `${id}.json`);
-}
-function legacyRubricsDir() {
-  return legacyDir("rubrics");
-}
-function legacyTestRunsDir() {
-  return legacyDir("test-runs");
-}
 function legacyDashboardsDir() {
   return legacyDir("dashboards");
-}
-function saveRubric(r) {
-  writeJson(legacyFilePath(legacyRubricsDir, r.id), r);
-}
-function getRubric(id) {
-  const p = legacyFilePath(legacyRubricsDir, id);
-  if (!fs2.existsSync(p)) return null;
-  return readJson(p);
-}
-function listRubrics() {
-  return listJsonFiles(legacyRubricsDir()).map((id) => readJson(legacyFilePath(legacyRubricsDir, id))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-function saveTestRun(run) {
-  writeJson(legacyFilePath(legacyTestRunsDir, run.id), run);
-}
-function listTestRuns(summarySettingId) {
-  const all = listJsonFiles(legacyTestRunsDir()).map((id) => readJson(legacyFilePath(legacyTestRunsDir, id))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  if (summarySettingId) {
-    return all.filter((r) => r.summarySettingId === summarySettingId);
-  }
-  return all;
 }
 function saveDashboard(id, html) {
   const d = legacyDashboardsDir();
@@ -16126,7 +16053,10 @@ function saveEvalRun(configName, testSetName, runNumber, meta, results) {
 function getEvalRunResults(configName, testSetName, runNumber) {
   const dir = evalRunDir(configName, testSetName, runNumber);
   if (!fs2.existsSync(dir)) return [];
-  return fs2.readdirSync(dir).filter((f) => f.endsWith(".json") && f !== "_meta.json").map((f) => readJson(path2.join(dir, f)));
+  return fs2.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).flatMap((f) => {
+    const parsed = readJson(path2.join(dir, f));
+    return Array.isArray(parsed.results) ? parsed.results : [parsed];
+  });
 }
 function listEvalRuns(configName, testSetName) {
   const baseDir = evalRunsBaseDir(configName);
@@ -16138,10 +16068,42 @@ function listEvalRuns(configName, testSetName) {
     if (!fs2.existsSync(tsDir)) continue;
     const runDirs = fs2.readdirSync(tsDir).filter((f) => fs2.statSync(path2.join(tsDir, f)).isDirectory()).sort();
     for (const rDir of runDirs) {
+      const runNumber = parseInt(rDir, 10);
       const metaPath = path2.join(tsDir, rDir, "_meta.json");
       if (fs2.existsSync(metaPath)) {
         const meta = readJson(metaPath);
-        runs.push({ ...meta, runNumber: parseInt(rDir, 10) });
+        runs.push({ ...meta, runNumber });
+        continue;
+      }
+      const pendingPath = path2.join(tsDir, rDir, "_pending.json");
+      if (fs2.existsSync(pendingPath)) {
+        const pending = readJson(pendingPath);
+        if (!pending.finalizedAt) continue;
+        const prompt = pending.promptText ?? "";
+        runs.push({
+          runNumber,
+          testSetName: pending.testSetName,
+          summaryConfigName: pending.summaryConfigName,
+          prompt,
+          // This flow stores only the prompt text, not a full setting. Synthesize a
+          // minimal one so consumers reading `summarySetting.prompt` still work.
+          summarySetting: {
+            name: pending.testSetName,
+            prompt,
+            language: "en-au",
+            summaryType: "Concise",
+            format: "TextBlock",
+            maskPII: { all: false },
+            predefinedInsights: [],
+            settingType: "Prompt",
+            serviceType: "Native",
+            timeoutDuration: 20
+          },
+          transcriptIds: pending.transcriptIds,
+          testCaseNames: pending.testCaseNames,
+          aggregatePassRate: pending.aggregatePassRate ?? 0,
+          createdAt: pending.startedAt
+        });
       }
     }
   }
@@ -16248,10 +16210,11 @@ function getLatestVersionNumber(configName) {
   }).filter((n) => n > 0);
   return existing.length === 0 ? 0 : Math.max(...existing);
 }
-function saveVersionSnapshot(configName, setting, notes) {
+function saveVersionSnapshot(configName, setting, notes, status) {
   const version2 = getLatestVersionNumber(configName) + 1;
   const snapshot = {
     version: version2,
+    status,
     setting,
     notes,
     snapshotAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -18305,7 +18268,21 @@ async function create_summary_setting(args) {
 }
 async function update_summary_setting(args) {
   return withTokenRefresh(async () => {
-    const id = str(args, "summary_setting_id");
+    let id;
+    if (args.summary_setting_id) {
+      id = str(args, "summary_setting_id");
+    } else if (args.summary_config_name) {
+      const configName = str(args, "summary_config_name");
+      const filter = loadInteractionFilter(configName);
+      if (!filter?.summarySettingId) {
+        throw new Error(
+          `Cannot resolve a summary setting for config "${configName}" \u2014 no interaction filter found. Run build_interaction_filter first, or pass summary_setting_id explicitly.`
+        );
+      }
+      id = filter.summarySettingId;
+    } else {
+      throw new Error("Either summary_setting_id or summary_config_name is required");
+    }
     const patch = { prompt: str(args, "prompt") };
     if (args.name) patch.name = str(args, "name");
     const updated = await updateSummarySetting(id, patch);
@@ -18724,6 +18701,11 @@ async function list_eval_runs(args) {
 async function save_version(args) {
   const configName = str(args, "summary_config_name");
   const notes = optStr(args, "notes");
+  const rawStatus = optStr(args, "status");
+  if (rawStatus && rawStatus !== "candidate" && rawStatus !== "deployed") {
+    throw new Error(`Invalid status: "${rawStatus}". Must be "candidate" or "deployed".`);
+  }
+  const status = rawStatus ?? (args.summary_setting_id ? "deployed" : "candidate");
   let setting;
   if (args.summary_setting_id) {
     setting = await getSummarySetting(str(args, "summary_setting_id"));
@@ -18743,10 +18725,11 @@ async function save_version(args) {
   } else {
     throw new Error("Either summary_setting_id or prompt is required");
   }
-  const snapshot = saveVersionSnapshot(configName, setting, notes);
+  const snapshot = saveVersionSnapshot(configName, setting, notes, status);
   return json({
     success: true,
     version: snapshot.version,
+    status: snapshot.status,
     summaryConfigName: configName,
     snapshotAt: snapshot.snapshotAt,
     notes: snapshot.notes
@@ -18757,6 +18740,8 @@ async function list_versions(args) {
   return json(
     listVersionSnapshots(configName).map((v) => ({
       version: v.version,
+      // Snapshots predating the status field are treated as deployed.
+      status: v.status ?? "deployed",
       snapshotAt: v.snapshotAt,
       notes: v.notes,
       promptPreview: v.setting.prompt.slice(0, 100) + (v.setting.prompt.length > 100 ? "..." : "")
@@ -19448,132 +19433,6 @@ async function generate_improvements_dashboard(args) {
 Covers ${allMetas.length} run${allMetas.length !== 1 ? "s" : ""}: ` + allMetas.map((m) => `Run ${String(m.runNumber).padStart(4, "0")} (${Math.round((m.aggregatePassRate ?? 0) * 100)}%)`).join(" \u2192 ")
   );
 }
-async function generate_rubric(args) {
-  const transcriptIds = strArr(args, "sample_transcript_ids");
-  const sampleSummaries = strArr(args, "sample_summaries");
-  const rubricName = str(args, "rubric_name");
-  const focusAreas = Array.isArray(args.focus_areas) ? args.focus_areas.map(String) : [];
-  if (transcriptIds.length !== sampleSummaries.length) {
-    throw new Error("sample_transcript_ids and sample_summaries must have the same length");
-  }
-  return json({
-    instruction: "NOTE: generate_rubric is deprecated \u2014 use generate_test_case instead, which scopes rubrics to a summary configuration. Based on the provided samples, generate a rubric JSON and call save_test_case with a summary_config_name.",
-    rubric_name: rubricName,
-    focus_areas: focusAreas,
-    sample_count: transcriptIds.length
-  });
-}
-async function save_rubric(args) {
-  const name = str(args, "name");
-  const rawDimensions = Array.isArray(args.dimensions) ? args.dimensions : [];
-  const rubric = {
-    id: v4_default(),
-    name,
-    description: optStr(args, "description") ?? "",
-    dimensions: rawDimensions.map((d) => {
-      const dim = d;
-      return {
-        name: String(dim.name ?? ""),
-        description: String(dim.description ?? ""),
-        weight: Number(dim.weight ?? 3),
-        passCriteria: String(dim.pass_criteria ?? ""),
-        failCriteria: String(dim.fail_criteria ?? "")
-      };
-    }),
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  saveRubric(rubric);
-  return json({
-    id: rubric.id,
-    name: rubric.name,
-    dimensions: rubric.dimensions.length,
-    note: "Saved to legacy storage. Use save_test_case with a summary_config_name for new work."
-  });
-}
-async function list_rubrics(_args) {
-  return json(
-    listRubrics().map((r) => ({
-      id: r.id,
-      name: r.name,
-      description: r.description,
-      dimensions: r.dimensions.map((d) => d.name),
-      createdAt: r.createdAt
-    }))
-  );
-}
-var pendingRuns = /* @__PURE__ */ new Map();
-async function save_test_run(args) {
-  const runId = str(args, "test_run_id");
-  const rawResults = Array.isArray(args.results) ? args.results : [];
-  const suggestedImprovements = optStr(args, "suggested_improvements");
-  const pending = pendingRuns.get(runId);
-  if (!pending) {
-    throw new Error(
-      `No pending test run found with id ${runId}. Use run_test_suite (new) or run_test_suite_legacy.`
-    );
-  }
-  const results = rawResults.map((r) => {
-    const row = r;
-    const tId = String(row.transcript_id ?? "");
-    const stored = getRubric(tId);
-    const rawScores = Array.isArray(row.dimension_scores) ? row.dimension_scores : [];
-    const dimensionScores = rawScores.map((s) => {
-      const sc = s;
-      const dimName = String(sc.dimension ?? "");
-      if (sc.score === null) {
-        return { dimension: dimName, score: null, na: true, passed: true, reasoning: String(sc.reasoning ?? "") };
-      }
-      return {
-        dimension: dimName,
-        passed: Boolean(sc.passed),
-        score: Number(sc.score ?? 0),
-        na: false,
-        reasoning: String(sc.reasoning ?? "")
-      };
-    });
-    const scoredDims = dimensionScores.filter((d) => !d.na);
-    const overallScore = scoredDims.length > 0 ? scoredDims.reduce((sum, d) => sum + d.score, 0) / scoredDims.length : 0;
-    const overallPassed = scoredDims.length === 0 || scoredDims.every((d) => d.passed);
-    return {
-      transcriptId: tId,
-      transcriptLabel: stored?.name ?? tId,
-      summary: "",
-      dimensionScores,
-      overallPassed,
-      overallScore
-    };
-  });
-  const aggregatePassRate = results.length > 0 ? results.filter((r) => r.overallPassed).length / results.length : 0;
-  const run = {
-    ...pending,
-    results,
-    aggregatePassRate,
-    suggestedImprovements
-  };
-  saveTestRun(run);
-  pendingRuns.delete(runId);
-  return json({
-    success: true,
-    test_run_id: runId,
-    aggregate_pass_rate: `${(aggregatePassRate * 100).toFixed(1)}%`
-  });
-}
-async function list_test_runs(args) {
-  const runs = listTestRuns(optStr(args, "summary_setting_id"));
-  return json(
-    runs.map((r) => ({
-      id: r.id,
-      label: r.label,
-      prompt: r.summarySetting.prompt.slice(0, 100) + (r.summarySetting.prompt.length > 100 ? "..." : ""),
-      rubricId: r.rubricId,
-      transcriptCount: r.transcriptIds.length,
-      passRate: `${(r.aggregatePassRate * 100).toFixed(1)}%`,
-      promptVersion: r.promptVersion,
-      createdAt: r.createdAt,
-      note: "Legacy test run. Use list_eval_runs for new-style results."
-    }))
-  );
-}
 async function get_pipeline_guide(_args) {
   return { content: [{ type: "text", text: FULL_PIPELINE_GUIDE }] };
 }
@@ -19643,13 +19502,7 @@ var toolHandlers = {
   update_copilot_config,
   build_interaction_filter,
   // Pipeline guide
-  get_pipeline_guide,
-  // Legacy (deprecated)
-  generate_rubric,
-  save_rubric,
-  list_rubrics,
-  save_test_run,
-  list_test_runs
+  get_pipeline_guide
 };
 server.setRequestHandler(CallToolRequestSchema, async (request2) => {
   const { name, arguments: args = {} } = request2.params;

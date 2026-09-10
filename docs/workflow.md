@@ -245,17 +245,52 @@ save_test_set(
 )
 ```
 
-Run the full evaluation suite:
+An evaluation run always follows the same four-stage flow:
 
 ```
-run_test_suite(
+[prepare_prompt_test × N]  →  start_eval_run  →  [subagents: submit_eval_scores × N]  →  finalize_eval_run
+     (prompt_test mode only)
+```
+
+There are two modes. Use `mode="existing"` to score the summaries already stored on each transcript, which measures current production quality and makes no API calls. Use `mode="prompt_test"` to generate fresh summaries from a candidate prompt — this is the only mode that counts as evidence for deploying a prompt change.
+
+For `prompt_test`, build the preview cache first. Generating every preview inside `start_eval_run` exceeds the MCP client timeout on test sets larger than about 10 transcripts:
+
+```
+prepare_prompt_test(
   summary_config_name="Acme_CallSummary",
   test_set_name="Sprint 1",
-  summary_setting_id="aaaaaaaa-..."
+  version_number=1,
+  batch_size=8          ← do not exceed 10
 )
 ```
 
-This generates a preview summary for each transcript using the current prompt and evaluates it against every test case. Results are saved to `eval-runs/Sprint 1/0001/`.
+Repeat that call until it reports complete. Then start the run, which reads from the cache and makes no further API calls:
+
+```
+start_eval_run(
+  summary_config_name="Acme_CallSummary",
+  test_set_name="Sprint 1",
+  mode="prompt_test",
+  version_number=1
+)
+```
+
+`start_eval_run` returns a `run_number` plus `batches` and `test_cases`. Scoring is then delegated to one subagent per batch, each calling `submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)` once per transcript × test case. Scores are decimals from 0 to 1; a dimension whose `applicabilityCondition` is not met for a given transcript is submitted as `score: null` and excluded from aggregation.
+
+Once every batch has reported, close the run:
+
+```
+finalize_eval_run(
+  summary_config_name="Acme_CallSummary",
+  test_set_name="Sprint 1",
+  run_number=1
+)
+```
+
+Results are saved to `eval-runs/Sprint 1/0001/`, and both dashboards are generated automatically — the run dashboard at `eval-runs/Sprint 1/0001/dashboard.html` and the rolling improvements dashboard at `eval-runs/Sprint 1/improvements.html`. Call `generate_eval_run_dashboard` or `generate_improvements_dashboard` only to force a regeneration; never write dashboard HTML by hand.
+
+Always follow `finalize_eval_run` with `save_improvement_recommendations(...)`. Its response carries the prompt under test and a per-dimension failure analysis, which is the raw material for the recommendations write-up.
 
 View historical runs:
 
@@ -263,35 +298,55 @@ View historical runs:
 list_eval_runs(summary_config_name="Acme_CallSummary")
 ```
 
-Generate a visual HTML dashboard:
-
-```
-generate_dashboard(summary_config_name="Acme_CallSummary")
-```
-
 ---
 
 ## Step 7 — Iterate on the Prompt
 
-When you want to try a revised prompt:
+A revised prompt is tested locally as a candidate before it ever reaches Genesys.
 
-1. Snapshot the current version first:
+1. Save the revision as a candidate version. Passing `prompt` instead of `summary_setting_id` snapshots the text locally without touching Genesys, and `status` defaults to `candidate`. The call returns the `version` number you will test against:
    ```
-   save_version(summary_config_name="Acme_CallSummary", summary_setting_id="...", notes="Before adding fallback rules")
+   save_version(
+     summary_config_name="Acme_CallSummary",
+     prompt="<revised prompt>",
+     status="candidate",
+     notes="Adds fallback rules for unverified identity"
+   )
    ```
 
-2. Update the prompt in Genesys:
-   ```
-   update_summary_setting(summary_setting_id="...", prompt="<revised prompt>")
-   ```
+   A candidate that needs a `changes` evidence trail — linking each edit to the eval run that justified it — has to be written to `version-history/` directly, since `save_version` doesn't author that array.
 
-3. Re-run the test suite and compare results against previous eval runs.
+2. Evaluate it with `mode="prompt_test"` and that `version_number`, following the flow in step 6. The prompt is loaded from the version file, so there is no need to paste it again.
+
+3. Compare the resulting run against previous eval runs before deciding anything.
 
 ---
 
 ## Step 8 — Publish
 
-Once satisfied with results, the prompt is already live in Genesys (it was updated in step 7). Version history is stored locally under `version-history/` for rollback reference.
+Nothing has been pushed to Genesys yet — steps 6 and 7 are entirely local. Publishing is a deliberate, separate act, and it requires that the candidate showed measurable improvement under `prompt_test` and that a human explicitly approved it.
+
+1. Snapshot the still-live prompt first, so you have a rollback point. Passing `summary_setting_id` reads the current setting back from Genesys and records it as `deployed`:
+   ```
+   save_version(summary_config_name="Acme_CallSummary", summary_setting_id="aaaaaaaa-...")
+   ```
+
+2. Push the approved prompt. Either identify the setting directly with `summary_setting_id`, or pass the config name and let it resolve the ID from that config's interaction filter:
+   ```
+   update_summary_setting(summary_config_name="Acme_CallSummary", prompt="<approved prompt>")
+   ```
+
+3. Record the newly live state:
+   ```
+   save_version(
+     summary_config_name="Acme_CallSummary",
+     prompt="<approved prompt>",
+     status="deployed",
+     notes="Deployed to production"
+   )
+   ```
+
+Never call `update_summary_setting` without prompt_test evidence and explicit approval. Note that it is deliberately not pre-approved, so it will always ask before writing to Genesys.
 
 ---
 
@@ -337,10 +392,15 @@ Once satisfied with results, the prompt is already live in Genesys (it was updat
 | `save_test_case(...)` | Save a test case |
 | `list_test_cases(...)` | List saved test cases |
 | `save_test_set(...)` | Assemble a named playlist of test cases + transcripts |
-| `run_test_suite(...)` | Run evaluation against a test set |
+| `prepare_prompt_test(...)` | Build the preview cache before a prompt_test run (batch_size 8) |
+| `start_eval_run(...)` | Begin an eval run; returns run_number, batches, test cases |
+| `submit_eval_scores(...)` | Submit scores for one transcript × test case (called per batch) |
+| `finalize_eval_run(...)` | Close the run, aggregate results, auto-generate both dashboards |
+| `save_improvement_recommendations(...)` | Persist the post-run improvements write-up |
 | `list_eval_runs(...)` | View historical evaluation run results |
-| `generate_dashboard(...)` | Render a visual HTML dashboard |
-| `save_version(...)` | Snapshot current prompt to version history |
+| `generate_eval_run_dashboard(...)` | Force-regenerate a single run's dashboard |
+| `generate_improvements_dashboard(...)` | Force-regenerate the rolling improvements dashboard |
+| `save_version(...)` | Snapshot a prompt to version history, as `candidate` or `deployed` |
 | `list_versions(...)` | View prompt version history |
 | `update_summary_setting(...)` | Update the prompt in Genesys |
 | `get_copilot_config(...)` | Fetch Agent Copilot configuration |

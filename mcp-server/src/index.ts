@@ -98,13 +98,6 @@ const toolHandlers: Record<string, HandlerFn> = {
 
   // Pipeline guide
   get_pipeline_guide: handlers.get_pipeline_guide,
-
-  // Legacy (deprecated)
-  generate_rubric: handlers.generate_rubric,
-  save_rubric: handlers.save_rubric,
-  list_rubrics: handlers.list_rubrics,
-  save_test_run: handlers.save_test_run,
-  list_test_runs: handlers.list_test_runs,
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {

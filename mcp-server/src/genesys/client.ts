@@ -36,7 +36,7 @@ async function request<T>(
   const config = getGenesysConfig();
   if (!config) {
     throw new Error(
-      "Genesys credentials not configured. Call configure_credentials first, or set GENESYS_CLIENT_ID, GENESYS_CLIENT_SECRET, GENESYS_REGION environment variables.",
+      "Genesys credentials not configured. Call login to authenticate, or set GENESYS_CLIENT_ID, GENESYS_CLIENT_SECRET, GENESYS_REGION environment variables for machine-to-machine auth.",
     );
   }
 

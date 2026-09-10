@@ -29,7 +29,7 @@ This decision comes first, because it determines which projects the tooling is a
 | Active in | One project only | Every workspace you open |
 | Mechanism | `.cursor/` files in the target project | Cursor plugin |
 
-The server exposes 47 Genesys tools and an always-applied pipeline rule. At user scope, those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 488 lines of guidance injected into every request.
+The server exposes 42 Genesys tools and an always-applied pipeline rule. At user scope, those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 488 lines of guidance injected into every request.
 
 Cursor documents **no way to disable a user-scoped plugin for individual projects**, so this is decided at install time rather than adjusted later. Note also that the plugin scope picker ("Install and choose a project or user scope") is documented only for **marketplace** installs — the local-directory install path is inherently user-global.
 
@@ -88,7 +88,7 @@ Because you opened the project folder back in step 1, there is nothing to re-ope
 
 Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on.
 
-It should then report **47 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
+It should then report **42 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
 
 ### 6. Start the pipeline
 
@@ -245,7 +245,7 @@ This keeps user data outside the install location under both options, so re-depl
 
 ## Verify
 
-1. Check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 47 tools.
+1. Check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 42 tools.
 2. Open a new chat in the project and say **"begin"**.
 
 The agent asks whether you already have a Genesys OAuth client:

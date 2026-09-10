@@ -41,9 +41,10 @@ export const TOOL_DEFINITIONS: Tool[] = [
   {
     name: "configure_credentials",
     description:
-      "Store Genesys Cloud OAuth2 credentials. client_secret is only required for machine-to-machine (client credentials) auth. " +
-      "For user login (recommended), set client_id and region, then call the login tool. " +
-      "If login fails with an incorrect URL, also provide login_url — copy it from your OAuth client's Authorization URL in Genesys Admin (Admin → Integrations → OAuth → your client).",
+      "ADVANCED ESCAPE HATCH — do not use for normal sign-in. `login` is the only supported way to authenticate a user; " +
+      "it collects the client ID and region itself, so calling this first is never required and usually sends the user down the wrong path. " +
+      "Use this tool only for machine-to-machine (client credentials) auth, which needs a client_secret, " +
+      "or to override login_url when `login` derives the wrong region host.",
     inputSchema: {
       type: "object",
       properties: {
@@ -302,15 +303,23 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "  1. Confirm the candidate version has been evaluated (start_eval_run → finalize_eval_run) and results reviewed.\n" +
       "  2. Call save_version first to snapshot the currently live prompt — this creates a rollback point.\n" +
       "  3. Only then call update_summary_setting with the approved prompt.\n" +
-      "  4. After deploying, update the candidate version file in version-history/ from status='candidate' to status='deployed'.",
+      "  4. After deploying, call save_version with status='deployed' to record the newly live state.",
     inputSchema: {
       type: "object",
       properties: {
-        summary_setting_id: { type: "string", description: "The summary setting ID to update" },
+        summary_config_name: {
+          type: "string",
+          description:
+            "Name of the summary configuration. The setting ID is resolved from its interaction filter. Use this OR summary_setting_id.",
+        },
+        summary_setting_id: {
+          type: "string",
+          description: "The summary setting ID to update, if you already have it.",
+        },
         prompt: { type: "string", description: "The new prompt text" },
         name: { type: "string", description: "Optional new name" },
       },
-      required: ["summary_setting_id", "prompt"],
+      required: ["prompt"],
     },
   },
 
@@ -811,14 +820,14 @@ export const TOOL_DEFINITIONS: Tool[] = [
   {
     name: "save_version",
     description:
-      "Snapshot the CURRENTLY LIVE Genesys summary configuration to version-history/summary-configuration-N.json. " +
-      "Call this immediately BEFORE calling update_summary_setting to preserve the current live state.\n\n" +
-      "IMPORTANT — this tool only captures what is live in Genesys right now. " +
-      "It does NOT create local candidate (draft) versions. " +
-      "To author a new candidate version for testing, write the JSON file directly to version-history/ " +
-      "with status='candidate' and a changes[] array — do NOT use this tool for that.\n\n" +
-      "The snapshot written by this tool should be treated as status='deployed'. " +
-      "After writing, the version number increments automatically.",
+      "Snapshot a summary configuration to version-history/summary-configuration-N.json. " +
+      "Call this immediately BEFORE update_summary_setting to preserve the current live state as a rollback point, " +
+      "and again AFTER deploying with status='deployed' to record the newly live prompt.\n\n" +
+      "Passing summary_setting_id fetches and snapshots what is live in Genesys right now (defaults to status='deployed'). " +
+      "Passing prompt snapshots that text as a local draft instead (defaults to status='candidate').\n\n" +
+      "NOTE — a candidate that needs a changes[] evidence trail (linking each edit to the eval run that " +
+      "justified it) must still be written to version-history/ directly; this tool does not author that array. " +
+      "The version number increments automatically.",
     inputSchema: {
       type: "object",
       properties: {
@@ -835,6 +844,13 @@ export const TOOL_DEFINITIONS: Tool[] = [
           description: "Prompt text to snapshot directly (when summary_setting_id is not provided)",
         },
         language: { type: "string", description: "Language code (used when snapshotting a raw prompt)" },
+        status: {
+          type: "string",
+          enum: ["candidate", "deployed"],
+          description:
+            "'deployed' — was live in Genesys at snapshot time. 'candidate' — a local draft not yet pushed. " +
+            "Defaults to 'deployed' when summary_setting_id is given, 'candidate' when only prompt is given.",
+        },
         notes: {
           type: "string",
           description: "Optional notes describing this version (e.g. 'Before adding edge-case handling')",
@@ -1091,67 +1107,4 @@ export const TOOL_DEFINITIONS: Tool[] = [
     },
   },
 
-  // ─── Legacy (deprecated) ─────────────────────────────────────────────────────
-  {
-    name: "generate_rubric",
-    description:
-      "DEPRECATED — use generate_test_case instead. " +
-      "Returns a migration notice pointing to the new lifecycle-scoped tools.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        sample_transcript_ids: { type: "array", items: { type: "string" } },
-        sample_summaries: { type: "array", items: { type: "string" } },
-        rubric_name: { type: "string" },
-        focus_areas: { type: "array", items: { type: "string" } },
-      },
-      required: ["sample_transcript_ids", "sample_summaries", "rubric_name"],
-    },
-  },
-  {
-    name: "save_rubric",
-    description:
-      "DEPRECATED — use save_test_case with a summary_config_name instead. " +
-      "Saves to legacy flat storage for backward compatibility.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        description: { type: "string" },
-        dimensions: { type: "array", items: { type: "object" } },
-      },
-      required: ["name", "dimensions"],
-    },
-  },
-  {
-    name: "list_rubrics",
-    description:
-      "DEPRECATED — use list_test_cases with a summary_config_name instead. Lists legacy rubrics from flat storage.",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "save_test_run",
-    description:
-      "DEPRECATED — use save_eval_run instead. Saves legacy test runs to flat storage.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        test_run_id: { type: "string" },
-        results: { type: "array", items: { type: "object" } },
-        suggested_improvements: { type: "string" },
-      },
-      required: ["test_run_id", "results"],
-    },
-  },
-  {
-    name: "list_test_runs",
-    description:
-      "DEPRECATED — use list_eval_runs with a summary_config_name instead. Lists legacy test runs from flat storage.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        summary_setting_id: { type: "string" },
-      },
-    },
-  },
 ];

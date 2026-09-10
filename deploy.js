@@ -13,7 +13,7 @@
  * WHY THIS EXISTS
  * ---------------
  * Installing as a Cursor plugin puts the server at USER scope, which makes all
- * 47 tools and the always-applied pipeline rule active in every workspace you
+ * 42 tools and the always-applied pipeline rule active in every workspace you
  * open. For a tool this specialised that is unwanted: unrelated projects get
  * Genesys tooling in scope and ~488 lines of guidance injected per request.
  *
@@ -332,7 +332,7 @@ console.log(`
          Open ${bold('Customize')} in the sidebar → ${bold('MCPs')} → toggle
          "${SERVER_KEY}" ${bold('on')}
 
-       It should then report ${bold('47 tools')}. If the toggle is missing entirely,
+       It should then report ${bold('42 tools')}. If the toggle is missing entirely,
        the config was not found — check step 1 opened the right folder.
 
     4. Start a new chat and just say ${bold('"begin"')}. The agent will check

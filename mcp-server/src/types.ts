@@ -334,6 +334,17 @@ export interface VersionSnapshot {
   setting: SummarySetting;
   notes?: string;
   snapshotAt: string;
+  /**
+   * Evidence trail on hand-authored candidates: which eval run exposed each issue
+   * and why the change addresses it. Written directly to the version file, not by
+   * save_version.
+   */
+  changes?: Array<{
+    change: string;
+    affectedDimension?: string;
+    runEvidence?: string;
+    reason?: string;
+  }>;
 }
 
 // ─── S3 transcript format ─────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ The MCP server supports two authentication modes:
 | **User login** (recommended) | Authorization Code + PKCE | Required for preview summary generation (delivers results via user-scoped WebSocket notifications) |
 | **Client credentials** | Client Credentials | Machine-to-machine calls; does **not** support preview summaries |
 
-For most workflows — especially `generate_preview_summary` and `run_test_suite` — you need the **user login** flow. Set up your OAuth client to support both so you have fallback access.
+For most workflows — especially `generate_preview_summary` and prompt_test eval runs — you need the **user login** flow. Set up your OAuth client to support both so you have fallback access.
 
 ---
 

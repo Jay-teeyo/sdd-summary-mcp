@@ -215,7 +215,7 @@ For each category in `requirements.md`:
 
 ## 8. Test Sets
 
-A test set is a named collection of test cases and transcripts. It defines what gets evaluated when `run_test_suite` is called.
+A test set is a named collection of test cases and transcripts. It defines what gets evaluated when an eval run is started.
 
 ### 8.1 File Location
 

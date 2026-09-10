@@ -17,7 +17,7 @@ This server is not configured by hand. Two options, both driven from the reposit
 
 Both run the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`. There is no dependency install or build step on the consuming machine.
 
-Project scope is recommended because this server exposes 47 Genesys-specific tools plus an always-applied rule; at user scope those load into unrelated projects, and Cursor documents no way to disable a user-scoped plugin per project.
+Project scope is recommended because this server exposes 42 Genesys-specific tools plus an always-applied rule; at user scope those load into unrelated projects, and Cursor documents no way to disable a user-scoped plugin per project.
 
 ### Prerequisites
 
