@@ -26,34 +26,47 @@ Everything happens inside Cursor, starting from an empty project folder.
 
 **1. Create and open your project folder**
 
-In Cursor, click **Open...** on the welcome screen (or **File → Open…**, `⌘O`). In the dialog, click **New Folder**, name it — say `my-summary-project` — then create and open it.
+In Cursor, go to **File → Open Folder**. In the dialog, click **New Folder**, name it — say `my-summary-project` — then create and open it.
 
 Cursor now has that folder as your workspace root, which is exactly where the tooling needs to land.
 
 **2. Open the built-in terminal**
 
-`` Ctrl+` ``. It starts in the workspace root, so no `cd` is needed.
+From the menu bar: **View → Terminal**.
 
-**3. Clone and deploy**
+It opens in the workspace root, so there is no need to change directory.
+
+**3. Clone and deploy — one command**
 
 ```bash
-git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
-cd sdd-summary-mcp
-node deploy.js ..
+git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp && node sdd-summary-mcp/deploy.js
 ```
 
-The `..` points the deploy at your project folder rather than at the clone it lives in.
+Run it from the project root. `deploy.js` deploys into the current directory by default, which is exactly where you want it.
 
-**4. Reload**
+**4. Reload Cursor**
 
-`⌘⇧P` → **Developer: Reload Window**. The correct folder is already open, so there is nothing to re-open.
+**View → Command Palette**, then run **Developer: Reload Window**.
+
+**5. Turn the server on**
+
+This step is manual and easy to miss — **writing the config does not enable the server**, and Cursor has no setting that can pre-enable it.
+
+Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **47 tools**.
+
+If the entry isn't there at all, the config wasn't found — check that step 1 opened the project folder itself and not something above or below it.
+
+**6. Start**
+
+Open a new chat and say **"begin"**. The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
 
 You end up with:
 
 ```
 my-summary-project/            ← your workspace root
 ├── .cursor/
-│   ├── mcp.json               ← server definition, with the pre-approved tool list
+│   ├── mcp.json               ← server definition
+│   ├── permissions.json       ← pre-approved tools, so eval runs don't stall
 │   ├── rules/                 ← pipeline guidance
 │   ├── skills/                ← pipeline skills (when present)
 │   └── sdd-summary/
@@ -62,15 +75,15 @@ my-summary-project/            ← your workspace root
 └── sdd-summary-mcp/           ← this repo, gitignored
 ```
 
-The config uses `${workspaceFolder}` and contains **no absolute paths**, so the project keeps working if it's moved, renamed, or handed to a colleague. If the project already has a `.cursor/mcp.json`, the script merges into it and preserves any other MCP servers.
+The config uses `${workspaceFolder}` and contains **no absolute paths**, so the project keeps working if it's moved, renamed, or handed to a colleague. If the project already has a `.cursor/mcp.json` or `.cursor/permissions.json`, the script merges into them and preserves anything else you had configured.
 
-To update later:
+To update later, from the project root:
 
 ```bash
-cd sdd-summary-mcp && git pull && node deploy.js ..
+cd sdd-summary-mcp && git pull && cd .. && node sdd-summary-mcp/deploy.js
 ```
 
-The vendored bundle is a snapshot, so re-running `deploy.js` is what actually applies a server change.
+The vendored bundle is a snapshot, so re-running `deploy.js` is what actually applies a server change. Reload the window afterwards.
 
 ### Option B — User scope (Cursor plugin)
 
@@ -147,21 +160,20 @@ This URL is the only thing you need — client ID and region are extracted from 
 
 ## First Run
 
-Open your working project in Cursor and ask the agent to log in:
+Open a new chat in your project and say **"begin"**.
+
+You do not need to know the tool names. The agent asks whether you already have a Genesys OAuth client, and:
+
+- **If you do** — it asks for your Authorization URL and logs you in.
+- **If you don't** — it walks you through creating one in the chat, step by step, then logs you in.
+
+It then calls `complete_login()` once your browser confirms, and `smoke_test_auth()` to check all **8/8** scopes before moving on.
+
+If you would rather drive it yourself:
 
 ```
 login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
-```
-
-A browser opens. After it confirms login:
-
-```
 complete_login()
-```
-
-Then verify every scope is active — expect **8/8**:
-
-```
 smoke_test_auth()
 ```
 

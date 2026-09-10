@@ -18,8 +18,14 @@
  * Genesys tooling in scope and ~488 lines of guidance injected per request.
  *
  * Cursor's documented project-scoped mechanisms are `.cursor/mcp.json`,
- * `.cursor/rules/` and `.cursor/skills/`, so this script writes those into one
- * target project and vendors the server bundle alongside them.
+ * `.cursor/permissions.json`, `.cursor/rules/` and `.cursor/skills/`, so this
+ * script writes those into one target project and vendors the server bundle
+ * alongside them.
+ *
+ * Note it cannot ENABLE the server. Cursor exposes no documented setting for
+ * that, so the user must toggle it on once under Customize -> MCPs. The closing
+ * output says so prominently, because a configured-but-disabled server looks
+ * identical to a failed install.
  *
  * WHY VENDOR THE BUNDLE
  * ---------------------
@@ -123,6 +129,13 @@ if (!serverDef) {
 // Cursor expands ${workspaceFolder}, so no absolute path is written.
 serverDef.args = ['${workspaceFolder}/' + path.posix.join('.cursor', 'sdd-summary', BUNDLE_NAME)];
 
+// mcp.json carries the pre-approved tool list under `alwaysAllow` as a single
+// source of truth, but that key is not part of Cursor's schema. Lift it out here
+// and write it to permissions.json in step 3 instead. It must be removed before
+// the config is written, so the deployed file claims nothing Cursor won't honour.
+const allowTools = Array.isArray(serverDef.alwaysAllow) ? serverDef.alwaysAllow : [];
+delete serverDef.alwaysAllow;
+
 const targetMcpPath = path.join(target, '.cursor', 'mcp.json');
 let targetCfg = { mcpServers: {} };
 let merged = false;
@@ -156,7 +169,47 @@ if (merged) {
   ok('.cursor/mcp.json written');
 }
 
-// ─── 3. Copy rules ────────────────────────────────────────────────────────────
+// ─── 3. Pre-approve tools via .cursor/permissions.json ────────────────────────
+// `alwaysAllow` inside mcp.json is NOT part of Cursor's documented schema and is
+// ignored. `permissions.json` -> `mcpAllowlist` is the documented mechanism, so
+// the tool list in mcp.json is treated as our source of truth and translated to
+// the `server:tool` form Cursor actually reads.
+//
+// This matters for eval runs: a full suite issues hundreds of
+// submit_eval_scores calls, and without pre-approval each one prompts.
+const wantedEntries = allowTools.map((t) => `${SERVER_KEY}:${t}`);
+
+if (wantedEntries.length) {
+  const permPath = path.join(target, '.cursor', 'permissions.json');
+  let perms = {};
+  let existingEntries = [];
+
+  if (fs.existsSync(permPath)) {
+    try {
+      perms = JSON.parse(fs.readFileSync(permPath, 'utf8'));
+    } catch (e) {
+      err(`Existing .cursor/permissions.json is not valid JSON: ${e.message}`);
+      console.log('    Fix or remove it, then re-run.\n');
+      process.exit(1);
+    }
+    existingEntries = Array.isArray(perms.mcpAllowlist) ? perms.mcpAllowlist : [];
+  }
+
+  // Preserve unrelated entries and any other keys (terminalAllowlist, autoRun).
+  const foreign = existingEntries.filter(
+    (e) => typeof e !== 'string' || !e.toLowerCase().startsWith(`${SERVER_KEY}:`),
+  );
+  perms.mcpAllowlist = [...foreign, ...wantedEntries];
+
+  fs.mkdirSync(path.dirname(permPath), { recursive: true });
+  fs.writeFileSync(permPath, JSON.stringify(perms, null, 2) + '\n');
+  ok(`.cursor/permissions.json written (${wantedEntries.length} tools pre-approved)`);
+  if (foreign.length) {
+    ok(`Preserved ${foreign.length} unrelated allowlist entr(ies)`);
+  }
+}
+
+// ─── 4. Copy rules ────────────────────────────────────────────────────────────
 function copyTree(src, dest) {
   let count = 0;
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
@@ -180,14 +233,14 @@ if (fs.existsSync(SOURCE_RULES)) {
   ok(`Rules copied (${copyTree(SOURCE_RULES, dest)} file(s)) → .cursor/rules/`);
 }
 
-// ─── 4. Copy skills (once authored) ───────────────────────────────────────────
+// ─── 5. Copy skills (once authored) ───────────────────────────────────────────
 if (fs.existsSync(SOURCE_SKILLS)) {
   const dest = path.join(target, '.cursor', 'skills');
   fs.mkdirSync(dest, { recursive: true });
   ok(`Skills copied (${copyTree(SOURCE_SKILLS, dest)} file(s)) → .cursor/skills/`);
 }
 
-// ─── 5. Protect generated data from being committed ───────────────────────────
+// ─── 6. Protect generated data from being committed ───────────────────────────
 // Done automatically rather than merely advised: these directories hold OAuth
 // tokens and real customer transcripts, so a missed manual step means leaking
 // credentials and PII into a repo. Appends only what is absent, and never
@@ -270,12 +323,20 @@ console.log(`
         ? `\n       ${yellow('Not')} ${path.basename(ROOT)}/ — Cursor only reads .cursor/mcp.json\n       from the workspace root.`
         : ''
     }
-    2. Cmd+Shift+P → "Developer: Reload Window".
-    3. In a new chat, log in:
-         login(authorization_url="<Authorization URL from Genesys Admin →
-                                   IT and Integrations → OAuth → your client>")
-    4. After the browser confirms: complete_login()
-    5. Verify all 8 scopes: smoke_test_auth()
+    2. Reload Cursor:  View menu → Command Palette → "Developer: Reload Window"
+
+    3. ${bold('Turn the server on — this is a manual step.')}
+       ${yellow('Writing the config does not enable the server.')} Cursor has no
+       setting to pre-enable it, so it must be switched on by hand once:
+
+         Open ${bold('Customize')} in the sidebar → ${bold('MCPs')} → toggle
+         "${SERVER_KEY}" ${bold('on')}
+
+       It should then report ${bold('47 tools')}. If the toggle is missing entirely,
+       the config was not found — check step 1 opened the right folder.
+
+    4. Start a new chat and just say ${bold('"begin"')}. The agent will check
+       whether your Genesys OAuth client exists and walk you through it if not.
 
   Re-run this script after any server change to refresh the vendored copy.
 `);

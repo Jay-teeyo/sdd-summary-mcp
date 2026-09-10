@@ -25,10 +25,28 @@ Always run steps 3 and 4 together — 3 fetches transcripts, 4 enriches them wit
 
 ## Step 1 — Authentication
 
-**First login** (paste the full Authorization URL from Genesys Admin → IT and Integrations → OAuth → your client → "Authorization URL" field at the bottom):
+### On a first run, ASK before explaining
+
+If no credentials are stored yet, do **not** start reciting setup instructions. Ask one question and wait for the answer:
+
+> "Do you already have a Genesys Cloud OAuth client set up for this?"
+
+**If yes** — ask for the Authorization URL (Genesys Admin → IT and Integrations → OAuth → open the client → bottom of the page → "Authorization URL" field), then:
 ```
 login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
 ```
+
+**If no** — walk them through creating it, one step at a time, confirming each before moving on. Do not paste the whole thing at once.
+
+1. **Create the client** — Genesys Admin → Integrations → OAuth → Add Client
+   - App Name: anything (e.g. `SDD Summary MCP`)
+   - Grant Types: **Code Authorization**
+   - Redirect URI: `http://localhost:8787/callback` — must match exactly
+   - No client secret needed; this is Authorization Code + PKCE.
+2. **Add all 8 scopes** under the Scope tab: `users`, `ai-studio`, `analytics`, `conversations`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`. Add every one now — a missing scope fails later in non-obvious ways.
+3. **Save, reopen the client, copy the Authorization URL** from the bottom of the page, then call `login(authorization_url="...")`.
+
+That URL is the only input needed — client ID and region are parsed from it.
 
 **All subsequent logins** — the URL is stored, no argument needed:
 ```

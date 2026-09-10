@@ -43,56 +43,64 @@ The order matters. Opening the folder *first* means Cursor's workspace root is a
 
 ### 1. Create and open the project folder in Cursor
 
-On the Cursor welcome screen, click **Open...** — or use **File → Open…** (`⌘O`) if a project is already open.
+From the menu bar: **File → Open Folder**.
 
-In the file dialog:
+In the dialog:
 
 1. Navigate to wherever you keep your work.
-2. Click **New Folder** (bottom-left of the macOS dialog).
+2. Click **New Folder**.
 3. Name it — `my-summary-project` works, or anything that suits the job.
-4. Create it, then **Open** it.
+4. Create it, then open it.
 
 Cursor now shows that empty folder in the Explorer. It is your **workspace root**, and it is where all the tooling will be installed.
 
-> On Windows and Linux the welcome button reads **Open Folder...** instead, and the shortcut is `Ctrl+K Ctrl+O`. On Cursor 3+, if you land on the Agents Window rather than the classic welcome screen, use the **File** menu.
-
 ### 2. Open the built-in terminal
 
-Press `` Ctrl+` `` (control plus backtick — not `⌘`).
+From the menu bar: **View → Terminal**.
 
-The integrated terminal starts in the workspace root, so you are already in the right directory. If you have customised `terminal.integrated.cwd`, confirm with `pwd` before continuing.
+The terminal opens in the workspace root, so you are already in the right directory. If you have customised `terminal.integrated.cwd`, confirm with `pwd` before continuing.
 
-### 3. Clone this repo into the project
+### 3. Clone and deploy
 
-```bash
-git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
-```
-
-Cloning *inside* the project keeps everything in one place: the deployed tooling and the server it came from travel together, and re-deploying later is a two-word command rather than a hunt for wherever the repo was put.
-
-The explicit `sdd-summary-mcp` target is the default folder name anyway, but naming it keeps the layout below accurate if the repo is ever renamed.
-
-### 4. Deploy into the project
+One command, run from the project root:
 
 ```bash
-cd sdd-summary-mcp
-node deploy.js ..
+git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp && node sdd-summary-mcp/deploy.js
 ```
 
-The `..` is the target — your project folder. `deploy.js` takes the target path as its only argument and defaults to the current directory, so `..` is what points it at the parent instead of at the clone itself.
+`deploy.js` deploys into the current working directory when given no argument, which is why this works from the project root with no path to pass and no `cd`.
 
-### 5. Reload Cursor
+Cloning *inside* the project keeps everything in one place: the deployed tooling and the server it came from travel together, and re-deploying later doesn't require hunting for wherever the repo was put.
 
-`⌘⇧P` → **Developer: Reload Window**.
+> If you prefer to run it from inside the clone, pass the target explicitly:
+> `cd sdd-summary-mcp && node deploy.js ..` — the `..` is what points it at the
+> project rather than at the clone itself.
+
+### 4. Reload Cursor
+
+**View → Command Palette**, then run **Developer: Reload Window**.
 
 Because you opened the project folder back in step 1, there is nothing to re-open — the workspace root is already correct. Reloading is only needed so Cursor picks up the newly written `.cursor/mcp.json`.
+
+### 5. Enable the server — manual step
+
+**Reloading does not enable the server.** The config is now in place, but Cursor treats "configured" and "active" as separate things, and there is no documented setting that can pre-enable a server. It has to be switched on by hand, once per project.
+
+Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on.
+
+It should then report **47 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
+
+### 6. Start the pipeline
+
+Open a new chat and say **"begin"**. The agent asks whether you already have a Genesys OAuth client, and only walks you through creating one if you don't. See [First Run](#verify) below.
 
 ### Resulting layout
 
 ```
 my-summary-project/            ← Cursor workspace root
 ├── .cursor/
-│   ├── mcp.json               ← server definition + pre-approved tool list
+│   ├── mcp.json               ← server definition
+│   ├── permissions.json       ← pre-approved tool list (mcpAllowlist)
 │   ├── rules/                 ← pipeline guidance
 │   ├── skills/                ← pipeline skills (when present in the repo)
 │   └── sdd-summary/
@@ -178,26 +186,47 @@ Both options register the same three components from the same sources — only t
 
 | Component | Source in repo | Effect |
 |---|---|---|
-| MCP server | `mcp.json` → the bundled server | Registered on reload |
+| MCP server | `mcp.json` → the bundled server | Registered on reload, then enabled manually |
 | Pipeline guidance | `rules/sdd-summary-pipeline.mdc` | Injected into agent sessions |
-| Pre-approved tools | `alwaysAllow` in `mcp.json` | Suppresses approval prompts so eval runs are not interrupted |
+| Pre-approved tools | `alwaysAllow` list in `mcp.json` | Translated into `.cursor/permissions.json` at deploy time |
 
 | | Project scope | User scope |
 |---|---|---|
 | Server path | `${workspaceFolder}/.cursor/sdd-summary/…` | `${CURSOR_PLUGIN_ROOT}/mcp-server/bundle/…` |
 | Config location | `.cursor/mcp.json` in the project | Managed by Cursor |
 | Guidance location | `.cursor/rules/` in the project | `rules/` in the plugin |
+| Tool pre-approval | `.cursor/permissions.json` | Not available — see below |
 
-`mcp.json` at the repo root is the single source of truth for the server definition and the pre-approved tool list. `deploy.js` reads it and rewrites only the server path, so the two options cannot drift apart.
+`mcp.json` at the repo root is the single source of truth for the server definition and the tool list. `deploy.js` reads it and rewrites only the server path, so the two options cannot drift apart.
 
 ### Approval suppression
 
-`alwaysAllow` matters more than it sounds. A full test suite issues hundreds of `submit_eval_scores` calls; without pre-approval, Cursor prompts on each one and the run stalls.
+This matters more than it sounds. A full test suite issues hundreds of `submit_eval_scores` calls; without pre-approval, Cursor prompts on each one and the run stalls.
+
+The mechanism is `.cursor/permissions.json`:
+
+```json
+{
+  "mcpAllowlist": ["sdd-summary:submit_eval_scores", "..."]
+}
+```
 
 Two tools are deliberately **excluded** because they write to live Genesys and must always be confirmed explicitly:
 
 - `update_summary_setting`
 - `update_copilot_config`
+
+> **`alwaysAllow` inside `mcp.json` does not work.** It is not part of Cursor's
+> documented schema and is ignored. This repo keeps the list under that key
+> purely as the source of truth, and `deploy.js` strips it from the deployed
+> config and re-emits it as `permissions.json` entries in the documented
+> `server:tool` form. A user-scope plugin install therefore gets **no** tool
+> pre-approval, which is another reason to prefer project scope.
+
+Two caveats on `permissions.json`:
+
+- It only takes effect when a Run Mode is active in Cursor Settings.
+- When present, it **replaces** the in-app MCP allowlist for this workspace rather than merging with it. `deploy.js` preserves any non-`sdd-summary` entries already in the file, but entries you added through the Cursor UI are not migrated automatically.
 
 ---
 
@@ -216,30 +245,33 @@ This keeps user data outside the install location under both options, so re-depl
 
 ## Verify
 
-1. Check **Customize → MCP** lists `sdd-summary` as connected, with 47 tools.
-2. Open a new chat in the project.
-3. Ask the agent to log in:
+1. Check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 47 tools.
+2. Open a new chat in the project and say **"begin"**.
 
-   ```
-   login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
-   ```
+The agent asks whether you already have a Genesys OAuth client:
 
-   A browser opens; after it confirms, call `complete_login()`.
+- **Yes** — it asks for your Authorization URL, then handles `login()`, `complete_login()` and `smoke_test_auth()`.
+- **No** — it walks you through creating the client in the chat first (grant type, redirect URI, all 8 scopes), then logs you in.
 
-4. Confirm all scopes are active — expect **8/8**:
+Expect **8/8 scopes** from `smoke_test_auth()`. If you would rather drive it manually:
 
-   ```
-   smoke_test_auth()
-   ```
+```
+login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
+complete_login()
+smoke_test_auth()
+```
 
 On later sessions `login()` takes no argument, since the Authorization URL is stored.
 
 ### If the server does not appear
 
+**First: is it toggled on?** A freshly deployed server is listed but inactive until you enable it under **Customize → MCPs**. This is the most common cause and it looks exactly like a broken install.
+
+Then:
+
 Common to both options:
 
 - Confirm `node --version` is 18+ and that `node` is on the PATH Cursor sees.
-- Check **Customize → MCP** and confirm `sdd-summary` is listed and toggled on.
 - Run the bundle directly to check it is intact. It should print
   `SDD Summary MCP server running (stdio)` and wait; Ctrl+C to exit.
 
@@ -256,8 +288,9 @@ Project scope specifically:
 - Confirm `.cursor/mcp.json` sits at the **top level of the Explorer**, beside
   `sdd-summary-mcp/`. If it is nested inside `sdd-summary-mcp/` instead, the deploy ran
   with the wrong target — see the next point.
-- If you ran `node deploy.js` without `..`, it deployed into the clone rather than the
-  project. Delete `sdd-summary-mcp/.cursor/`, then re-run `node deploy.js ..`.
+- If you ran `node deploy.js` from *inside* the clone without `..`, it deployed into the
+  clone rather than the project. Delete `sdd-summary-mcp/.cursor/`, then re-run from the
+  project root: `node sdd-summary-mcp/deploy.js`.
 - Confirm the workspace root is the project folder, not the `sdd-summary-mcp/` clone.
   Following the steps above makes this correct by default, but it can drift if you later
   reopen the clone directly from Cursor's recent-projects list.

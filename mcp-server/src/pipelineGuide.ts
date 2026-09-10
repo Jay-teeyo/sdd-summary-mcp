@@ -68,10 +68,28 @@ Run \`smoke_test_auth()\` after login to verify.
 
 ## Step 1 — Authentication
 
-**First login** (paste the full Authorization URL from Genesys Admin → IT and Integrations → OAuth):
+### First run: ask before explaining
+
+If nothing is stored yet, ask one question and wait — do not recite setup steps at
+a user who already has a client:
+
+> "Do you already have a Genesys Cloud OAuth client set up for this?"
+
+**Yes** → ask for the Authorization URL (Genesys Admin → IT and Integrations →
+OAuth → open the client → bottom of the page), then:
 \`\`\`
 login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
 \`\`\`
+
+**No** → walk them through it one step at a time, confirming as you go:
+
+1. Genesys Admin → Integrations → OAuth → Add Client. Grant Type
+   **Code Authorization**, Redirect URI \`http://localhost:8787/callback\`
+   (exact match required). No client secret needed — PKCE.
+2. Scope tab: add all 8 — \`users\`, \`ai-studio\`, \`analytics\`, \`conversations\`,
+   \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`.
+3. Save, reopen, copy the **Authorization URL** from the bottom, then call
+   \`login(authorization_url="...")\`.
 
 **All subsequent logins** — the URL is stored, no argument needed:
 \`\`\`

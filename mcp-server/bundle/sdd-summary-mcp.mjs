@@ -15470,10 +15470,28 @@ Run \`smoke_test_auth()\` after login to verify.
 
 ## Step 1 \u2014 Authentication
 
-**First login** (paste the full Authorization URL from Genesys Admin \u2192 IT and Integrations \u2192 OAuth):
+### First run: ask before explaining
+
+If nothing is stored yet, ask one question and wait \u2014 do not recite setup steps at
+a user who already has a client:
+
+> "Do you already have a Genesys Cloud OAuth client set up for this?"
+
+**Yes** \u2192 ask for the Authorization URL (Genesys Admin \u2192 IT and Integrations \u2192
+OAuth \u2192 open the client \u2192 bottom of the page), then:
 \`\`\`
 login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
 \`\`\`
+
+**No** \u2192 walk them through it one step at a time, confirming as you go:
+
+1. Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 Add Client. Grant Type
+   **Code Authorization**, Redirect URI \`http://localhost:8787/callback\`
+   (exact match required). No client secret needed \u2014 PKCE.
+2. Scope tab: add all 8 \u2014 \`users\`, \`ai-studio\`, \`analytics\`, \`conversations\`,
+   \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`.
+3. Save, reopen, copy the **Authorization URL** from the bottom, then call
+   \`login(authorization_url="...")\`.
 
 **All subsequent logins** \u2014 the URL is stored, no argument needed:
 \`\`\`
@@ -17631,7 +17649,7 @@ your OAuth client page in Genesys Admin \u2192 IT and Integrations \u2192 OAuth 
   }
   if (!config2) {
     return ok(
-      'No Genesys credentials configured.\n\nCall login with the Authorization URL from your OAuth client \u2014 everything needed is in that URL:\n\n  login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=abc123...")\n\nFind it at: Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 your client \u2192 Authorization URL'
+      'No Genesys credentials stored yet \u2014 this is a first run.\n\nDO NOT guess or proceed. Ask the user this question first, and wait:\n\n  "Do you already have a Genesys Cloud OAuth client set up for this?"\n\n\u2500\u2500\u2500 If they say YES \u2500\u2500\u2500\nAsk for the Authorization URL:\n  Genesys Admin \u2192 IT and Integrations \u2192 OAuth \u2192 open the client \u2192\n  scroll to the bottom \u2192 copy the "Authorization URL" field.\nThen call: login(authorization_url="<pasted URL>")\n\n\u2500\u2500\u2500 If they say NO \u2500\u2500\u2500\nWalk them through creating one, one step at a time, confirming as you go.\nDo not paste all of this at once.\n\nStep 1 \u2014 Create the client\n  Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 Add Client\n    App Name:     SDD Summary MCP  (any name works)\n    Grant Types:  Code Authorization   \u2190 must be this one\n    Redirect URI: http://localhost:8787/callback   \u2190 must match exactly\n  No client secret is needed; this uses Authorization Code + PKCE.\n\nStep 2 \u2014 Add all 8 scopes under the Scope tab\n  users, ai-studio, analytics, conversations,\n  speechandtextanalytics, assistants, notifications, routing\n  Add every one now. A missing scope fails later in non-obvious ways \u2014\n  e.g. without `conversations`, voice transcripts work and only\n  messaging transcripts fail, with a 403 that looks unrelated.\n\nStep 3 \u2014 Save, then copy the Authorization URL\n  Reopen the client \u2192 scroll to the bottom \u2192 copy "Authorization URL".\n  It looks like:\n    https://login.{your-region}/oauth/authorize?client_id=abc123...\n\nThen call: login(authorization_url="<pasted URL>")\n\nThat URL is all that is needed \u2014 client ID and region are parsed from it.\nDo not set GENESYS_CLIENT_ID as an environment variable; it shadows the\nstored config and causes logins against the wrong org.'
     );
   }
   const loginBase = config2.loginUrl ?? `https://login.${config2.region}`;

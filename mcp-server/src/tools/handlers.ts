@@ -313,11 +313,42 @@ export async function login(args: Args) {
   }
 
   if (!config) {
+    // Reached on a first run, before any Authorization URL has been stored.
+    // Deliberately instructs the agent to ASK before explaining: most users
+    // already have a client, and walking them through creating one they already
+    // have is both slow and confusing. Only the "no" branch needs the full setup.
     return ok(
-      "No Genesys credentials configured.\n\n" +
-      "Call login with the Authorization URL from your OAuth client — everything needed is in that URL:\n\n" +
-      "  login(authorization_url=\"https://login.{your-region}/oauth/authorize?client_id=abc123...\")\n\n" +
-      "Find it at: Genesys Admin → Integrations → OAuth → your client → Authorization URL",
+      "No Genesys credentials stored yet — this is a first run.\n\n" +
+      "DO NOT guess or proceed. Ask the user this question first, and wait:\n\n" +
+      "  \"Do you already have a Genesys Cloud OAuth client set up for this?\"\n\n" +
+      "─── If they say YES ───\n" +
+      "Ask for the Authorization URL:\n" +
+      "  Genesys Admin → IT and Integrations → OAuth → open the client →\n" +
+      "  scroll to the bottom → copy the \"Authorization URL\" field.\n" +
+      "Then call: login(authorization_url=\"<pasted URL>\")\n\n" +
+      "─── If they say NO ───\n" +
+      "Walk them through creating one, one step at a time, confirming as you go.\n" +
+      "Do not paste all of this at once.\n\n" +
+      "Step 1 — Create the client\n" +
+      "  Genesys Admin → Integrations → OAuth → Add Client\n" +
+      "    App Name:     SDD Summary MCP  (any name works)\n" +
+      "    Grant Types:  Code Authorization   ← must be this one\n" +
+      "    Redirect URI: http://localhost:8787/callback   ← must match exactly\n" +
+      "  No client secret is needed; this uses Authorization Code + PKCE.\n\n" +
+      "Step 2 — Add all 8 scopes under the Scope tab\n" +
+      "  users, ai-studio, analytics, conversations,\n" +
+      "  speechandtextanalytics, assistants, notifications, routing\n" +
+      "  Add every one now. A missing scope fails later in non-obvious ways —\n" +
+      "  e.g. without `conversations`, voice transcripts work and only\n" +
+      "  messaging transcripts fail, with a 403 that looks unrelated.\n\n" +
+      "Step 3 — Save, then copy the Authorization URL\n" +
+      "  Reopen the client → scroll to the bottom → copy \"Authorization URL\".\n" +
+      "  It looks like:\n" +
+      "    https://login.{your-region}/oauth/authorize?client_id=abc123...\n\n" +
+      "Then call: login(authorization_url=\"<pasted URL>\")\n\n" +
+      "That URL is all that is needed — client ID and region are parsed from it.\n" +
+      "Do not set GENESYS_CLIENT_ID as an environment variable; it shadows the\n" +
+      "stored config and causes logins against the wrong org.",
     );
   }
 
