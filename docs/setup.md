@@ -37,22 +37,65 @@ Cursor documents **no way to disable a user-scoped plugin for individual project
 
 ## Option A — Project scope (recommended)
 
-Run from this repo, pointing at the project you want to work in:
+Create your project, clone this repo inside it, and deploy from the clone.
+
+### 1. Create the project folder
 
 ```bash
-node deploy.js /path/to/your/project
+mkdir my-summary-project
+cd my-summary-project
 ```
 
-With no argument it deploys into the current directory.
+This folder is what you will open as your Cursor workspace. Name it whatever suits the work.
 
-### What it writes
+### 2. Clone the repo inside it
 
-| Path in the target project | Contents |
-|---|---|
-| `.cursor/mcp.json` | Server definition including the pre-approved tool list |
-| `.cursor/rules/` | Pipeline guidance |
-| `.cursor/skills/` | Pipeline skills (when present in the repo) |
-| `.cursor/sdd-summary/sdd-summary-mcp.mjs` | The vendored server bundle (~727 KB) |
+```bash
+git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
+```
+
+The explicit `sdd-summary-mcp` target is the default folder name anyway, but naming it keeps the layout below accurate if the repo is ever renamed.
+
+Cloning *inside* the project keeps everything in one place: the deployed tooling and the server it came from travel together, and re-deploying later is a two-word command rather than a hunt for wherever the repo was put.
+
+### 3. Deploy into the project
+
+```bash
+cd sdd-summary-mcp
+node deploy.js ..
+```
+
+The `..` argument is the target — the project folder created in step 1. The script takes the target path as its only argument and defaults to the current directory, so passing `..` is what points it at the parent rather than at the clone itself.
+
+### 4. Open the project in Cursor
+
+Open `my-summary-project` — **not** `sdd-summary-mcp` — then **Cmd+Shift+P → Developer: Reload Window**.
+
+This matters: Cursor reads `.cursor/mcp.json` from the workspace root only. Open the clone by mistake and the server simply will not appear.
+
+### Resulting layout
+
+```
+my-summary-project/            ← Cursor workspace root
+├── .cursor/
+│   ├── mcp.json               ← server definition + pre-approved tool list
+│   ├── rules/                 ← pipeline guidance
+│   ├── skills/                ← pipeline skills (when present in the repo)
+│   └── sdd-summary/
+│       └── sdd-summary-mcp.mjs  ← vendored server bundle (~727 KB)
+├── .gitignore                 ← created or extended by deploy.js
+├── .sdd-summary/              ← created at first login (tokens)
+├── .summaryconfig-lifecycle/  ← created on first fetch (transcripts, evals)
+└── sdd-summary-mcp/           ← this repo, gitignored
+```
+
+### The nested clone is gitignored deliberately
+
+If your project is itself a git repo, a clone inside it would otherwise be committed as an *embedded repository* — dragging the full server source and the 727 KB bundle into your history, and confusing git along the way. `deploy.js` detects that it is running from inside the target and adds the clone's folder name to the project's `.gitignore`.
+
+The comparison is made on resolved real paths, so a symlink above either location cannot hide the nesting.
+
+Only `.cursor/` and `.gitignore` are left for you to commit.
 
 ### Why the bundle is vendored into the project
 
@@ -66,7 +109,13 @@ If the target already has a `.cursor/mcp.json`, the script merges into it: it ad
 
 ### Updating
 
-Re-run `deploy.js` after any server change. The vendored copy is a snapshot, so it does not update on its own.
+```bash
+cd sdd-summary-mcp
+git pull
+node deploy.js ..
+```
+
+The vendored copy is a snapshot, so `git pull` alone changes nothing that Cursor loads — the `deploy.js` re-run is what applies the update. Reload the window afterwards.
 
 ---
 
@@ -181,8 +230,8 @@ Common to both options:
   `SDD Summary MCP server running (stdio)` and wait; Ctrl+C to exit.
 
   ```bash
-  # Project scope
-  node /path/to/your/project/.cursor/sdd-summary/sdd-summary-mcp.mjs
+  # Project scope — run from the project root
+  node .cursor/sdd-summary/sdd-summary-mcp.mjs
 
   # User scope
   node ~/.cursor/plugins/local/sdd-summary/mcp-server/bundle/sdd-summary-mcp.mjs
@@ -190,8 +239,11 @@ Common to both options:
 
 Project scope specifically:
 
-- Confirm you opened the **target project** as the workspace root, not a parent folder.
+- Confirm you opened the **project folder** as the workspace root — not the nested
+  `sdd-summary-mcp/` clone, and not a parent folder. This is the most common mistake.
 - Confirm `.cursor/mcp.json` exists in that project and is valid JSON.
+- If you ran `node deploy.js` without `..`, it deployed into the clone instead of the
+  project. Delete `sdd-summary-mcp/.cursor/` and re-run with `..`.
 
 User scope specifically:
 

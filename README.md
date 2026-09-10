@@ -22,24 +22,48 @@ Choose a scope first, because it determines which projects the tooling is active
 
 ### Option A — Project scope (recommended)
 
-From this repo, deploy into the project you want to work in:
+Create the project you want to work in, clone this repo inside it, and deploy from there:
 
 ```bash
-node deploy.js /path/to/your/project
+# 1. Create your project folder and move into it
+mkdir my-summary-project
+cd my-summary-project
+
+# 2. Clone this repo inside it
+git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
+
+# 3. Deploy into the project — ".." is the project folder you just created
+cd sdd-summary-mcp
+node deploy.js ..
 ```
 
-That writes into the target project:
+You end up with:
 
-| Path | Contents |
-|---|---|
-| `.cursor/mcp.json` | Server definition, with the pre-approved tool list |
-| `.cursor/rules/` | Pipeline guidance |
-| `.cursor/skills/` | Pipeline skills (when present) |
-| `.cursor/sdd-summary/sdd-summary-mcp.mjs` | The vendored server bundle |
+```
+my-summary-project/            ← open THIS as your Cursor workspace
+├── .cursor/
+│   ├── mcp.json               ← server definition, with the pre-approved tool list
+│   ├── rules/                 ← pipeline guidance
+│   ├── skills/                ← pipeline skills (when present)
+│   └── sdd-summary/
+│       └── sdd-summary-mcp.mjs  ← the vendored server bundle
+├── .gitignore                 ← written/extended for you
+└── sdd-summary-mcp/           ← this repo, gitignored
+```
+
+Then open `my-summary-project` in Cursor and run **Developer: Reload Window**.
+
+Open the **project folder**, not `sdd-summary-mcp` — Cursor only reads `.cursor/mcp.json` from the workspace root.
 
 The config uses `${workspaceFolder}` and contains **no absolute paths**, so the project keeps working if it's moved, renamed, or handed to a colleague. If the project already has a `.cursor/mcp.json`, the script merges into it and preserves any other MCP servers.
 
-Re-run `deploy.js` after any server change to refresh the vendored copy.
+To update later:
+
+```bash
+cd sdd-summary-mcp && git pull && node deploy.js ..
+```
+
+The vendored bundle is a snapshot, so re-running `deploy.js` is what actually applies a server change.
 
 ### Option B — User scope (Cursor plugin)
 
@@ -63,7 +87,7 @@ Under both options, working data is written to **the workspace you have open**, 
 - `.summaryconfig-lifecycle/` — transcripts, test cases, eval runs, version history
 - `.sdd-summary/` — credentials and tokens
 
-Both are workspace-relative, so re-deploying or reinstalling never touches your data. Add both to the target project's `.gitignore` — they hold OAuth tokens and customer transcripts.
+Both are workspace-relative, so re-deploying or reinstalling never touches your data. They hold OAuth tokens and customer transcripts, so they must never be committed — `deploy.js` adds them to the project's `.gitignore` for you, along with the nested `sdd-summary-mcp/` clone.
 
 ---
 

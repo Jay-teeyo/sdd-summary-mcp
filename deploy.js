@@ -6,6 +6,10 @@
  *
  * Defaults to the current working directory.
  *
+ * The documented layout clones this repo inside the target project, so the
+ * usual invocation is `node deploy.js ..` from within the clone. That case is
+ * detected explicitly — see the .gitignore step below.
+ *
  * WHY THIS EXISTS
  * ---------------
  * Installing as a Cursor plugin puts the server at USER scope, which makes all
@@ -191,6 +195,26 @@ if (fs.existsSync(SOURCE_SKILLS)) {
 const gitignorePath = path.join(target, '.gitignore');
 const NEEDED = ['.sdd-summary/', '.summaryconfig-lifecycle/'];
 
+// When this repo has been cloned *inside* the target project — a common and
+// convenient layout — it must be ignored too. Otherwise git treats it as an
+// embedded repository and the user ends up committing the whole server source
+// plus the bundle into their own project.
+// Compared via real paths so that a symlink anywhere above either location
+// (macOS /tmp, a symlinked home directory) cannot hide the nesting.
+const realpath = (p) => {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return p;
+  }
+};
+const relSource = path.relative(realpath(target), realpath(ROOT));
+const sourceIsNested =
+  relSource !== '' && !relSource.startsWith('..') && !path.isAbsolute(relSource);
+if (sourceIsNested) {
+  NEEDED.push(relSource.split(path.sep).join('/') + '/');
+}
+
 const existingGitignore = fs.existsSync(gitignorePath)
   ? fs.readFileSync(gitignorePath, 'utf8')
   : null;
@@ -209,13 +233,17 @@ const missing = NEEDED.filter((n) => {
 });
 
 if (missing.length) {
+  const comment = sourceIsNested
+    ? '# SDD Summary — OAuth tokens, customer transcripts (PII), and the nested\n' +
+      '# server clone. None of these belong in your project history.\n'
+    : '# SDD Summary — OAuth tokens and customer transcripts (PII). Never commit.\n';
   const block =
     (existingGitignore === null
       ? ''
       : existingGitignore.endsWith('\n')
         ? '\n'
         : '\n\n') +
-    '# SDD Summary — OAuth tokens and customer transcripts (PII). Never commit.\n' +
+    comment +
     missing.join('\n') +
     '\n';
   fs.appendFileSync(gitignorePath, block);
@@ -237,7 +265,11 @@ console.log(`
   other workspace, because they live under ${target}/.cursor/.
 
   Next steps:
-    1. Open ${bold(path.basename(target))} as your Cursor workspace.
+    1. Open ${bold(path.basename(target))} as your Cursor workspace.${
+      sourceIsNested
+        ? `\n       ${yellow('Not')} ${path.basename(ROOT)}/ — Cursor only reads .cursor/mcp.json\n       from the workspace root.`
+        : ''
+    }
     2. Cmd+Shift+P → "Developer: Reload Window".
     3. In a new chat, log in:
          login(authorization_url="<Authorization URL from Genesys Admin →
