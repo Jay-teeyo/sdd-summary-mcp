@@ -166,7 +166,31 @@ So the gathering sequence is a conversation, not an inference. Work through it i
 
 Where a requirement comes from an artefact that the current prompt does not satisfy, keep it and flag it. That is a known gap, and the test case built from it is *expected* to fail on the current prompt — which is precisely the signal worth having.
 
-### 7.2 Process
+### 7.2 Filtering out the noise
+
+Artefacts are rarely written for this purpose. A business requirements document may cover an entire programme of work, an email thread wanders across topics, and agent notes mix observations with complaints about unrelated systems. **Assume most of the content is irrelevant.**
+
+Only extract requirements that constrain the **interaction summary or agent notes** — what the summary must contain, what it must exclude, how it must be structured, worded or formatted, and how accurate it must be.
+
+The following are out of scope no matter how prominently or firmly they appear:
+
+| Out of scope | Why |
+|---|---|
+| Routing, queueing, IVR, telephony | Governs how the interaction reaches an agent, not what the summary says |
+| CRM / order-system field mappings | Concerns downstream data entry, not summary text |
+| Workforce management, scheduling, adherence | Operational, unrelated to summary content |
+| Agent conduct during the call | Concerns behaviour, not its record — see the exception below |
+| Reporting, dashboards, analytics | Consumes summaries; does not constrain them |
+| SLAs, handle times, productivity targets | Not observable in a summary |
+| Security, access control, retention | Platform policy, not summary content |
+
+**The relevance test:** could this requirement ever be evaluated by reading a generated summary? If it cannot, no test case can validate it, so it does not belong in `requirements.md`. That single question resolves most judgement calls.
+
+**The conduct exception.** Rules about what an agent must *do* often imply something the summary must *record*. "The agent must verify the customer's identity before discussing the claim" is a conduct rule and out of scope as written — but the summary requirement it implies, "the summary must record whether identity verification occurred", is in scope and testable. Capture the recording obligation, never the conduct itself.
+
+**Report your exclusions.** After filtering, tell the user in one line per theme what you set aside and why — not an exhaustive catalogue, just enough that a wrong exclusion is visible. Silent over-filtering is as damaging as silent over-inclusion, and the user is the only one positioned to catch it.
+
+### 7.3 Process
 
 Process:
 1. Read each artefact and identify every implicit or explicit statement about what the summary should or should not do

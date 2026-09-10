@@ -214,10 +214,27 @@ customer, example transcripts, agent notes, existing business requirement docume
 complaint logs, screenshots of bad summaries. Then ask them to add whatever they have and tell you
 when they are done. Wait.
 
-**2. Read whatever landed there.** If the folder has contents, read every file and treat it as a primary
-source of requirements. Artefacts outrank the prompt: they describe what the business actually wants,
-whereas the prompt only describes what it currently asks for. If the folder is still empty, say so
-plainly rather than pretending otherwise.
+**2. Read whatever landed there, and filter hard.** If the folder has contents, read every file and treat
+it as a primary source of requirements. Artefacts outrank the prompt: they describe what the business
+actually wants, whereas the prompt only describes what it currently asks for. If the folder is still
+empty, say so plainly rather than pretending otherwise.
+
+Expect most of an artefact to be noise. A business requirements document may cover an entire programme
+of work, and an email thread wanders. **Only extract requirements that constrain the interaction summary
+or agent notes** — what the summary must contain, exclude, how it must be structured, worded, formatted,
+or how accurate it must be. Everything else is out of scope no matter how firmly it is stated: routing
+and queueing rules, IVR behaviour, telephony, CRM or order-system fields, workforce management, agent
+behaviour on the call itself, reporting and dashboards, SLAs, security and access control.
+
+Judge relevance by whether the requirement could ever be evaluated against a generated summary. If it
+cannot be checked by reading a summary, it does not belong in \`requirements.md\`, because no test case
+could ever validate it. Some rules about agent conduct do translate — "the agent must confirm the
+customer's identity" becomes a summary requirement only insofar as the summary must record whether
+identity was confirmed. Capture the recording obligation, not the conduct.
+
+After filtering, briefly tell the user which themes you excluded as out of scope (a one-line summary per
+theme, not a catalogue). A wrongly excluded requirement is invisible otherwise, and they are the only
+one who can catch it.
 
 **3. Offer the prompt as an additional source — optional.** Ask whether they also want requirements
 derived from the existing summary prompt. This is genuinely optional: useful for capturing current
