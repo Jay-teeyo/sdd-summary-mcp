@@ -348,8 +348,10 @@ export async function login(args: Args) {
       "    Redirect URI: http://localhost:8787/callback   ← must match exactly\n" +
       "  No client secret is needed; this uses Authorization Code + PKCE.\n\n" +
       "Step 2 — Add all 8 scopes under the Scope tab\n" +
-      "  users, ai-studio, analytics, conversations,\n" +
-      "  speechandtextanalytics, assistants, notifications, routing\n" +
+      "  ai-studio, analytics, assistants, conversations, notifications,\n" +
+      "  routing:readonly, speech-and-text-analytics:readonly, users:readonly\n" +
+      "  The three :readonly variants are what the Genesys scope picker offers —\n" +
+      "  this server only reads from those three APIs.\n" +
       "  Add every one now. A missing scope fails later in non-obvious ways —\n" +
       "  e.g. without `conversations`, voice transcripts work and only\n" +
       "  messaging transcripts fail, with a 403 that looks unrelated.\n\n" +
@@ -507,7 +509,9 @@ export async function smoke_test_auth(_args: Args) {
   if (!config) {
     return ok(
       "No Genesys credentials configured.\n" +
-      "Run configure_credentials first, then login, then retry smoke_test_auth.",
+      "Call login(authorization_url=\"...\") first, then complete_login(), then retry.\n" +
+      "Do not call configure_credentials — login() parses everything it needs from the\n" +
+      "Authorization URL on your OAuth client page.",
     );
   }
 
@@ -522,7 +526,7 @@ export async function smoke_test_auth(_args: Args) {
     // 1. users scope — resolve current user (user token only)
     runScopeCheck(
       "Identity: resolve current user",
-      "users",
+      "users:readonly",
       true,
       hasUserToken,
       async () => {
@@ -565,7 +569,7 @@ export async function smoke_test_auth(_args: Args) {
     // 4. speechandtextanalytics scope — list STA programs
     runScopeCheck(
       "Speech & Text Analytics: read STA programs",
-      "speechandtextanalytics",
+      "speech-and-text-analytics:readonly",
       false,
       hasUserToken,
       async () => {
@@ -612,7 +616,7 @@ export async function smoke_test_auth(_args: Args) {
     // 7. routing scope — list queues (required for build_interaction_filter)
     runScopeCheck(
       "Routing: list queues",
-      "routing",
+      "routing:readonly",
       false,
       hasUserToken,
       async () => {

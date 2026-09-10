@@ -119,7 +119,8 @@ export const TOOL_DEFINITIONS: Tool[] = [
     name: "smoke_test_auth",
     description:
       "Verify all 8 required Genesys Cloud OAuth scopes are active: " +
-      "users, ai-studio, analytics, conversations, speechandtextanalytics, assistants, notifications, routing. " +
+      "ai-studio, analytics, assistants, conversations, notifications, routing:readonly, " +
+      "speech-and-text-analytics:readonly, users:readonly. " +
       "Call this after login/complete_login if you see unexpected 403 errors, or after adding scopes to your OAuth client. " +
       "complete_login() runs this automatically — only call manually if troubleshooting. " +
       "See docs/oauth-setup.md for the full OAuth client setup guide.",

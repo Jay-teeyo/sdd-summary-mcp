@@ -52,7 +52,7 @@ The admin deep-link form looks nothing like an OAuth authorize URL, but it is th
    - Grant Types: **Code Authorization**
    - Redirect URI: `http://localhost:8787/callback` — must match exactly
    - No client secret needed; this is Authorization Code + PKCE.
-2. **Add all 8 scopes** under the Scope tab: `users`, `ai-studio`, `analytics`, `conversations`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`. Add every one now — a missing scope fails later in non-obvious ways.
+2. **Add all 8 scopes** under the Scope tab: `ai-studio`, `analytics`, `assistants`, `conversations`, `notifications`, `routing:readonly`, `speech-and-text-analytics:readonly`, `users:readonly`. Add every one now — a missing scope fails later in non-obvious ways.
 3. **Save, reopen the client, copy the Authorization URL** from the bottom of the page, then call `login(authorization_url="...")`.
 
 That URL is the only input needed — client ID and region are parsed from it.
@@ -84,7 +84,7 @@ build_interaction_filter(copilot_name="Acme_Copilot")
 
 - Takes the **Agent Copilot name** (from Genesys Admin → Agent Copilot), not the summary config name.
 - Fetches queues via `GET /api/v2/assistants/{assistantId}/queues` (direct association endpoint — do NOT use routing queues API with `assistantId` filter, that returns all org queues).
-- Resolves queue display names via routing API (requires `routing` scope).
+- Resolves queue display names via routing API (requires `routing:readonly` scope).
 - Names the working directory after the **summary config name** (fetched from `getSummarySetting`), NOT the copilot name.
 - Saves to `.summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json`.
 - If the copilot has multiple summary settings (multi-language), it will ask which one to use — re-call with `summary_setting_id=...`.
@@ -512,6 +512,8 @@ The Genesys preview summary API has two relevant limits:
 
 ## Required OAuth Scopes (all 8)
 
-`users`, `ai-studio`, `analytics`, `conversations`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
+`ai-studio`, `analytics`, `assistants`, `conversations`, `notifications`, `routing:readonly`, `speech-and-text-analytics:readonly`, `users:readonly`
+
+Names match the Genesys scope picker exactly. Three are `:readonly` because this server only reads from the Routing, STA, and Users APIs — write access is neither needed nor requested.
 
 Run `smoke_test_auth()` after login to verify.

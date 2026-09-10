@@ -60,7 +60,11 @@ This MCP server manages the full lifecycle of Genesys Cloud AI Studio / Agent Co
 ---
 
 ## Required OAuth Scopes (all 8)
-\`users\`, \`ai-studio\`, \`analytics\`, \`conversations\`, \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`
+\`ai-studio\`, \`analytics\`, \`assistants\`, \`conversations\`, \`notifications\`,
+\`routing:readonly\`, \`speech-and-text-analytics:readonly\`, \`users:readonly\`
+
+Names are exactly as they appear in the Genesys scope picker. Three are
+\`:readonly\` because this server only reads from those APIs.
 
 Run \`smoke_test_auth()\` after login to verify.
 
@@ -93,8 +97,9 @@ The first looks nothing like an authorize URL but is correct. Let \`login()\` de
 1. Genesys Admin → Integrations → OAuth → Add Client. Grant Type
    **Code Authorization**, Redirect URI \`http://localhost:8787/callback\`
    (exact match required). No client secret needed — PKCE.
-2. Scope tab: add all 8 — \`users\`, \`ai-studio\`, \`analytics\`, \`conversations\`,
-   \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`.
+2. Scope tab: add all 8 — \`ai-studio\`, \`analytics\`, \`assistants\`,
+   \`conversations\`, \`notifications\`, \`routing:readonly\`,
+   \`speech-and-text-analytics:readonly\`, \`users:readonly\`.
 3. Save, reopen, copy the **Authorization URL** from the bottom, then call
    \`login(authorization_url="...")\`.
 

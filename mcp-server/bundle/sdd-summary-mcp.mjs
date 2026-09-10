@@ -14529,7 +14529,7 @@ var TOOL_DEFINITIONS = [
   },
   {
     name: "smoke_test_auth",
-    description: "Verify all 8 required Genesys Cloud OAuth scopes are active: users, ai-studio, analytics, conversations, speechandtextanalytics, assistants, notifications, routing. Call this after login/complete_login if you see unexpected 403 errors, or after adding scopes to your OAuth client. complete_login() runs this automatically \u2014 only call manually if troubleshooting. See docs/oauth-setup.md for the full OAuth client setup guide.",
+    description: "Verify all 8 required Genesys Cloud OAuth scopes are active: ai-studio, analytics, assistants, conversations, notifications, routing:readonly, speech-and-text-analytics:readonly, users:readonly. Call this after login/complete_login if you see unexpected 403 errors, or after adding scopes to your OAuth client. complete_login() runs this automatically \u2014 only call manually if troubleshooting. See docs/oauth-setup.md for the full OAuth client setup guide.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -15462,7 +15462,11 @@ This MCP server manages the full lifecycle of Genesys Cloud AI Studio / Agent Co
 ---
 
 ## Required OAuth Scopes (all 8)
-\`users\`, \`ai-studio\`, \`analytics\`, \`conversations\`, \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`
+\`ai-studio\`, \`analytics\`, \`assistants\`, \`conversations\`, \`notifications\`,
+\`routing:readonly\`, \`speech-and-text-analytics:readonly\`, \`users:readonly\`
+
+Names are exactly as they appear in the Genesys scope picker. Three are
+\`:readonly\` because this server only reads from those APIs.
 
 Run \`smoke_test_auth()\` after login to verify.
 
@@ -15495,8 +15499,9 @@ The first looks nothing like an authorize URL but is correct. Let \`login()\` de
 1. Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 Add Client. Grant Type
    **Code Authorization**, Redirect URI \`http://localhost:8787/callback\`
    (exact match required). No client secret needed \u2014 PKCE.
-2. Scope tab: add all 8 \u2014 \`users\`, \`ai-studio\`, \`analytics\`, \`conversations\`,
-   \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`.
+2. Scope tab: add all 8 \u2014 \`ai-studio\`, \`analytics\`, \`assistants\`,
+   \`conversations\`, \`notifications\`, \`routing:readonly\`,
+   \`speech-and-text-analytics:readonly\`, \`users:readonly\`.
 3. Save, reopen, copy the **Authorization URL** from the bottom, then call
    \`login(authorization_url="...")\`.
 
@@ -17663,7 +17668,7 @@ your OAuth client page in Genesys Admin \u2192 IT and Integrations \u2192 OAuth 
   }
   if (!config2) {
     return ok(
-      'No Genesys credentials stored yet \u2014 this is a first run.\n\nDO NOT guess or proceed. Ask the user this question first, and wait:\n\n  "Do you already have a Genesys Cloud OAuth client set up for this?"\n\n\u2500\u2500\u2500 If they say YES \u2500\u2500\u2500\nAsk for the Authorization URL:\n  Genesys Admin \u2192 IT and Integrations \u2192 OAuth \u2192 open the client \u2192\n  scroll to the bottom \u2192 copy the "Authorization URL" field.\n\nPass whatever they paste straight to login(authorization_url="...").\nDO NOT judge, correct, or reject the URL. Two different formats are valid\nand BOTH are accepted \u2014 the client ID and region are parsed from either:\n  \u2022 https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  \u2022 https://login.{region}/oauth/authorize?client_id={id}\nThe Genesys UI field usually contains the FIRST (apps./directory) form.\nThat is correct and expected. If it does not parse, login() will say so \u2014\nlet the tool decide, do not pre-screen it.\n\n\u2500\u2500\u2500 If they say NO \u2500\u2500\u2500\nWalk them through creating one, one step at a time, confirming as you go.\nDo not paste all of this at once.\n\nStep 1 \u2014 Create the client\n  Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 Add Client\n    App Name:     SDD Summary MCP  (any name works)\n    Grant Types:  Code Authorization   \u2190 must be this one\n    Redirect URI: http://localhost:8787/callback   \u2190 must match exactly\n  No client secret is needed; this uses Authorization Code + PKCE.\n\nStep 2 \u2014 Add all 8 scopes under the Scope tab\n  users, ai-studio, analytics, conversations,\n  speechandtextanalytics, assistants, notifications, routing\n  Add every one now. A missing scope fails later in non-obvious ways \u2014\n  e.g. without `conversations`, voice transcripts work and only\n  messaging transcripts fail, with a 403 that looks unrelated.\n\nStep 3 \u2014 Save, then copy the Authorization URL\n  Reopen the client \u2192 scroll to the bottom \u2192 copy "Authorization URL".\n  It is usually the admin deep-link form, which is correct:\n    https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  The /oauth/authorize?client_id=... form is also accepted.\n\nThen call: login(authorization_url="<pasted URL>") with whatever they pasted.\nDo not reject or rewrite it \u2014 pass it through as-is.\n\nThat URL is all that is needed \u2014 client ID and region are parsed from it.\nDo not set GENESYS_CLIENT_ID as an environment variable; it shadows the\nstored config and causes logins against the wrong org.'
+      'No Genesys credentials stored yet \u2014 this is a first run.\n\nDO NOT guess or proceed. Ask the user this question first, and wait:\n\n  "Do you already have a Genesys Cloud OAuth client set up for this?"\n\n\u2500\u2500\u2500 If they say YES \u2500\u2500\u2500\nAsk for the Authorization URL:\n  Genesys Admin \u2192 IT and Integrations \u2192 OAuth \u2192 open the client \u2192\n  scroll to the bottom \u2192 copy the "Authorization URL" field.\n\nPass whatever they paste straight to login(authorization_url="...").\nDO NOT judge, correct, or reject the URL. Two different formats are valid\nand BOTH are accepted \u2014 the client ID and region are parsed from either:\n  \u2022 https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  \u2022 https://login.{region}/oauth/authorize?client_id={id}\nThe Genesys UI field usually contains the FIRST (apps./directory) form.\nThat is correct and expected. If it does not parse, login() will say so \u2014\nlet the tool decide, do not pre-screen it.\n\n\u2500\u2500\u2500 If they say NO \u2500\u2500\u2500\nWalk them through creating one, one step at a time, confirming as you go.\nDo not paste all of this at once.\n\nStep 1 \u2014 Create the client\n  Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 Add Client\n    App Name:     SDD Summary MCP  (any name works)\n    Grant Types:  Code Authorization   \u2190 must be this one\n    Redirect URI: http://localhost:8787/callback   \u2190 must match exactly\n  No client secret is needed; this uses Authorization Code + PKCE.\n\nStep 2 \u2014 Add all 8 scopes under the Scope tab\n  ai-studio, analytics, assistants, conversations, notifications,\n  routing:readonly, speech-and-text-analytics:readonly, users:readonly\n  The three :readonly variants are what the Genesys scope picker offers \u2014\n  this server only reads from those three APIs.\n  Add every one now. A missing scope fails later in non-obvious ways \u2014\n  e.g. without `conversations`, voice transcripts work and only\n  messaging transcripts fail, with a 403 that looks unrelated.\n\nStep 3 \u2014 Save, then copy the Authorization URL\n  Reopen the client \u2192 scroll to the bottom \u2192 copy "Authorization URL".\n  It is usually the admin deep-link form, which is correct:\n    https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  The /oauth/authorize?client_id=... form is also accepted.\n\nThen call: login(authorization_url="<pasted URL>") with whatever they pasted.\nDo not reject or rewrite it \u2014 pass it through as-is.\n\nThat URL is all that is needed \u2014 client ID and region are parsed from it.\nDo not set GENESYS_CLIENT_ID as an environment variable; it shadows the\nstored config and causes logins against the wrong org.'
     );
   }
   const loginBase = config2.loginUrl ?? `https://login.${config2.region}`;
@@ -17780,7 +17785,7 @@ async function smoke_test_auth(_args) {
   const config2 = getGenesysConfig();
   if (!config2) {
     return ok(
-      "No Genesys credentials configured.\nRun configure_credentials first, then login, then retry smoke_test_auth."
+      'No Genesys credentials configured.\nCall login(authorization_url="...") first, then complete_login(), then retry.\nDo not call configure_credentials \u2014 login() parses everything it needs from the\nAuthorization URL on your OAuth client page.'
     );
   }
   const userToken = await getUserToken(config2);
@@ -17791,7 +17796,7 @@ async function smoke_test_auth(_args) {
     // 1. users scope — resolve current user (user token only)
     runScopeCheck(
       "Identity: resolve current user",
-      "users",
+      "users:readonly",
       true,
       hasUserToken,
       async () => {
@@ -17831,7 +17836,7 @@ async function smoke_test_auth(_args) {
     // 4. speechandtextanalytics scope — list STA programs
     runScopeCheck(
       "Speech & Text Analytics: read STA programs",
-      "speechandtextanalytics",
+      "speech-and-text-analytics:readonly",
       false,
       hasUserToken,
       async () => {
@@ -17871,7 +17876,7 @@ async function smoke_test_auth(_args) {
     // 7. routing scope — list queues (required for build_interaction_filter)
     runScopeCheck(
       "Routing: list queues",
-      "routing",
+      "routing:readonly",
       false,
       hasUserToken,
       async () => {

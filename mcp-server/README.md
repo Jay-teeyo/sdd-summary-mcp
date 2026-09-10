@@ -24,7 +24,7 @@ Project scope is recommended because this server exposes 47 Genesys-specific too
 - Node.js 18+
 - A Genesys Cloud OAuth2 client with all 8 required scopes — see [`../docs/oauth-setup.md`](../docs/oauth-setup.md)
 
-Required scopes: `users`, `ai-studio`, `analytics`, `conversations`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
+Required scopes: `ai-studio`, `analytics`, `assistants`, `conversations`, `notifications`, `routing:readonly`, `speech-and-text-analytics:readonly`, `users:readonly`
 
 ---
 

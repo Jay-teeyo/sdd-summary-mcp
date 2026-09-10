@@ -14,7 +14,7 @@ node --version   # must be 18 or higher
 
 You also need a Genesys Cloud OAuth2 client with all **8** required scopes:
 
-`users`, `ai-studio`, `analytics`, `conversations`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
+`ai-studio`, `analytics`, `assistants`, `conversations`, `notifications`, `routing:readonly`, `speech-and-text-analytics:readonly`, `users:readonly`
 
 See [`oauth-setup.md`](./oauth-setup.md) for step-by-step client creation.
 

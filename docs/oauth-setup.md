@@ -61,10 +61,12 @@ Under the **Scope** tab of the OAuth client, add **all of the following scopes**
 | `analytics` | Analytics API | `search_conversations` — queries conversation analytics by date/queue/wrap-up code; `fetch_transcript` — resolves customer communication ID from conversation details |
 | `conversations` | Conversations API | `fetch_transcripts_bulk` / `fetch_transcript` — the **messaging transcript fallback**. When STA transcript retrieval fails on a messaging interaction, the server falls back to `GET /api/v2/conversations/messages/{id}` followed by `POST .../messages/bulk`. Without this scope, voice transcripts still work but messaging transcripts fail with 403. Note this scope is *not* what authorises the summary settings endpoints — those authorise under `ai-studio` despite sitting beneath `/api/v2/conversations/` |
 | `notifications` | Notifications API | `generate_preview_summary` — the preview API delivers results asynchronously via a user-scoped WebSocket notification channel; requires creating a channel and subscribing to the topic `v2.users.{userId}.conversations.summaries.settings.preview` |
-| `speechandtextanalytics` | Speech & Text Analytics API | `fetch_transcript` — fetches pre-signed S3 transcript URLs; `get_existing_summaries` — retrieves production summaries for completed conversations |
-| `users` | Users API | `generate_preview_summary` — resolves the current user's ID (`GET /api/v2/users/me`) to construct the correct WebSocket notification topic |
+| `speech-and-text-analytics:readonly` | Speech & Text Analytics API | `fetch_transcript` — fetches pre-signed S3 transcript URLs; `get_existing_summaries` — retrieves production summaries for completed conversations |
+| `users:readonly` | Users API | `generate_preview_summary` — resolves the current user's ID (`GET /api/v2/users/me`) to construct the correct WebSocket notification topic |
 | `assistants` | Assistants / Agent Copilot API | `list_assistants`, `get_copilot_config`, `update_copilot_config` — manage Agent Copilot configurations that link to summary settings |
-| `routing` | Routing API | `build_interaction_filter` — resolves queue names after fetching queue IDs from `GET /api/v2/assistants/{assistantId}/queues`; the routing API is queried to look up the display name of each queue |
+| `routing:readonly` | Routing API | `build_interaction_filter` — resolves queue names after fetching queue IDs from `GET /api/v2/assistants/{assistantId}/queues`; the routing API is queried to look up the display name of each queue |
+
+**Search for these names in the Genesys scope picker rather than typing them** — the list above matches the picker exactly. Three are `:readonly` variants because the server only reads from the Routing, STA, and Users APIs; granting full write scopes there would work but is unnecessary privilege.
 
 > **Tip:** Add all scopes even if you are only using a subset of tools today. New tools you use in future sessions will require them, and re-configuring the OAuth client each time is disruptive.
 

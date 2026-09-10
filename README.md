@@ -135,12 +135,14 @@ Under the **Scope** tab, add every scope below. Add them all now — a missing s
 |---|---|
 | `ai-studio` | Summary config CRUD and preview summary generation |
 | `analytics` | Conversation search and communication ID resolution |
+| `assistants` | Agent Copilot config — lists assistants and queue associations |
 | `conversations` | Messaging transcript fallback when STA retrieval fails |
 | `notifications` | Preview API delivers results via WebSocket notification channel |
-| `speechandtextanalytics` | Transcript URL fetch and existing summary retrieval |
-| `users` | Resolves current user ID for WebSocket topic construction |
-| `assistants` | Agent Copilot config — lists assistants and queue associations |
-| `routing` | Resolves queue display names from IDs |
+| `routing:readonly` | Resolves queue display names from IDs |
+| `speech-and-text-analytics:readonly` | Transcript URL fetch and existing summary retrieval |
+| `users:readonly` | Resolves current user ID for WebSocket topic construction |
+
+Names are exactly as they appear in the Genesys scope picker — search for them there rather than typing them. Three are `:readonly` because the server only reads from the Routing, STA, and Users APIs.
 
 > `conversations` is easy to miss because its absence is not obvious: voice transcripts keep working and only **messaging** transcripts fail with 403. `smoke_test_auth()` checks it explicitly.
 
