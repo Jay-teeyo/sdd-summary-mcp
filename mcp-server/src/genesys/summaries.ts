@@ -183,6 +183,35 @@ export function extractSummaryText(response: PreviewSummaryResponse): string {
   return JSON.stringify(response, null, 2);
 }
 
+/**
+ * Genesys returns this in place of a summary when the interaction had too little
+ * content to summarise.
+ */
+export const TOO_SHORT_SUMMARY_MESSAGE = "The interaction is too short to create a summary.";
+
+/**
+ * True when a summary is Genesys' "nothing to summarise" placeholder rather than a
+ * real summary.
+ *
+ * Such transcripts are excluded from evaluation entirely: no prompt can influence this
+ * output, so scoring it measures nothing and only drags aggregate pass rates around.
+ * The exclusion overrides every dimension's applicabilityCondition, including "always".
+ *
+ * Matching is deliberately tolerant of wrapping quotes, markdown emphasis, whitespace
+ * and a missing full stop, but requires the placeholder to be substantially the whole
+ * text — a real summary that happens to mention a short interaction is still scored.
+ */
+export function isTooShortToSummarise(summary: string | null | undefined): boolean {
+  if (!summary) return false;
+  const normalised = summary
+    .replace(/[*_`>#]/g, "")
+    .replace(/["'“”‘’]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!/interaction is too short to (create|generate) a summary/i.test(normalised)) return false;
+  return normalised.length <= 160;
+}
+
 // ─── Summary settings ─────────────────────────────────────────────────────────
 
 interface SummarySettingsListResponse {

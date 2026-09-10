@@ -681,6 +681,11 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "CANDIDATE VERSIONS — MANDATORY:\n" +
       "A version with status='candidate' (local draft, not yet deployed to Genesys) MUST use mode='prompt_test'. " +
       "Never run mode='existing' for a candidate — existing mode measures summaries the live prompt generated, not the candidate.\n\n" +
+      "UNSUMMARISABLE INTERACTIONS:\n" +
+      "Transcripts whose summary reads \"The interaction is too short to create a summary.\" are excluded from the run " +
+      "before batching — they appear under skipped_transcripts/skipped_detail rather than in any batch, and are absent " +
+      "from every pass-rate denominator. The exclusion overrides applicabilityCondition, including \"always\". " +
+      "Report the skipped count alongside the results so a small denominator is never mistaken for a full run.\n\n" +
       "AFTER THIS CALL:\n" +
       "Spawn one subagent per batch using model composer-2.5-fast. " +
       "Each subagent scores every dimension of every test case for its transcripts and calls submit_eval_scores once per transcript × test case. " +
@@ -736,6 +741,11 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "A null score is not a pass and not a fail — it is simply not counted. " +
       "Pass rate = passes / evaluated (not passes / total). " +
       "NEVER auto-pass a dimension by submitting score: 1.0 when the condition is not met — submit null.\n\n" +
+      "TRANSCRIPTS WITH NO SUMMARY: an interaction whose summary reads \"The interaction is too short to create a summary.\" " +
+      "is not evaluated at all — no prompt can change that output, so no test case can assess it. " +
+      "start_eval_run leaves these out of the batches it hands to subagents, and this tool refuses them if one is submitted anyway. " +
+      "The exclusion overrides applicabilityCondition, including \"always\", and is not the same as an N/A score: " +
+      "the transcript is absent from the results entirely rather than recorded with null dimensions.\n\n" +
       "Call once per (transcript_id × test_case_name) combination.",
     inputSchema: {
       type: "object",

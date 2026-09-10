@@ -15020,7 +15020,23 @@ var TOOL_DEFINITIONS = [
   },
   {
     name: "start_eval_run",
-    description: "Prepare a parallel evaluation run against a test set.\n\nTWO MODES:\n  \u2022 mode='existing' (default) \u2014 evaluates existing production summaries already stored on each transcript. No Genesys API calls. Fast and cheap. Use to measure current production quality.\n  \u2022 mode='prompt_test' \u2014 generates new summaries via the Genesys preview API using a candidate prompt and the transcripts already in transcripts/static/. Use to test a prompt change before deploying it.\n\nVERSION TRACEABILITY \u2014 REQUIRED:\nAlways pass version_number when testing a versioned prompt. This records which version file (e.g. summary-configuration-1.json) and its status (candidate/deployed) against the run in _pending.json, and shows a version badge + the full prompt in the dashboard. Do NOT copy-paste the prompt as an inline 'prompt' argument \u2014 use version_number instead. For mode='existing', passing version_number records the deployed prompt for traceability even though no new summaries are generated.\n\nCANDIDATE VERSIONS \u2014 MANDATORY:\nA version with status='candidate' (local draft, not yet deployed to Genesys) MUST use mode='prompt_test'. Never run mode='existing' for a candidate \u2014 existing mode measures summaries the live prompt generated, not the candidate.\n\nAFTER THIS CALL:\nSpawn one subagent per batch using model composer-2.5-fast. Each subagent scores every dimension of every test case for its transcripts and calls submit_eval_scores once per transcript \xD7 test case. After all subagents finish, call finalize_eval_run.",
+    description: `Prepare a parallel evaluation run against a test set.
+
+TWO MODES:
+  \u2022 mode='existing' (default) \u2014 evaluates existing production summaries already stored on each transcript. No Genesys API calls. Fast and cheap. Use to measure current production quality.
+  \u2022 mode='prompt_test' \u2014 generates new summaries via the Genesys preview API using a candidate prompt and the transcripts already in transcripts/static/. Use to test a prompt change before deploying it.
+
+VERSION TRACEABILITY \u2014 REQUIRED:
+Always pass version_number when testing a versioned prompt. This records which version file (e.g. summary-configuration-1.json) and its status (candidate/deployed) against the run in _pending.json, and shows a version badge + the full prompt in the dashboard. Do NOT copy-paste the prompt as an inline 'prompt' argument \u2014 use version_number instead. For mode='existing', passing version_number records the deployed prompt for traceability even though no new summaries are generated.
+
+CANDIDATE VERSIONS \u2014 MANDATORY:
+A version with status='candidate' (local draft, not yet deployed to Genesys) MUST use mode='prompt_test'. Never run mode='existing' for a candidate \u2014 existing mode measures summaries the live prompt generated, not the candidate.
+
+UNSUMMARISABLE INTERACTIONS:
+Transcripts whose summary reads "The interaction is too short to create a summary." are excluded from the run before batching \u2014 they appear under skipped_transcripts/skipped_detail rather than in any batch, and are absent from every pass-rate denominator. The exclusion overrides applicabilityCondition, including "always". Report the skipped count alongside the results so a small denominator is never mistaken for a full run.
+
+AFTER THIS CALL:
+Spawn one subagent per batch using model composer-2.5-fast. Each subagent scores every dimension of every test case for its transcripts and calls submit_eval_scores once per transcript \xD7 test case. After all subagents finish, call finalize_eval_run.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -15053,7 +15069,17 @@ var TOOL_DEFINITIONS = [
   },
   {
     name: "submit_eval_scores",
-    description: "Save evaluation scores for one transcript \xD7 one test case. Called by each subagent after scoring. Stateless \u2014 only needs run_number, no in-memory state. Pass/fail per dimension is determined automatically by comparing the score against each dimension's passThreshold.\n\nBEFORE SCORING \u2014 check applicabilityCondition on every dimension (included in the test_cases payload from start_eval_run):\n  \u2022 If the condition IS met for this transcript \u2192 score normally (0.0\u20131.0)\n  \u2022 If the condition is NOT met \u2192 submit score: null (N/A)\n\nNull scores are excluded from all aggregation: overallScore, overallPassed, pass rates, and failure analysis. A null score is not a pass and not a fail \u2014 it is simply not counted. Pass rate = passes / evaluated (not passes / total). NEVER auto-pass a dimension by submitting score: 1.0 when the condition is not met \u2014 submit null.\n\nCall once per (transcript_id \xD7 test_case_name) combination.",
+    description: `Save evaluation scores for one transcript \xD7 one test case. Called by each subagent after scoring. Stateless \u2014 only needs run_number, no in-memory state. Pass/fail per dimension is determined automatically by comparing the score against each dimension's passThreshold.
+
+BEFORE SCORING \u2014 check applicabilityCondition on every dimension (included in the test_cases payload from start_eval_run):
+  \u2022 If the condition IS met for this transcript \u2192 score normally (0.0\u20131.0)
+  \u2022 If the condition is NOT met \u2192 submit score: null (N/A)
+
+Null scores are excluded from all aggregation: overallScore, overallPassed, pass rates, and failure analysis. A null score is not a pass and not a fail \u2014 it is simply not counted. Pass rate = passes / evaluated (not passes / total). NEVER auto-pass a dimension by submitting score: 1.0 when the condition is not met \u2014 submit null.
+
+TRANSCRIPTS WITH NO SUMMARY: an interaction whose summary reads "The interaction is too short to create a summary." is not evaluated at all \u2014 no prompt can change that output, so no test case can assess it. start_eval_run leaves these out of the batches it hands to subagents, and this tool refuses them if one is submitted anyway. The exclusion overrides applicabilityCondition, including "always", and is not the same as an N/A score: the transcript is absent from the results entirely rather than recorded with null dimensions.
+
+Call once per (transcript_id \xD7 test_case_name) combination.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -15429,6 +15455,12 @@ submit_eval_scores accepts score: null for any dimension whose applicabilityCond
 Null scores are excluded from overallScore, overallPassed, pass rates, and failure analysis.
 start_eval_run includes applicability_condition on every dimension in the test_cases payload \u2014 check it first before scoring.
 
+## Eval Scoring \u2014 interactions with no summary
+A transcript whose summary is "The interaction is too short to create a summary." is skipped entirely, not scored.
+This overrides applicabilityCondition, including "always" \u2014 no prompt can change that output.
+start_eval_run drops them before batching (see skipped_transcripts) and submit_eval_scores refuses them.
+Unlike an N/A dimension, the transcript is absent from the results \u2014 report the skipped count with the pass rate.
+
 ## Need Help?
 Call get_pipeline_guide() for the complete workflow reference including API facts, schema details, and examples.
 `.trim();
@@ -15691,6 +15723,29 @@ When creating test cases via \`generate_test_case\`:
 - If **uncertain** \u2192 **stop and ask the user** before calling \`save_test_case\`. Never silently default to \`"always"\`.
 
 This keeps conditions intentional and prevents silent N/A mis-scoring in future eval runs.
+
+### Interactions with no summary override every applicabilityCondition
+
+When Genesys has too little to work with it returns \`"The interaction is too short to create a summary."\`
+in place of a summary. Such a transcript is **not evaluated at all** \u2014 no prompt can change that output,
+so scoring it measures the interaction's length rather than the prompt's quality, and either drags the
+pass rate down over something unfixable or props it up with hollow passes.
+
+\`start_eval_run\` detects these and drops them before batching, so scoring subagents never see them. They
+are recorded under \`skippedTranscripts\` in the run metadata, counted in the \`skipped_transcripts\` field
+of the response, and shown on the run dashboard. If a subagent submits a score for one anyway,
+\`submit_eval_scores\` refuses it.
+
+Two things to be clear on:
+- **This overrides \`applicabilityCondition\`, including \`"always"\`.** A dimension marked \`"always"\` still
+  does not apply here; there is no summary for it to apply to. Do not write the too-short case into
+  individual applicability conditions \u2014 it is handled centrally for every test case at once.
+- **It is not the same as an N/A score.** An N/A dimension is recorded with \`score: null\` against a
+  transcript that *was* evaluated. A skipped transcript is absent from the results entirely.
+
+Always report the skipped count alongside a run's pass rate, so a shrunken denominator is never mistaken
+for a full run. If most of a test set is being skipped, the test set needs longer interactions rather
+than a prompt change.
 
 ---
 
@@ -16670,6 +16725,13 @@ function extractSummaryText(response) {
   }
   return JSON.stringify(response, null, 2);
 }
+var TOO_SHORT_SUMMARY_MESSAGE = "The interaction is too short to create a summary.";
+function isTooShortToSummarise(summary) {
+  if (!summary) return false;
+  const normalised = summary.replace(/[*_`>#]/g, "").replace(/["'“”‘’]/g, "").replace(/\s+/g, " ").trim();
+  if (!/interaction is too short to (create|generate) a summary/i.test(normalised)) return false;
+  return normalised.length <= 160;
+}
 async function listSummarySettings() {
   const resp = await genesys.get(
     "/api/v2/conversations/summaries/settings"
@@ -17263,6 +17325,7 @@ function generateEvalRunDashboardHtml(meta, testCaseFiles) {
       ${meta.promptVersionNumber !== void 0 ? `<span class="version-badge version-${esc3(meta.promptVersionStatus ?? "deployed")}">Version ${meta.promptVersionNumber}${meta.promptVersionStatus ? ` \xB7 ${esc3(meta.promptVersionStatus)}` : ""}</span>` : `<span class="version-badge version-unknown">Version: unversioned</span>`}
       <span>${runDate}</span>
       <span>${meta.transcriptIds?.length ?? testCaseFiles[0]?.totalTranscripts ?? "?"} transcripts</span>
+      ${meta.skippedTranscripts?.length ? `<span title="${esc3(meta.skippedTranscripts.map((s) => s.transcriptLabel).join(", "))}">${meta.skippedTranscripts.length} skipped \xB7 too short to summarise</span>` : ""}
     </div>
     ${meta.promptText ? `
     <details class="prompt-block">
@@ -19167,7 +19230,7 @@ async function start_eval_run(args) {
       if (!tc) throw new Error(`Test case not found: ${name}`);
       return tc;
     });
-    const transcriptPayloads = [];
+    let transcriptPayloads = [];
     const previewConcurrency = Math.min(Number(args.concurrency ?? 5), 10);
     const previewSetting = {
       name: testSetName,
@@ -19254,11 +19317,33 @@ prepare_prompt_test(summary_config_name="${configName}", test_set_name="${testSe
         mode === "existing" ? `No transcripts in "${testSetName}" have an existingSummary. Run fetch_existing_summaries_bulk first.` : `No transcripts found in "${testSetName}".`
       );
     }
+    const skippedTranscripts = [];
+    const scorablePayloads = transcriptPayloads.filter((t) => {
+      if (!isTooShortToSummarise(t.summary)) return true;
+      skippedTranscripts.push({
+        transcriptId: t.transcriptId,
+        transcriptLabel: t.transcriptLabel,
+        summary: t.summary,
+        reason: "Genesys returned the too-short-to-summarise placeholder instead of a summary"
+      });
+      return false;
+    });
+    if (scorablePayloads.length === 0) {
+      return ok(
+        `Every transcript in "${testSetName}" (${skippedTranscripts.length}) returned "${TOO_SHORT_SUMMARY_MESSAGE}", so there is nothing to score and no run was created.
+
+` + skippedTranscripts.map((s) => `  \u2022 ${s.transcriptLabel} (${s.transcriptId})`).join("\n") + `
+
+These interactions are too brief for the summary engine to act on. Add longer interactions to the test set with add_transcript_to_test_set, then start the run again.`
+      );
+    }
+    transcriptPayloads = scorablePayloads;
     const pendingMeta = createPendingEvalRun(configName, testSetName, {
       summaryConfigName: configName,
       testSetName,
       useExistingSummaries: mode === "existing",
       transcriptIds: transcriptPayloads.map((t) => t.transcriptId),
+      skippedTranscripts: skippedTranscripts.length > 0 ? skippedTranscripts : void 0,
       testCaseNames: testSet.testCaseNames,
       startedAt: (/* @__PURE__ */ new Date()).toISOString(),
       promptText: prompt,
@@ -19297,12 +19382,18 @@ prepare_prompt_test(summary_config_name="${configName}", test_set_name="${testSe
       prompt_version_status: promptVersionStatus ?? null,
       prompt_text: prompt ?? null,
       total_transcripts: transcriptPayloads.length,
+      skipped_transcripts: skippedTranscripts.length,
+      skipped_detail: skippedTranscripts.map((s) => ({
+        transcript_id: s.transcriptId,
+        transcript_label: s.transcriptLabel,
+        reason: s.reason
+      })),
       total_test_cases: testCases.length,
       total_batches: batches.length,
       batch_size: batchSize,
       test_cases: testCaseSummary,
       batches,
-      instruction: 'Spawn one subagent per batch using a fast model (composer-2.5-fast). Each subagent receives its batch of transcripts and the test_cases array above. For each transcript in its batch, the subagent scores every dimension of every test case and calls submit_eval_scores for each (transcript \xD7 test_case) pair. APPLICABILITY CHECK \u2014 for each dimension, check its applicability_condition field first: (1) If applicability_condition is "always": score normally (0.0\u20131.0). (2) If applicability_condition is anything else: first determine whether this condition applies to the transcript. If YES it applies \u2192 score normally. If NO it does not apply \u2192 submit score: null with reasoning explaining why it is not applicable. Null scores are excluded from pass-rate calculations \u2014 only submit null when the condition genuinely does not apply. After all subagents complete, call finalize_eval_run(summary_config_name, test_set_name, run_number) to compute aggregate pass rates and mark the run complete.'
+      instruction: 'Spawn one subagent per batch using a fast model (composer-2.5-fast). Each subagent receives its batch of transcripts and the test_cases array above. For each transcript in its batch, the subagent scores every dimension of every test case and calls submit_eval_scores for each (transcript \xD7 test_case) pair. APPLICABILITY CHECK \u2014 for each dimension, check its applicability_condition field first: (1) If applicability_condition is "always": score normally (0.0\u20131.0). (2) If applicability_condition is anything else: first determine whether this condition applies to the transcript. If YES it applies \u2192 score normally. If NO it does not apply \u2192 submit score: null with reasoning explaining why it is not applicable. Null scores are excluded from pass-rate calculations \u2014 only submit null when the condition genuinely does not apply. ' + (skippedTranscripts.length > 0 ? `NOTE: ${skippedTranscripts.length} transcript(s) were excluded from the batches above because Genesys returned "${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary. They are listed under skipped_detail, are absent from every pass-rate denominator, and must not be scored \u2014 the exclusion overrides applicabilityCondition, including "always". Mention the count when reporting results. ` : "") + "After all subagents complete, call finalize_eval_run(summary_config_name, test_set_name, run_number) to compute aggregate pass rates and mark the run complete."
     });
   });
 }
@@ -19319,6 +19410,12 @@ async function submit_eval_scores(args) {
   if (!pending) {
     throw new Error(
       `Eval run ${runNumber} not found for "${testSetName}". Call start_eval_run first to create the run.`
+    );
+  }
+  const skipped = pending.skippedTranscripts?.find((s) => s.transcriptId === transcriptId);
+  if (skipped || isTooShortToSummarise(summaryText)) {
+    return ok(
+      `Not recorded. Transcript ${transcriptLabel} is excluded from run ${runNumber}: Genesys returned "${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary, so there is nothing for a test case to assess. This overrides applicabilityCondition, including "always". Move on to the next transcript.`
     );
   }
   const testCase = getTestCase(configName, testCaseName);
@@ -19433,7 +19530,8 @@ Config:          ${configName}
 Mode:            ${pending.useExistingSummaries ? "existing summaries" : "prompt test"}
 Version:         ${versionLabel}
 Transcripts:     ${pending.transcriptIds.length}
-Results saved:   ${scores.length}
+` + (pending.skippedTranscripts?.length ? `Skipped:         ${pending.skippedTranscripts.length} (too short to summarise \u2014 excluded from all pass rates)
+` : "") + `Results saved:   ${scores.length}
 Overall pass:    ${(overallPassRate * 100).toFixed(1)}%
 
 By test case:

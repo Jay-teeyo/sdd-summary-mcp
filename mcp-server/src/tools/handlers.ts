@@ -19,6 +19,8 @@ import {
   generatePreviewSummary,
   extractSummaryText,
   getExistingSummaries,
+  isTooShortToSummarise,
+  TOO_SHORT_SUMMARY_MESSAGE,
 } from "../genesys/summaries.js";
 import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues } from "../genesys/copilot.js";
 import { generateDashboard } from "../dashboard.js";
@@ -32,6 +34,7 @@ import type {
   TestSet,
   EvalRunMeta,
   EvalRunResult,
+  SkippedTranscript,
 } from "../types.js";
 
 type Args = Record<string, unknown>;
@@ -2131,7 +2134,7 @@ export async function start_eval_run(args: Args) {
     });
 
     // Build per-transcript payload (parallel for prompt_test, sequential for existing)
-    const transcriptPayloads: Array<{
+    let transcriptPayloads: Array<{
       transcriptId: string;
       transcriptLabel: string;
       plainText: string;
@@ -2244,12 +2247,40 @@ export async function start_eval_run(args: Args) {
       );
     }
 
+    // Drop transcripts Genesys refused to summarise. No prompt can change that output, so
+    // scoring them measures nothing — they are excluded from batching and from every
+    // denominator regardless of any dimension's applicabilityCondition.
+    const skippedTranscripts: SkippedTranscript[] = [];
+    const scorablePayloads = transcriptPayloads.filter((t) => {
+      if (!isTooShortToSummarise(t.summary)) return true;
+      skippedTranscripts.push({
+        transcriptId: t.transcriptId,
+        transcriptLabel: t.transcriptLabel,
+        summary: t.summary,
+        reason: "Genesys returned the too-short-to-summarise placeholder instead of a summary",
+      });
+      return false;
+    });
+
+    if (scorablePayloads.length === 0) {
+      return ok(
+        `Every transcript in "${testSetName}" (${skippedTranscripts.length}) returned ` +
+        `"${TOO_SHORT_SUMMARY_MESSAGE}", so there is nothing to score and no run was created.\n\n` +
+        skippedTranscripts.map((s) => `  • ${s.transcriptLabel} (${s.transcriptId})`).join("\n") +
+        `\n\nThese interactions are too brief for the summary engine to act on. Add longer ` +
+        `interactions to the test set with add_transcript_to_test_set, then start the run again.`,
+      );
+    }
+
+    transcriptPayloads = scorablePayloads;
+
     // Create the disk-backed run (claims the run number atomically)
     const pendingMeta = storage.createPendingEvalRun(configName, testSetName, {
       summaryConfigName: configName,
       testSetName,
       useExistingSummaries: mode === "existing",
       transcriptIds: transcriptPayloads.map((t) => t.transcriptId),
+      skippedTranscripts: skippedTranscripts.length > 0 ? skippedTranscripts : undefined,
       testCaseNames: testSet.testCaseNames,
       startedAt: new Date().toISOString(),
       promptText: prompt,
@@ -2298,6 +2329,12 @@ export async function start_eval_run(args: Args) {
       prompt_version_status: promptVersionStatus ?? null,
       prompt_text: prompt ?? null,
       total_transcripts: transcriptPayloads.length,
+      skipped_transcripts: skippedTranscripts.length,
+      skipped_detail: skippedTranscripts.map((s) => ({
+        transcript_id: s.transcriptId,
+        transcript_label: s.transcriptLabel,
+        reason: s.reason,
+      })),
       total_test_cases: testCases.length,
       total_batches: batches.length,
       batch_size: batchSize,
@@ -2314,6 +2351,12 @@ export async function start_eval_run(args: Args) {
         "If YES it applies → score normally. " +
         "If NO it does not apply → submit score: null with reasoning explaining why it is not applicable. " +
         "Null scores are excluded from pass-rate calculations — only submit null when the condition genuinely does not apply. " +
+        (skippedTranscripts.length > 0
+          ? `NOTE: ${skippedTranscripts.length} transcript(s) were excluded from the batches above because Genesys ` +
+            `returned "${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary. They are listed under skipped_detail, ` +
+            "are absent from every pass-rate denominator, and must not be scored — the exclusion overrides " +
+            "applicabilityCondition, including \"always\". Mention the count when reporting results. "
+          : "") +
         "After all subagents complete, call finalize_eval_run(summary_config_name, test_set_name, run_number) " +
         "to compute aggregate pass rates and mark the run complete.",
     });
@@ -2336,6 +2379,18 @@ export async function submit_eval_scores(args: Args) {
     throw new Error(
       `Eval run ${runNumber} not found for "${testSetName}". ` +
       `Call start_eval_run first to create the run.`,
+    );
+  }
+
+  // Reject scores for transcripts with no real summary. start_eval_run keeps these out of the
+  // batches, so reaching here means a subagent scored something it was not given — recording it
+  // would put a meaningless result into the pass rate.
+  const skipped = pending.skippedTranscripts?.find((s) => s.transcriptId === transcriptId);
+  if (skipped || isTooShortToSummarise(summaryText)) {
+    return ok(
+      `Not recorded. Transcript ${transcriptLabel} is excluded from run ${runNumber}: Genesys returned ` +
+      `"${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary, so there is nothing for a test case to assess. ` +
+      "This overrides applicabilityCondition, including \"always\". Move on to the next transcript.",
     );
   }
 
@@ -2487,6 +2542,9 @@ export async function finalize_eval_run(args: Args) {
     `Mode:            ${pending.useExistingSummaries ? "existing summaries" : "prompt test"}\n` +
     `Version:         ${versionLabel}\n` +
     `Transcripts:     ${pending.transcriptIds.length}\n` +
+    (pending.skippedTranscripts?.length
+      ? `Skipped:         ${pending.skippedTranscripts.length} (too short to summarise — excluded from all pass rates)\n`
+      : "") +
     `Results saved:   ${scores.length}\n` +
     `Overall pass:    ${(overallPassRate * 100).toFixed(1)}%\n\n` +
     `By test case:\n${breakdown}\n\n` +

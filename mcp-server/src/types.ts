@@ -283,6 +283,16 @@ export interface EvalRunMeta {
 }
 
 /**
+ * A transcript excluded from an eval run before scoring, with the summary that caused it.
+ */
+export interface SkippedTranscript {
+  transcriptId: string;
+  transcriptLabel: string;
+  summary: string;
+  reason: string;
+}
+
+/**
  * Metadata written to disk when start_eval_run is called.
  * Allows stateless subagents to save results without in-memory state.
  */
@@ -291,7 +301,14 @@ export interface EvalRunPendingMeta {
   testSetName: string;
   summaryConfigName: string;
   useExistingSummaries: boolean;
+  /** Transcripts actually evaluated in this run — excludes anything in skippedTranscripts. */
   transcriptIds: string[];
+  /**
+   * Transcripts excluded from the run before scoring began, because their summary was
+   * Genesys' "too short to create a summary" placeholder. They are never batched to a
+   * scoring subagent and are absent from every pass-rate denominator.
+   */
+  skippedTranscripts?: SkippedTranscript[];
   testCaseNames: string[];
   startedAt: string;
   finalizedAt?: string;

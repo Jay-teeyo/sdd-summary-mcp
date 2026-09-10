@@ -51,6 +51,12 @@ submit_eval_scores accepts score: null for any dimension whose applicabilityCond
 Null scores are excluded from overallScore, overallPassed, pass rates, and failure analysis.
 start_eval_run includes applicability_condition on every dimension in the test_cases payload — check it first before scoring.
 
+## Eval Scoring — interactions with no summary
+A transcript whose summary is "The interaction is too short to create a summary." is skipped entirely, not scored.
+This overrides applicabilityCondition, including "always" — no prompt can change that output.
+start_eval_run drops them before batching (see skipped_transcripts) and submit_eval_scores refuses them.
+Unlike an N/A dimension, the transcript is absent from the results — report the skipped count with the pass rate.
+
 ## Need Help?
 Call get_pipeline_guide() for the complete workflow reference including API facts, schema details, and examples.
 `.trim();
@@ -314,6 +320,29 @@ When creating test cases via \`generate_test_case\`:
 - If **uncertain** → **stop and ask the user** before calling \`save_test_case\`. Never silently default to \`"always"\`.
 
 This keeps conditions intentional and prevents silent N/A mis-scoring in future eval runs.
+
+### Interactions with no summary override every applicabilityCondition
+
+When Genesys has too little to work with it returns \`"The interaction is too short to create a summary."\`
+in place of a summary. Such a transcript is **not evaluated at all** — no prompt can change that output,
+so scoring it measures the interaction's length rather than the prompt's quality, and either drags the
+pass rate down over something unfixable or props it up with hollow passes.
+
+\`start_eval_run\` detects these and drops them before batching, so scoring subagents never see them. They
+are recorded under \`skippedTranscripts\` in the run metadata, counted in the \`skipped_transcripts\` field
+of the response, and shown on the run dashboard. If a subagent submits a score for one anyway,
+\`submit_eval_scores\` refuses it.
+
+Two things to be clear on:
+- **This overrides \`applicabilityCondition\`, including \`"always"\`.** A dimension marked \`"always"\` still
+  does not apply here; there is no summary for it to apply to. Do not write the too-short case into
+  individual applicability conditions — it is handled centrally for every test case at once.
+- **It is not the same as an N/A score.** An N/A dimension is recorded with \`score: null\` against a
+  transcript that *was* evaluated. A skipped transcript is absent from the results entirely.
+
+Always report the skipped count alongside a run's pass rate, so a shrunken denominator is never mistaken
+for a full run. If most of a test set is being skipped, the test set needs longer interactions rather
+than a prompt change.
 
 ---
 

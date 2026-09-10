@@ -278,6 +278,8 @@ start_eval_run(
 
 `start_eval_run` returns a `run_number` plus `batches` and `test_cases`. Scoring is then delegated to one subagent per batch, each calling `submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)` once per transcript × test case. Scores are decimals from 0 to 1; a dimension whose `applicabilityCondition` is not met for a given transcript is submitted as `score: null` and excluded from aggregation.
 
+Transcripts whose summary reads "The interaction is too short to create a summary." are removed before batching — no prompt can change that output, so they are never scored, never reach a subagent, and never appear in a pass-rate denominator. This overrides `applicabilityCondition`, `"always"` included. The count is reported by `start_eval_run` and `finalize_eval_run` and shown on the run dashboard.
+
 Once every batch has reported, close the run:
 
 ```

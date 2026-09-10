@@ -196,6 +196,13 @@ Record the source of each requirement so a reviewer can tell artefact-derived fr
 - **NEVER omit this field** — every dimension must have it
 - **When authoring test cases and uncertain whether a dimension is `"always"` or conditional — ask the user. Never silently default to `"always"`.** The `generate_test_case` instruction enforces this interactively.
 
+**Interactions with no summary are skipped, overriding every `applicabilityCondition`:**
+- A transcript whose summary reads `"The interaction is too short to create a summary."` is not evaluated at all — no prompt can change that output, so scoring it measures interaction length, not prompt quality
+- This overrides `applicabilityCondition`, including `"always"`. Do not encode the too-short case into individual conditions — it is handled centrally for every test case
+- `start_eval_run` drops these before batching (reported as `skipped_transcripts`, recorded in `skippedTranscripts` in the run metadata, shown on the dashboard); `submit_eval_scores` refuses any score submitted for one
+- Distinct from an N/A dimension: an N/A dimension is `score: null` on an evaluated transcript, whereas a skipped transcript is absent from the results entirely
+- Always report the skipped count next to the pass rate. Heavy skipping means the test set needs longer interactions, not a prompt change
+
 ### Test Sets
 - File: `test-sets/{SummaryConfigName}-{DescriptiveName}.json`
 - `testCaseNames` = list of test case filenames (no `.json`); `transcriptIds` = IDs from `transcripts/static/`

@@ -86,7 +86,7 @@ Each test case file must follow this exact structure:
 | `dimensions[].name` | string | Short, human-readable label for the dimension |
 | `dimensions[].description` | string | One sentence stating what is being checked |
 | `dimensions[].weight` | number | Integer 1–5; reflects importance relative to other dimensions in the same test case |
-| `dimensions[].applicabilityCondition` | string | **Required on every dimension.** Use `"always"` for dimensions that apply to every transcript. Use a plain-English condition string for conditional dimensions — e.g. `"Only applies when a third party participated in the interaction."` Evaluators check this first: if the condition is not met they submit `score: null`, which is excluded from all pass-rate calculations. |
+| `dimensions[].applicabilityCondition` | string | **Required on every dimension.** Use `"always"` for dimensions that apply to every transcript. Use a plain-English condition string for conditional dimensions — e.g. `"Only applies when a third party participated in the interaction."` Evaluators check this first: if the condition is not met they submit `score: null`, which is excluded from all pass-rate calculations. Transcripts with no summary at all are skipped before scoring regardless of this field — see §5a. |
 | `dimensions[].passCriteria` | string | Describes the scoring gradient from 1.0 (perfect) downward — include intermediate examples |
 | `dimensions[].failCriteria` | string | Describes the complete failure condition (score 0) |
 | `dimensions[].passThreshold` | number | Decimal 0–1; minimum score to pass this dimension. Default: `0.8` |
@@ -166,6 +166,23 @@ This keeps the statistic honest. A dimension that rarely applies (e.g. third-par
 ### Rule: never omit the field
 
 `applicabilityCondition` must be present on **every dimension** — set it to `"always"` for unconditional dimensions. This ensures consistent schema and makes it easy to override when needed without having to add the field from scratch.
+
+### The one condition you never have to write
+
+When an interaction has too little content to work with, Genesys returns this in place of a summary:
+
+> The interaction is too short to create a summary.
+
+These transcripts are **skipped entirely** — they are not scored against any test case, and this overrides every `applicabilityCondition`, `"always"` included. There is no summary for a dimension to assess, and no prompt change can produce one, so a score would measure the interaction's length rather than the prompt's quality: it would either penalise the prompt for something unfixable or record a hollow pass.
+
+`start_eval_run` detects them and removes them before batching, so no evaluator ever sees one; `submit_eval_scores` rejects a score for one if it arrives anyway. The count appears in the `start_eval_run` response, in `skippedTranscripts` in the run metadata, and on the run dashboard.
+
+Two consequences for authoring:
+
+- **Never encode this case into an `applicabilityCondition`.** It is handled centrally for every test case at once, so a condition such as `"Only applies when a summary was generated."` is redundant — and worse, it dilutes a genuine condition into something an evaluator has to interpret.
+- **A skipped transcript is not an N/A dimension.** N/A means `score: null` recorded against a transcript that was evaluated; a skipped transcript is absent from the results altogether. Both are excluded from pass rates, but only one leaves a row behind.
+
+When reporting results, quote the skipped count alongside the pass rate. A test set that is mostly skipped needs longer interactions, not a different prompt.
 
 ### Rule: ask when uncertain
 
