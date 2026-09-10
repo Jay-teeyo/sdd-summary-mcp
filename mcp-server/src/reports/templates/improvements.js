@@ -54,8 +54,8 @@ function trendChart() {
   for (var g = 0; g <= 4; g++) {
     var v = g / 4;
     grid += '<line x1="' + padL + '" y1="' + y(v) + '" x2="' + (W - padR) + '" y2="' + y(v) +
-      '" stroke="#1e2d47" stroke-width="1"/>' +
-      '<text x="' + (padL - 8) + '" y="' + (y(v) + 4) + '" fill="#5b6f8f" font-size="10" text-anchor="end">' +
+      '" stroke="rgba(21,37,80,0.10)" stroke-width="1"/>' +
+      '<text x="' + (padL - 8) + '" y="' + (y(v) + 4) + '" fill="#8a92a6" font-size="10" font-family="Roboto Mono, monospace" text-anchor="end">' +
       Math.round(v * 100) + "%</text>";
   }
 
@@ -64,29 +64,29 @@ function trendChart() {
     var val = runs[i][METRIC];
     if (val === null) continue;
     pts.push(x(i) + "," + y(val));
-    dots += '<circle cx="' + x(i) + '" cy="' + y(val) + '" r="4.5" fill="' + colour(val) +
-      '" stroke="#0b1220" stroke-width="2"><title>Run ' + runs[i].runNumber + " — " + pct(val) + "</title></circle>";
-    labels += '<text x="' + x(i) + '" y="' + (H - padB + 16) + '" fill="#8397b5" font-size="10" text-anchor="middle">' +
+    dots += '<circle cx="' + x(i) + '" cy="' + y(val) + '" r="5" fill="' + colour(val) +
+      '" stroke="#ffffff" stroke-width="2.5"><title>Run ' + runs[i].runNumber + " — " + pct(val) + "</title></circle>";
+    labels += '<text x="' + x(i) + '" y="' + (H - padB + 17) + '" fill="#152550" font-size="11" font-weight="700" text-anchor="middle">' +
       runs[i].runNumber + "</text>" +
-      '<text x="' + x(i) + '" y="' + (H - padB + 29) + '" fill="#5b6f8f" font-size="9" text-anchor="middle">v' +
+      '<text x="' + x(i) + '" y="' + (H - padB + 30) + '" fill="#8a92a6" font-size="9" font-family="Roboto Mono, monospace" text-anchor="middle">v' +
       (runs[i].promptVersion.number === null ? "?" : runs[i].promptVersion.number) + "</text>";
     // Mark the run where the test set composition changed.
     if (i > 0 && runs[i].testSetSignature !== runs[i - 1].testSetSignature) {
       var mx = (x(i) + x(i - 1)) / 2;
       markers += '<line x1="' + mx + '" y1="' + padT + '" x2="' + mx + '" y2="' + (padT + innerH) +
-        '" stroke="#fbbf24" stroke-width="1" stroke-dasharray="3 3"/>' +
-        '<text x="' + (mx + 4) + '" y="' + (padT + 11) + '" fill="#fbbf24" font-size="9">test set changed</text>';
+        '" stroke="#f7ad00" stroke-width="1.5" stroke-dasharray="4 3"/>' +
+        '<text x="' + (mx + 5) + '" y="' + (padT + 11) + '" fill="#a8730a" font-size="9" font-weight="700">TEST SET CHANGED</text>';
     }
   }
 
   return '<div class="chart"><svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
     grid + markers +
-    '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linejoin="round"/>' +
+    '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#2243a2" stroke-width="2.5" stroke-linejoin="round"/>' +
     dots + labels +
-    '<text x="' + padL + '" y="' + (H - 6) + '" fill="#5b6f8f" font-size="10">run / prompt version</text>' +
+    '<text x="' + padL + '" y="' + (H - 5) + '" fill="#8a92a6" font-size="9" font-weight="700" letter-spacing="1">RUN / PROMPT VERSION</text>' +
     "</svg>" +
     '<div class="legend"><span>' + esc(metricLabel()) + " across " + MODEL.runs.length + " runs</span>" +
-    (signaturesDiffer() ? '<span style="color:#fbbf24">dashed line = test set composition changed</span>' : "") +
+    (signaturesDiffer() ? '<span style="color:#a8730a">dashed line = test set composition changed</span>' : "") +
     "</div></div>";
 }
 
@@ -254,7 +254,7 @@ function seriesTable(rows, label, withCategory) {
       if (v === null || v === undefined) {
         out += '<td class="mid" style="color:var(--dim)">—</td>';
       } else {
-        out += '<td class="mid" style="background:' + heatColour(v) + ';color:#04121f;font-weight:700;border-radius:4px">' +
+        out += '<td class="mid cell" style="background:' + heatColour(v) + '">' +
           Math.round(v * 100) + "</td>";
       }
     }
@@ -293,16 +293,34 @@ function viewRequirements() {
 /* ── Chrome + routes ────────────────────────────────────────────────────── */
 
 function renderChrome() {
-  document.getElementById("title").textContent = "Improvements — " + MODEL.testSet.name;
+  var l = latest();
+  document.getElementById("eyebrow").textContent = "Improvements \u00b7 run over run";
+  // Hyphens are swapped for spaces so a long set name breaks between words in the headline.
+  document.getElementById("title").innerHTML =
+    esc(MODEL.testSet.name.replace(/-/g, " ")) + ' <span>\u00b7</span> run ' + l.runNumber;
   document.getElementById("subtitle").textContent =
-    MODEL.config.name + " · " + MODEL.runs.length + " run" + (MODEL.runs.length === 1 ? "" : "s") +
-    " · latest " + date(latest().finalizedAt);
+    MODEL.config.name + " \u00b7 latest run " + l.runNumber + " on " + date(l.finalizedAt) +
+    " \u00b7 " + MODEL.changelog.filter(function (c) { return c.promptDiff.added || c.promptDiff.removed; }).length +
+    " prompt changes recorded";
 
+  var first = MODEL.runs[0];
+  var lifetime = (l.passRate !== null && first.passRate !== null) ? l.passRate - first.passRate : null;
+  setDial(l.passRate, "Latest pass rate",
+    lifetime === null ? "" : (lifetime >= 0 ? "+" : "") + pct(lifetime) + " since run " + first.runNumber);
+  setStamp(l.passRate, "Run " + l.runNumber + " \u00b7 version " +
+    (l.promptVersion.number === null ? "?" : l.promptVersion.number));
+
+  var b = best();
   var chips = [
-    '<span class="chip">Latest run <strong>' + latest().runNumber + "</strong></span>",
-    '<span class="chip">Latest pass rate <strong style="color:' + colour(latest().passRate) + '">' +
-      pct(latest().passRate) + "</strong></span>",
+    '<span class="chip"><b>Latest</b> <strong>' + pct(l.passRate) + "</strong></span>",
+    '<span class="chip"><b>Best</b> <strong>' + pct(b ? b.passRate : null) + "</strong> \u00b7 run " + (b ? b.runNumber : "\u2014") + "</span>",
+    '<span class="chip ' + (l.promptVersion.status || "") + '"><b>Version</b> <strong>' +
+      (l.promptVersion.number === null ? "?" : l.promptVersion.number) + "</strong>" +
+      (l.promptVersion.status ? " \u00b7 " + l.promptVersion.status : "") + "</span>",
   ];
+  if (MODEL.watchlist.length) {
+    chips.push('<span class="chip danger"><b>Watchlist</b> <strong>' + MODEL.watchlist.length + "</strong></span>");
+  }
   if (signaturesDiffer()) chips.push('<span class="chip warn">Test set changed mid-history</span>');
   document.getElementById("chips").innerHTML = chips.join("");
 
@@ -312,8 +330,9 @@ function renderChrome() {
 
   document.getElementById("foot").innerHTML =
     "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
-    "<span>sdd-summary-mcp v" + esc(MODEL.generator.serverVersion) + "</span>" +
-    "<span>report schema v" + MODEL.generator.schemaVersion + "</span>";
+    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
+    "<span>Self-contained \u2014 safe to copy or share as a single file</span>";
 }
 
 route("/", viewOverview);

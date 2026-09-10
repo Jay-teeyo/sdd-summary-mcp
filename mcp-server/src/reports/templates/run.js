@@ -16,6 +16,8 @@ function scoreLabel() {
 
 function toggleWeighting() {
   WEIGHTED = !WEIGHTED;
+  setStamp(MODEL.headline.passRate,
+    (WEIGHTED ? "Weighted" : "Mean") + " score " + score2(metricOf(MODEL.headline.stats)));
   renderRoute();
 }
 
@@ -181,8 +183,8 @@ function viewTestCase(name) {
   if (!tc) { mount('<div class="panel empty">Unknown test case.</div>'); return; }
 
   var out = crumbs([{ label: "Overview", href: "/" }, { label: niceName(tc.name) }]) +
-    '<div class="masthead" style="border:none;padding:0;margin-bottom:18px"><h1>' + esc(niceName(tc.name)) +
-    '</h1><div class="sub">' + esc(tc.description) + "</div></div>";
+    '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Test case</p><h1>' +
+    esc(niceName(tc.name)) + '</h1><p class="sub">' + esc(tc.description) + "</p></div>";
 
   out += '<div class="metrics">' +
     '<div class="metric"><div class="val" style="color:' + colour(tc.passRate) + '">' + pct(tc.passRate) +
@@ -308,8 +310,8 @@ function viewDimension(tcName, dimName) {
     { label: d.name },
   ]);
 
-  out += '<div class="masthead" style="border:none;padding:0;margin-bottom:18px"><h1>' + esc(d.name) +
-    '</h1><div class="sub">' + esc(d.description) + '</div><div class="meta-row">' +
+  out += '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Rubric dimension</p><h1>' +
+    esc(d.name) + '</h1><p class="sub">' + esc(d.description) + '</p><div class="meta-row on-light">' +
     '<span class="chip">Weight <strong>' + d.weight + " of 5</strong></span>" +
     '<span class="chip">Pass threshold <strong>' + d.passThreshold.toFixed(2) + "</strong></span>" +
     '<span class="chip">Pass rate <strong style="color:' + colour(d.stats.passRate) + '">' + pct(d.stats.passRate) + "</strong></span>" +
@@ -353,7 +355,7 @@ function viewDimension(tcName, dimName) {
       '<td class="num" style="color:' + colour(s.score) + '">' + (s.na ? "—" : s.score.toFixed(2)) + "</td>" +
       '<td class="mid">' + (s.na ? '<span class="badge na">N/A</span>'
         : s.passed ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>') + "</td>" +
-      '<td style="color:#c3d2e8;font-size:0.83rem">' + esc(s.reasoning) + "</td>" +
+      '<td style="color:var(--muted);font-size:12.5px">' + esc(s.reasoning) + "</td>" +
       '<td class="num" style="color:var(--dim)">›</td></tr>';
   }
   out += "</tbody></table></div>";
@@ -373,8 +375,8 @@ function viewTranscript(id) {
   if (!found) { mount('<div class="panel empty">Unknown interaction.</div>'); return; }
 
   var out = crumbs([{ label: "Overview", href: "/" }, { label: "Interactions", href: "/transcripts" }, { label: found.label }]);
-  out += '<div class="masthead" style="border:none;padding:0;margin-bottom:18px"><h1>' + esc(found.label) +
-    '</h1><div class="sub mono">' + esc(found.id) + "</div></div>";
+  out += '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Interaction</p><h1>' +
+    esc(found.label) + '</h1><p class="sub mono">' + esc(found.id) + "</p></div>";
 
   out += '<div class="two-col"><div class="panel"><div class="col-head">Generated summary</div><pre class="text">' +
     esc(found.summary) + "</pre></div>";
@@ -404,7 +406,7 @@ function viewTranscript(id) {
         '<td class="num" style="color:' + colour(sc.score) + '">' + (sc.na ? "—" : sc.score.toFixed(2)) + "</td>" +
         '<td class="mid">' + (sc.na ? '<span class="badge na">N/A</span>'
           : sc.passed ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>') + "</td>" +
-        '<td style="color:#c3d2e8;font-size:0.83rem">' + esc(sc.reasoning) + "</td></tr>";
+        '<td style="color:var(--muted);font-size:12.5px">' + esc(sc.reasoning) + "</td></tr>";
     }
     out += "</tbody></table></div>";
   }
@@ -540,8 +542,9 @@ function viewRequirement(id) {
   if (!req) { mount('<div class="panel empty">Unknown requirement.</div>'); return; }
 
   var out = crumbs([{ label: "Overview", href: "/" }, { label: "Requirements", href: "/requirements" }, { label: req.id }]);
-  out += '<div class="masthead" style="border:none;padding:0;margin-bottom:18px"><h1 class="mono">' + esc(req.id) +
-    '</h1><div class="sub">' + esc(req.text) + '</div><div class="meta-row">' +
+  out += '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Business requirement</p>' +
+    '<h1 class="mono" style="font-size:26px">' + esc(req.id) + '</h1><p class="sub">' + esc(req.text) +
+    '</p><div class="meta-row on-light">' +
     '<span class="chip">Category <strong>' + esc(req.category) + "</strong></span>" +
     '<span class="chip">Source <strong>' + esc(req.source) + "</strong></span>" +
     '<span class="chip">Compliance <strong style="color:' + colour(req.stats.passRate) + '">' + pct(req.stats.passRate) + "</strong></span>" +
@@ -594,7 +597,7 @@ function viewRequirement(id) {
       out += '<tr class="clickable" onclick="go(\'/tx/' + encodeURIComponent(fails[f].tx.id) + '\')">' +
         "<td>" + esc(fails[f].tx.label) + "</td><td>" + esc(fails[f].dim) + "</td>" +
         '<td class="num" style="color:' + colour(fails[f].sc.score) + '">' + fails[f].sc.score.toFixed(2) + "</td>" +
-        '<td style="color:#c3d2e8;font-size:0.83rem">' + esc(fails[f].sc.reasoning) + "</td></tr>";
+        '<td style="color:var(--muted);font-size:12.5px">' + esc(fails[f].sc.reasoning) + "</td></tr>";
     }
     out += "</tbody></table>";
   }
@@ -614,21 +617,39 @@ function viewTestCases() {
 
 function renderChrome() {
   var r = MODEL.run;
-  document.getElementById("title").textContent = "Run " + r.number + " — " + MODEL.testSet.name;
+  var h = MODEL.headline;
+
+  document.getElementById("eyebrow").textContent =
+    "Eval run \u00b7 " + (r.mode === "existing" ? "Existing production summaries" : "Prompt test");
+  // The set name is hyphenated and long; letting it break on spaces keeps the headline on
+  // one or two tidy lines instead of splitting a word mid-hyphen.
+  document.getElementById("title").innerHTML =
+    '<span>Run ' + r.number + "</span> " + esc(MODEL.testSet.name.replace(/-/g, " "));
   document.getElementById("subtitle").textContent =
-    MODEL.config.name + " · " + (r.mode === "existing" ? "existing production summaries" : "prompt test") +
-    " · finalised " + date(r.finalizedAt, true);
+    MODEL.config.name + " \u00b7 " + MODEL.testCases.length + " test case" +
+    (MODEL.testCases.length === 1 ? "" : "s") + " across " + h.transcriptsEvaluated +
+    " interaction" + (h.transcriptsEvaluated === 1 ? "" : "s") +
+    " \u00b7 finalised " + date(r.finalizedAt, true);
+
+  setDial(h.passRate, "Passed every test case",
+    h.transcriptsPassed + " of " + h.transcriptsEvaluated + " interactions");
+  setStamp(h.passRate, (WEIGHTED ? "Weighted" : "Mean") + " score " + score2(metricOf(h.stats)));
 
   var chips = [
     '<span class="chip">Run <strong>' + r.number + "</strong></span>",
     r.promptVersion.number !== null
-      ? '<span class="chip ' + (r.promptVersion.status || "") + '">Version <strong>' + r.promptVersion.number +
-        "</strong>" + (r.promptVersion.status ? " · " + r.promptVersion.status : "") + "</span>"
+      ? '<span class="chip ' + (r.promptVersion.status || "") + '"><b>Version</b> <strong>' +
+        r.promptVersion.number + "</strong>" + (r.promptVersion.status ? " \u00b7 " + r.promptVersion.status : "") + "</span>"
       : '<span class="chip warn">Unversioned prompt</span>',
-    '<span class="chip">Interactions <strong>' + r.transcriptsEvaluated + "</strong></span>",
+    '<span class="chip"><b>Interactions</b> <strong>' + r.transcriptsEvaluated + "</strong></span>",
+    '<span class="chip"><b>Dimension scores</b> <strong>' + h.stats.evaluated + "</strong></span>",
   ];
   if (r.skipped.length) {
-    chips.push('<span class="chip warn">Skipped <strong>' + r.skipped.length + "</strong> · too short to summarise</span>");
+    chips.push('<span class="chip warn"><b>Skipped</b> <strong>' + r.skipped.length + "</strong> \u00b7 too short to summarise</span>");
+  }
+  if (!MODEL.coverage.requirementsUnavailable && MODEL.coverage.uncoveredRequirementIds.length) {
+    chips.push('<span class="chip danger"><b>Untested requirements</b> <strong>' +
+      MODEL.coverage.uncoveredRequirementIds.length + "</strong></span>");
   }
   if (r.previewStructure && r.previewStructure.indexOf("fallback") === 0) {
     chips.push('<span class="chip danger">Preview structure: fallback defaults</span>');
@@ -637,14 +658,14 @@ function renderChrome() {
 
   document.getElementById("tab-counts-testcases").textContent = MODEL.testCases.length;
   document.getElementById("tab-counts-requirements").textContent =
-    MODEL.coverage.requirementsUnavailable ? "—" : MODEL.requirements.length;
+    MODEL.coverage.requirementsUnavailable ? "\u2014" : MODEL.requirements.length;
   document.getElementById("tab-counts-transcripts").textContent = MODEL.run.transcriptsEvaluated;
 
   document.getElementById("foot").innerHTML =
     "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
-    "<span>sdd-summary-mcp v" + esc(MODEL.generator.serverVersion) + "</span>" +
-    "<span>report schema v" + MODEL.generator.schemaVersion + "</span>" +
-    "<span>Self-contained — safe to copy or share as a single file</span>";
+    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
+    "<span>Self-contained \u2014 safe to copy or share as a single file</span>";
 }
 
 route("/", viewOverview);

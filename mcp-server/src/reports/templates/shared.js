@@ -31,8 +31,10 @@ function colour(v) {
 
 function heatColour(v) {
   if (v === null || v === undefined) return null;
-  // Interpolate red → amber → green so a grid reads at a glance.
-  var stops = [[0, [220, 70, 70]], [0.5, [225, 160, 60]], [0.8, [190, 200, 70]], [1, [60, 200, 140]]];
+  // Brand ramp: orange → amber → patina, so a grid reads at a glance and still looks
+  // like the rest of the report. Values are tinted rather than saturated so the navy
+  // numerals stay legible on every cell.
+  var stops = [[0, [255, 138, 112]], [0.5, [250, 205, 120]], [0.8, [196, 226, 168]], [1, [126, 232, 207]]];
   for (var i = 0; i < stops.length - 1; i++) {
     if (v <= stops[i + 1][0]) {
       var t = (v - stops[i][0]) / (stops[i + 1][0] - stops[i][0]);
@@ -42,7 +44,7 @@ function heatColour(v) {
         Math.round(a[2] + (b[2] - a[2]) * t) + ")";
     }
   }
-  return "rgb(60,200,140)";
+  return "rgb(126,232,207)";
 }
 
 function bar(v) {
@@ -128,6 +130,31 @@ function crumbs(items) {
       : "<span>" + esc(it.label) + "</span>");
   }
   return '<div class="crumbs">' + out.join(' <span>/</span> ') + "</div>";
+}
+
+/**
+ * Paint the hero dial. The arc is the headline metric, coloured by the same thresholds as
+ * every other score in the report so the hero cannot disagree with the tables below it.
+ */
+function setDial(value, label, sub) {
+  var el = document.getElementById("dial");
+  var pctVal = (value === null || value === undefined || isNaN(value)) ? 0 : value;
+  var hue = pctVal >= 0.9 ? "var(--patina)" : pctVal >= 0.7 ? "var(--amber)" : "var(--orange)";
+  el.style.setProperty("--arc", Math.round(pctVal * 100) + "%");
+  el.style.setProperty("--dial-color", hue);
+  document.getElementById("dialnum").innerHTML =
+    (value === null || value === undefined || isNaN(value))
+      ? "—"
+      : Math.round(value * 100) + "<small>%</small>";
+  if (label) document.getElementById("diallab").textContent = label;
+  document.getElementById("dialsub").textContent = sub || "";
+}
+
+/** The status dot in the hero: green when healthy, amber marginal, orange failing. */
+function setStamp(value, text) {
+  var dot = document.getElementById("stampdot");
+  dot.className = "live-dot" + (value >= 0.9 ? "" : value >= 0.7 ? " warn" : " fail");
+  document.getElementById("stamptext").textContent = text;
 }
 
 function setTab(name) {

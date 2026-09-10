@@ -16,11 +16,26 @@
 <body>
 <div class="page">
 
-  <div class="masthead">
-    <h1 id="title"></h1>
-    <div class="sub" id="subtitle"></div>
-    <div class="meta-row" id="chips"></div>
-  </div>
+  <section class="hero">
+    <div class="hero-top">
+      <div class="eyebrow" id="eyebrow">Eval run</div>
+      <div class="hero-stamp"><i class="live-dot" id="stampdot"></i><span id="stamptext"></span></div>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <h1 id="title"></h1>
+        <p class="sub" id="subtitle"></p>
+        <div class="hero-tags" id="chips"></div>
+      </div>
+      <div class="dial" id="dial">
+        <div class="dial-face">
+          <span class="dial-num" id="dialnum"></span>
+          <span class="dial-lab" id="diallab">Passed every test case</span>
+          <span class="dial-sub" id="dialsub"></span>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <nav class="tabs">
     <button class="tab active" data-tab="overview" onclick="go('/')">Overview</button>
