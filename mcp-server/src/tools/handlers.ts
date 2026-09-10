@@ -535,8 +535,10 @@ export async function smoke_test_auth(_args: Args) {
       false,
       hasUserToken,
       async () => {
-        // tier is mandatory here — omitting it returns 500, which this check
-        // would otherwise report as a missing `assistants` scope.
+        // pageSize=1 means this probe cannot hit the >97-entity 500 described
+        // in copilot.ts, which is why it passed while listAssistants() failed.
+        // Keep it that way — this checks the scope, not the pagination fault —
+        // but send the same tier filter so the two calls stay comparable.
         await genesys.get(`/api/v2/assistants?pageSize=1&tier=${ASSISTANT_TIER}`);
       },
     ),

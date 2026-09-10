@@ -102,8 +102,19 @@ async function request<T>(
       const text = await resp.text();
       let message = text;
       try {
-        const json = JSON.parse(text) as { message?: string };
+        const json = JSON.parse(text) as {
+          message?: string;
+          code?: string;
+          correlationId?: string;
+        };
         message = json.message ?? text;
+        // Keep the correlation id and code. Genesys support needs the
+        // correlation id to trace a request, and dropping it is what left an
+        // earlier 500 on /api/v2/assistants undiagnosable.
+        const detail = [json.code, json.correlationId && `correlationId ${json.correlationId}`]
+          .filter(Boolean)
+          .join(", ");
+        if (detail) message = `${message} (${detail})`;
       } catch { /* use raw text */ }
       throw new GenesysApiError(resp.status, path, message);
     }

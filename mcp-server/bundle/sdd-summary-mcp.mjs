@@ -7297,6 +7297,8 @@ async function request(method, path3, body) {
       try {
         const json2 = JSON.parse(text);
         message = json2.message ?? text;
+        const detail = [json2.code, json2.correlationId && `correlationId ${json2.correlationId}`].filter(Boolean).join(", ");
+        if (detail) message = `${message} (${detail})`;
       } catch {
       }
       throw new GenesysApiError(resp.status, path3, message);
@@ -15879,7 +15881,7 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... \u2014 waiting
 
 | Concern | Correct API |
 |---|---|
-| List assistants | \`GET /api/v2/assistants?tier=Copilot\` \u2014 \`tier\` is REQUIRED; omitting it returns 500, not all tiers |
+| List assistants | \`GET /api/v2/assistants?tier=Copilot&pageSize=50\` \u2014 returns 500 above ~97 entities per response despite a documented \`pageSize\` max of 200, so keep pages small |
 | Queues for an assistant | \`GET /api/v2/assistants/{assistantId}/queues\` (cursor pagination with \`after\`/\`nextUri\`) |
 | Queue display names | \`GET /api/v2/routing/queues?id=id1&id=id2...\` |
 | Voice transcript URL | \`GET /api/v2/speechandtextanalytics/conversations/{id}/communications/{commId}/transcriptUrls\` |
@@ -16609,13 +16611,13 @@ async function getExistingSummaries(conversationId) {
 // src/genesys/copilot.ts
 init_client();
 var ASSISTANT_TIER = "Copilot";
+var ASSISTANTS_PAGE_SIZE = 50;
 async function listAssistants() {
   const all = [];
   let pageNumber = 1;
-  const pageSize = 100;
   while (true) {
     const params = new URLSearchParams({
-      pageSize: String(pageSize),
+      pageSize: String(ASSISTANTS_PAGE_SIZE),
       pageNumber: String(pageNumber),
       tier: ASSISTANT_TIER
     });
