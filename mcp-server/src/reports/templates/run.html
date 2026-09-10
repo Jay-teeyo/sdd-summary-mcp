@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!--
+  Eval run report.
+
+  Static chrome lives here so it can be edited as HTML; the views are rendered from the
+  embedded model by run.js. Everything is inlined — no network requests, no build step —
+  so this file can be copied or emailed and still work.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{PAGE_TITLE}}</title>
+<style>{{STYLES}}</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="masthead">
+    <h1 id="title"></h1>
+    <div class="sub" id="subtitle"></div>
+    <div class="meta-row" id="chips"></div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview" onclick="go('/')">Overview</button>
+    <button class="tab" data-tab="testcases" onclick="go('/testcases')">Test cases <span class="count" id="tab-counts-testcases"></span></button>
+    <button class="tab" data-tab="requirements" onclick="go('/requirements')">Requirements <span class="count" id="tab-counts-requirements"></span></button>
+    <button class="tab" data-tab="transcripts" onclick="go('/transcripts')">Interactions <span class="count" id="tab-counts-transcripts"></span></button>
+  </nav>
+
+  <main id="body"></main>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script type="application/json" id="report-model">{{MODEL}}</script>
+<script>{{SHARED}}</script>
+<script>{{VIEWER}}</script>
+</body>
+</html>

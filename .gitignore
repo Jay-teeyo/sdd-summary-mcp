@@ -37,3 +37,6 @@ archived/
 # ─── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store
+
+# Rendered report previews from fixture data (npm run preview:reports)
+mcp-server/.reports-preview/

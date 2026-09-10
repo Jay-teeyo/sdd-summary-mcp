@@ -9,6 +9,7 @@
  * Regenerate with `npm run bundle` and commit the result whenever src/ changes.
  */
 import * as esbuild from "esbuild";
+import { templateTextPlugin } from "./build-shared.mjs";
 import { readFileSync, mkdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +44,9 @@ await esbuild.build({
   define: {
     "process.env.SDDSUM_VERSION": JSON.stringify(version),
   },
+  // Report templates are authored as .html/.css/.js and inlined here, so the deployed
+  // bundle carries them and cannot fall out of step with the code that renders them.
+  plugins: [templateTextPlugin],
 });
 
 const kb = (statSync(outfile).size / 1024).toFixed(0);
