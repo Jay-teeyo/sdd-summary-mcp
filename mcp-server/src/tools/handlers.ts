@@ -20,7 +20,7 @@ import {
   extractSummaryText,
   getExistingSummaries,
 } from "../genesys/summaries.js";
-import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues, ASSISTANT_TIER } from "../genesys/copilot.js";
+import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues } from "../genesys/copilot.js";
 import { generateDashboard } from "../dashboard.js";
 import { generateEvalRunDashboardHtml, generateImprovementsDashboardHtml } from "../dashboardHtml.js";
 import type {
@@ -583,11 +583,9 @@ export async function smoke_test_auth(_args: Args) {
       false,
       hasUserToken,
       async () => {
-        // pageSize=1 means this probe cannot hit the >97-entity 500 described
-        // in copilot.ts, which is why it passed while listAssistants() failed.
-        // Keep it that way — this checks the scope, not the pagination fault —
-        // but send the same tier filter so the two calls stay comparable.
-        await genesys.get(`/api/v2/assistants?pageSize=1&tier=${ASSISTANT_TIER}`);
+        // Checks only that the assistants scope is granted, so pageSize=1 with no
+        // tier filter is enough.
+        await genesys.get(`/api/v2/assistants?pageSize=1`);
       },
     ),
 

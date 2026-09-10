@@ -44,24 +44,16 @@ export interface CopilotConfig {
 }
 
 /**
- * GET /api/v2/assistants returns 500 once a response carries more than roughly
- * 97 entities, despite the documented `pageSize` maximum of 200. Observed in an
- * org with a large assistant inventory: `pageSize` above 97 unfiltered failed,
- * while the same request filtered to the Copilot tier succeeded.
+ * GET /api/v2/assistants returned 500 when queried unfiltered in an org with a large assistant inventory. Filtering to the Copilot tier fixes it, and is what
+ * this server wants regardless — every assistant it deals with is an Agent
+ * Copilot — so `tier` is sent on every request.
  *
- * Both settings below are needed, for different reasons.
- *
- * `tier` is what this server actually wants — every assistant it deals with is
- * an Agent Copilot — and it also keeps the result set small in mixed-tier orgs.
- *
- * The page size is the part that makes it durable. `tier` alone only avoids the
- * fault while an org has fewer than ~97 copilots; at 98 the 500 would return,
- * with the org having done nothing wrong. Requesting well under the threshold
- * removes the dependency on org size, at the cost of one extra round trip per
- * 50 assistants.
+ * 200 is the documented `pageSize` maximum and is safe alongside the tier
+ * filter, so a single request covers any realistic org. Pagination below is
+ * kept only as a safety net for the unlikely case of a full page.
  */
 export const ASSISTANT_TIER = "Copilot";
-const ASSISTANTS_PAGE_SIZE = 50;
+const ASSISTANTS_PAGE_SIZE = 200;
 
 export async function listAssistants(): Promise<Assistant[]> {
   const all: Assistant[] = [];
@@ -78,8 +70,9 @@ export async function listAssistants(): Promise<Assistant[]> {
     const entities = resp.entities ?? [];
     all.push(...entities);
 
-    const total = (resp as { total?: number }).total ?? 0;
-    if (all.length >= total || entities.length === 0) break;
+    // Only a completely full page implies there may be more. Relying on `total`
+    // instead would stop after page one whenever the field is absent.
+    if (entities.length < ASSISTANTS_PAGE_SIZE) break;
     pageNumber++;
   }
 

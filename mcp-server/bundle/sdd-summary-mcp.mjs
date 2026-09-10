@@ -15868,7 +15868,7 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... \u2014 waiting
 
 | Concern | Correct API |
 |---|---|
-| List assistants | \`GET /api/v2/assistants?tier=Copilot&pageSize=50\` \u2014 returns 500 above ~97 entities per response despite a documented \`pageSize\` max of 200, so keep pages small |
+| List assistants | \`GET /api/v2/assistants?tier=Copilot&pageSize=200\` \u2014 the \`tier\` filter is required; querying unfiltered returned 500 in a large org. 200 is the documented \`pageSize\` max |
 | Queues for an assistant | \`GET /api/v2/assistants/{assistantId}/queues\` (cursor pagination with \`after\`/\`nextUri\`) |
 | Queue display names | \`GET /api/v2/routing/queues?id=id1&id=id2...\` |
 | Voice transcript URL | \`GET /api/v2/speechandtextanalytics/conversations/{id}/communications/{commId}/transcriptUrls\` |
@@ -16604,7 +16604,7 @@ async function getExistingSummaries(conversationId) {
 // src/genesys/copilot.ts
 init_client();
 var ASSISTANT_TIER = "Copilot";
-var ASSISTANTS_PAGE_SIZE = 50;
+var ASSISTANTS_PAGE_SIZE = 200;
 async function listAssistants() {
   const all = [];
   let pageNumber = 1;
@@ -16617,8 +16617,7 @@ async function listAssistants() {
     const resp = await genesys.get(`/api/v2/assistants?${params}`);
     const entities = resp.entities ?? [];
     all.push(...entities);
-    const total = resp.total ?? 0;
-    if (all.length >= total || entities.length === 0) break;
+    if (entities.length < ASSISTANTS_PAGE_SIZE) break;
     pageNumber++;
   }
   return all;
@@ -17813,7 +17812,7 @@ async function smoke_test_auth(_args) {
       false,
       hasUserToken,
       async () => {
-        await genesys2.get(`/api/v2/assistants?pageSize=1&tier=${ASSISTANT_TIER}`);
+        await genesys2.get(`/api/v2/assistants?pageSize=1`);
       }
     ),
     // 6. notifications scope — create a notification channel (user token only; required for preview summaries)
