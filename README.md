@@ -8,39 +8,62 @@ It bundles an MCP server with the pipeline guidance Cursor needs to orchestrate 
 
 ## Install
 
-The plugin ships a **pre-built, self-contained server bundle**. There is no `npm install` and no build step — you need only Node.js 18+ and Cursor.
+Everything ships **pre-built and self-contained**. There is no `npm install` and no build step — you need only Node.js 18+ and Cursor.
 
-### Option A — Install from the repository URL
+Choose a scope first, because it determines which projects the tooling is active in.
 
-In Cursor, open **Customize → Plugins**, paste this repository's URL into the plugin search, and install it.
+| | Project scope *(recommended)* | User scope |
+|---|---|---|
+| Active in | One project only | Every workspace you open |
+| Mechanism | `.cursor/` files in the target project | Cursor plugin |
+| Use when | Normal use — this is a specialised tool | You genuinely want Genesys tooling everywhere |
 
-### Option B — Local install (works offline)
+**Project scope is the default recommendation.** This server exposes 47 Genesys tools and an always-applied pipeline rule. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~488 lines of guidance into every request. Cursor has no documented way to disable a user-scoped plugin per project, so scope is chosen at install time.
 
-Use this when you have the repo as a folder or zip and want no network or git dependency at all.
+### Option A — Project scope (recommended)
+
+From this repo, deploy into the project you want to work in:
 
 ```bash
-# Copy (or symlink) the repo into Cursor's local plugin directory
+node deploy.js /path/to/your/project
+```
+
+That writes into the target project:
+
+| Path | Contents |
+|---|---|
+| `.cursor/mcp.json` | Server definition, with the pre-approved tool list |
+| `.cursor/rules/` | Pipeline guidance |
+| `.cursor/skills/` | Pipeline skills (when present) |
+| `.cursor/sdd-summary/sdd-summary-mcp.mjs` | The vendored server bundle |
+
+The config uses `${workspaceFolder}` and contains **no absolute paths**, so the project keeps working if it's moved, renamed, or handed to a colleague. If the project already has a `.cursor/mcp.json`, the script merges into it and preserves any other MCP servers.
+
+Re-run `deploy.js` after any server change to refresh the vendored copy.
+
+### Option B — User scope (Cursor plugin)
+
+Installs once and applies to every workspace.
+
+```bash
+# Local install — works offline, no git or network needed
 ln -s /path/to/SDD-Summary ~/.cursor/plugins/local/sdd-summary
 ```
 
-Then run **Developer: Reload Window** in Cursor, or restart it.
+Or in Cursor, open **Customize → Plugins** and paste this repository's URL into the plugin search. Marketplace installs additionally offer a project-scope choice at install time.
+
+Then run **Developer: Reload Window**.
 
 > On Enterprise plans, local plugin imports are disabled by default. An admin must enable **Allow Local Plugin Imports** under Dashboard → Settings → Security & Identity.
 
-### What installing gives you
+### Where data goes
 
-| Component | Effect |
-|---|---|
-| MCP server | Registered automatically — no `.cursor/mcp.json` to write, no absolute paths to fix |
-| Skills / rules | Pipeline guidance loaded into Cursor agent sessions |
-| Approval suppression | Safe tools are pre-approved so eval runs don't stop for hundreds of prompts |
-
-Working data is written to **your workspace**, not the plugin directory:
+Under both options, working data is written to **the workspace you have open**, never to the install location:
 
 - `.summaryconfig-lifecycle/` — transcripts, test cases, eval runs, version history
 - `.sdd-summary/` — credentials and tokens
 
-Because these are workspace-relative, updating or reinstalling the plugin never touches your data.
+Both are workspace-relative, so re-deploying or reinstalling never touches your data. Add both to the target project's `.gitignore` — they hold OAuth tokens and customer transcripts.
 
 ---
 
@@ -135,7 +158,8 @@ Full reference: ask the agent to call `get_pipeline_guide()`, or see [`docs/work
 
 ```
 SDD-Summary/
-├── .cursor-plugin/plugin.json     ← plugin manifest
+├── deploy.js                      ← project-scoped deploy (Option A)
+├── .cursor-plugin/plugin.json     ← plugin manifest (Option B)
 ├── mcp.json                       ← MCP server definition (plugin-relative)
 ├── rules/                         ← pipeline guidance shipped to users
 ├── docs/                          ← methodology guides

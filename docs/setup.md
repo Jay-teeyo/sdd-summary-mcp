@@ -20,17 +20,67 @@ See [`oauth-setup.md`](./oauth-setup.md) for step-by-step client creation.
 
 ---
 
-## Option A — Install from the repository URL
+## Choosing a scope
 
-In Cursor, open **Customize → Plugins**, paste the repository URL into the plugin search, and install.
+This decision comes first, because it determines which projects the tooling is active in.
 
-Cursor clones the repo and registers everything in it — the MCP server, the pipeline guidance, and the pre-approved tool list.
+| | Project scope *(recommended)* | User scope |
+|---|---|---|
+| Active in | One project only | Every workspace you open |
+| Mechanism | `.cursor/` files in the target project | Cursor plugin |
 
-> Installing from a private repository relies on your local git credentials being able to clone it. If the install fails, confirm you can `git clone` the repo from a terminal first.
+The server exposes 47 Genesys tools and an always-applied pipeline rule. At user scope, those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 488 lines of guidance injected into every request.
 
-## Option B — Local install (offline)
+Cursor documents **no way to disable a user-scoped plugin for individual projects**, so this is decided at install time rather than adjusted later. Note also that the plugin scope picker ("Install and choose a project or user scope") is documented only for **marketplace** installs — the local-directory install path is inherently user-global.
 
-Use this when you have the repo as a folder or zip, or when you want no network or git dependency at all. This is the most reliable path for workshops and shared machines.
+---
+
+## Option A — Project scope (recommended)
+
+Run from this repo, pointing at the project you want to work in:
+
+```bash
+node deploy.js /path/to/your/project
+```
+
+With no argument it deploys into the current directory.
+
+### What it writes
+
+| Path in the target project | Contents |
+|---|---|
+| `.cursor/mcp.json` | Server definition including the pre-approved tool list |
+| `.cursor/rules/` | Pipeline guidance |
+| `.cursor/skills/` | Pipeline skills (when present in the repo) |
+| `.cursor/sdd-summary/sdd-summary-mcp.mjs` | The vendored server bundle (~727 KB) |
+
+### Why the bundle is vendored into the project
+
+Copying the server in means `.cursor/mcp.json` can reference `${workspaceFolder}` and contain **no absolute paths at all**. The project therefore survives being moved, renamed, or handed to a colleague, and does not depend on this repo staying where it is.
+
+This also avoids the failure that made the old `setup.js` approach fragile. That broke when the *server repo* sat inside a *different* Cursor workspace, so its `.cursor/mcp.json` was silently ignored. Here the config lands at the root of the target project, which **is** the workspace root — correct by construction.
+
+### Merging with existing configuration
+
+If the target already has a `.cursor/mcp.json`, the script merges into it: it adds or replaces only the `sdd-summary` entry and preserves every other MCP server. It refuses to proceed if the existing file is not valid JSON rather than overwriting it.
+
+### Updating
+
+Re-run `deploy.js` after any server change. The vendored copy is a snapshot, so it does not update on its own.
+
+---
+
+## Option B — User scope (Cursor plugin)
+
+Installs once and is active in every workspace. Use only if you want that.
+
+### From the repository URL
+
+In Cursor, open **Customize → Plugins**, paste the repository URL into the plugin search, and install. Marketplace installs offer a project-or-user scope choice at this point.
+
+> Installing from a private repository relies on your local git credentials being able to clone it. If it fails, confirm you can `git clone` the repo from a terminal first.
+
+### Local install (offline)
 
 ```bash
 # Symlink (edits stay live) …
@@ -42,31 +92,40 @@ cp -R /path/to/SDD-Summary ~/.cursor/plugins/local/sdd-summary
 
 Then **Cmd+Shift+P → Developer: Reload Window**.
 
+This path is **user-global** — there is no project-scoped equivalent of `~/.cursor/plugins/local/`.
+
 > On **Enterprise** plans, local plugin imports are disabled by default. An admin must enable **Allow Local Plugin Imports** under Dashboard → Settings → Security & Identity.
 
-## Option C — Team marketplace (Teams / Enterprise)
+### Team marketplace (Teams / Enterprise)
 
 For distributing to a whole org from a private repo:
 
 1. Push the repo to your GitHub organisation.
 2. In the Cursor admin dashboard, go to **Plugins → Team Marketplaces → Add Marketplace → Import from Repo** and paste the repo URL.
-3. Set the installation mode:
-   - **Default Off** — developers opt in
-   - **Default On** — auto-installed, can be removed
-   - **Required** — forced for everyone
-4. Optionally enable **Auto Refresh** so pushes to the tracked branch re-index automatically (requires the Cursor GitHub App on the repo; re-indexes at most once per 10 minutes).
+3. Set the installation mode — **Default Off** (opt in), **Default On** (auto-installed, removable), or **Required** (forced).
+4. Optionally enable **Auto Refresh** so pushes to the tracked branch re-index automatically (requires the Cursor GitHub App; re-indexes at most once per 10 minutes).
+
+Developers installing from Customize can choose project scope, which is the way to combine org-wide distribution with per-project activation.
 
 ---
 
-## What the plugin registers
+## What gets registered
+
+Both options register the same three components from the same sources — only the location and scope differ.
 
 | Component | Source in repo | Effect |
 |---|---|---|
-| MCP server | `mcp.json` → `mcp-server/bundle/sdd-summary-mcp.mjs` | Registered automatically; no `.cursor/mcp.json` to write and no absolute paths to fix |
+| MCP server | `mcp.json` → the bundled server | Registered on reload |
 | Pipeline guidance | `rules/sdd-summary-pipeline.mdc` | Injected into agent sessions |
 | Pre-approved tools | `alwaysAllow` in `mcp.json` | Suppresses approval prompts so eval runs are not interrupted |
 
-The server path uses `${CURSOR_PLUGIN_ROOT}`, so it resolves wherever Cursor placed the plugin.
+| | Project scope | User scope |
+|---|---|---|
+| Server path | `${workspaceFolder}/.cursor/sdd-summary/…` | `${CURSOR_PLUGIN_ROOT}/mcp-server/bundle/…` |
+| Config location | `.cursor/mcp.json` in the project | Managed by Cursor |
+| Guidance location | `.cursor/rules/` in the project | `rules/` in the plugin |
+
+`mcp.json` at the repo root is the single source of truth for the server definition and the pre-approved tool list. `deploy.js` reads it and rewrites only the server path, so the two options cannot drift apart.
 
 ### Approval suppression
 
@@ -88,7 +147,7 @@ Storage is pinned to the **workspace you have open**, using `${workspaceFolder}`
 | `{workspace}/.summaryconfig-lifecycle/` | Transcripts, requirements, test cases, eval runs, version history |
 | `{workspace}/.sdd-summary/` | OAuth config and tokens |
 
-This keeps user data outside the plugin install, so updating or reinstalling the plugin never destroys work. It also means each project you open gets its own independent lifecycle data.
+This keeps user data outside the install location under both options, so re-deploying or reinstalling never destroys work. It also means each project gets its own independent lifecycle data.
 
 ---
 
@@ -114,15 +173,33 @@ On later sessions `login()` takes no argument, since the Authorization URL is st
 
 ### If the server does not appear
 
-- Confirm the plugin is listed and enabled under **Customize → Plugins**.
+Common to both options:
+
 - Confirm `node --version` is 18+ and that `node` is on the PATH Cursor sees.
-- Run the bundle directly to check it is intact:
+- Check **Customize → MCP** and confirm `sdd-summary` is listed and toggled on.
+- Run the bundle directly to check it is intact. It should print
+  `SDD Summary MCP server running (stdio)` and wait; Ctrl+C to exit.
 
   ```bash
+  # Project scope
+  node /path/to/your/project/.cursor/sdd-summary/sdd-summary-mcp.mjs
+
+  # User scope
   node ~/.cursor/plugins/local/sdd-summary/mcp-server/bundle/sdd-summary-mcp.mjs
   ```
 
-  It should print `SDD Summary MCP server running (stdio)` and wait. Ctrl+C to exit.
+Project scope specifically:
+
+- Confirm you opened the **target project** as the workspace root, not a parent folder.
+- Confirm `.cursor/mcp.json` exists in that project and is valid JSON.
+
+User scope specifically:
+
+- Confirm the plugin is listed and enabled under **Customize → Plugins**.
+- If the server is listed but fails to start, the `${CURSOR_PLUGIN_ROOT}` placeholder may not
+  resolve on your Cursor version — official docs also use `${PLUGIN_ROOT}` for this. Try
+  swapping it in `mcp.json`. Project scope avoids this entirely, since it uses
+  `${workspaceFolder}`.
 
 ---
 

@@ -8,9 +8,16 @@ Distributed as a Cursor plugin. The agent orchestrates the full workflow through
 
 ## Installation
 
-This server is distributed as a **Cursor plugin** from the repository root — you do not configure it by hand. See [`../docs/setup.md`](../docs/setup.md).
+This server is not configured by hand. Two options, both driven from the repository root — see [`../docs/setup.md`](../docs/setup.md):
 
-The plugin runs the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`, declared in the repo-root `mcp.json` via `${CURSOR_PLUGIN_ROOT}`. There is no dependency install or build step on the consuming machine.
+| Option | Scope | Mechanism |
+|---|---|---|
+| `node deploy.js <project>` | One project *(recommended)* | Writes `.cursor/` files into the target project and vendors the bundle there |
+| Cursor plugin install | Every workspace | Repo-root `mcp.json` resolved via `${CURSOR_PLUGIN_ROOT}` |
+
+Both run the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`. There is no dependency install or build step on the consuming machine.
+
+Project scope is recommended because this server exposes 47 Genesys-specific tools plus an always-applied rule; at user scope those load into unrelated projects, and Cursor documents no way to disable a user-scoped plugin per project.
 
 ### Prerequisites
 
