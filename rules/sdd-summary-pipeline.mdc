@@ -5,7 +5,9 @@ alwaysApply: true
 
 # SDD Summary Testing Pipeline
 
-This project is an MCP server for testing and iterating on Genesys Cloud summary configurations (Agent Copilot / AI Studio summaries). The full tool reference is in `docs/workflow.md`. The complete tool catalog is in `mcp-server/src/tools/definitions.ts`.
+The `sdd-summary` MCP server tests and iterates on Genesys Cloud summary configurations (Agent Copilot / AI Studio summaries). Call `get_pipeline_guide()` for the full tool reference.
+
+Working data is written to the **currently open workspace**, under `.summaryconfig-lifecycle/` and `.sdd-summary/` — not to the plugin directory.
 
 ## Pipeline Order
 
@@ -38,7 +40,7 @@ After the browser confirms login, call:
 complete_login()
 ```
 
-Expect **7/7 scopes**. If fewer, the OAuth client is missing scopes — see `docs/oauth-setup.md`.
+Expect **8/8 scopes**. If fewer, the OAuth client is missing scopes — see the plugin's `docs/oauth-setup.md`.
 
 ### Auth gotchas
 - If `login()` uses the wrong `client_id` (wrong org), it's because an env var (`GENESYS_CLIENT_ID`) is shadowing the stored config. The code bypasses env vars after parsing the Authorization URL — re-run `login()` with no args (it will use the stored `lastAuthorizationUrl` from file config).
@@ -125,7 +127,7 @@ After steps 3 + 4, each file in `transcripts/static/` looks like:
 
 ## Requirements and Test Case Authoring
 
-Full methodology: `docs/requirements-guide.md` (requirements) and `docs/test-case-guide.md` (test cases + test sets).
+Full methodology: the plugin's `docs/requirements-guide.md` and `docs/test-case-guide.md`.
 
 ### Requirements
 - Live in `requirements/final/requirements.md` using IDs: `BR-{SummaryConfigName}-{NNN}`
@@ -158,7 +160,7 @@ Full methodology: `docs/requirements-guide.md` (requirements) and `docs/test-cas
 
 ## Running Evaluations
 
-Full guide: `docs/eval-guide.md`. Two modes — use the same three-tool flow:
+Full guide: the plugin's `docs/eval-guide.md`. Two modes — use the same three-tool flow:
 
 ```
 start_eval_run  →  [subagents: submit_eval_scores × N]  →  finalize_eval_run
@@ -175,7 +177,7 @@ start_eval_run  →  [subagents: submit_eval_scores × N]  →  finalize_eval_ru
 
 ### Model generating summaries
 
-The Genesys Cloud AI Studio model is **Claude Haiku 4.5** (stored as `SUMMARY_MODEL_NAME` in `mcp-server/src/config.ts`). All prompt improvement work must be tailored to this model. Key characteristics to account for when writing improvements:
+The Genesys Cloud AI Studio model is **Claude Haiku 4.5**. All prompt improvement work must be tailored to this model. Key characteristics to account for when writing improvements:
 
 - **Highly instruction-literal** — follows the prompt precisely; if the prompt doesn't say to include something, it won't.
 - **Terse by default** — will produce minimal output unless length or detail requirements are explicit.
@@ -223,7 +225,7 @@ The Genesys Cloud AI Studio model is **Claude Haiku 4.5** (stored as `SUMMARY_MO
 - ALWAYS use `generate_eval_run_dashboard` to regenerate a run dashboard
 - ALWAYS use `generate_improvements_dashboard` to regenerate the improvements dashboard
 - Both are called automatically by `finalize_eval_run` — only call them explicitly to force a regeneration
-- The shared template is in `mcp-server/src/dashboardHtml.ts` — edit it there if the design needs changing; the change applies to all future generations automatically
+- The dashboard template lives inside the plugin. Do NOT hand-write or patch dashboard HTML to change its design — regenerate via the tools above
 
 ---
 
@@ -399,7 +401,7 @@ Subagents receive the pre-generated summaries and make **no Genesys API calls** 
 
 ## Rate Limiting — What Happens Automatically
 
-All Genesys Platform API calls go through a single `request()` function in `mcp-server/src/genesys/client.ts`. Rate limit handling is built in — **you do not need to do anything special**.
+All Genesys Platform API calls share one request path with rate limit handling built in — **you do not need to do anything special**.
 
 ### Automatic behaviour
 
@@ -481,8 +483,8 @@ The Genesys preview summary API has two relevant limits:
 
 ---
 
-## Required OAuth Scopes (all 7)
+## Required OAuth Scopes (all 8)
 
-`users`, `ai-studio`, `analytics`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
+`users`, `ai-studio`, `analytics`, `conversations`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
 
 Run `smoke_test_auth()` after login to verify.

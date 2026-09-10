@@ -56,7 +56,7 @@ After your browser opens and you see **"Logged in to Genesys Cloud ✓"**, call:
 complete_login()
 ```
 
-This exchanges the auth code for a token and verifies all required OAuth scopes. A 7/7 result confirms everything is configured correctly. See [`docs/oauth-setup.md`](./oauth-setup.md) for initial OAuth client setup.
+This exchanges the auth code for a token and verifies all required OAuth scopes. An 8/8 result confirms everything is configured correctly. See [`docs/oauth-setup.md`](./oauth-setup.md) for initial OAuth client setup.
 
 > **Token expiry:** Tokens last approximately 24 hours. When a token expires, any API call will automatically re-open the browser login using the stored Authorization URL. Log in again and retry.
 
@@ -323,7 +323,7 @@ Once satisfied with results, the prompt is already live in Genesys (it was updat
 |------|---------|
 | `login([authorization_url])` | Start browser login. Omit URL after first login — stored URL is reused automatically. |
 | `complete_login()` | Exchange auth code for token + verify scopes |
-| `smoke_test_auth()` | Verify all 7 required OAuth scopes |
+| `smoke_test_auth()` | Verify all 8 required OAuth scopes |
 | `list_assistants()` | List all Agent Copilots in the org |
 | `build_interaction_filter(copilot_name)` | Set up working directory, resolve queues |
 | `fetch_transcripts_bulk(...)` | Bulk fetch transcripts + summaries for a date range |

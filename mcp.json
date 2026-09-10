@@ -1,0 +1,49 @@
+{
+  "mcpServers": {
+    "sdd-summary": {
+      "command": "node",
+      "args": [
+        "${CURSOR_PLUGIN_ROOT}/mcp-server/bundle/sdd-summary-mcp.mjs"
+      ],
+      "env": {
+        "SDDSUM_STORAGE_PATH": "${workspaceFolder}/.sdd-summary",
+        "SDDSUM_LIFECYCLE_PATH": "${workspaceFolder}/.summaryconfig-lifecycle"
+      },
+      "alwaysAllow": [
+        "get_pipeline_guide",
+        "connect",
+        "login",
+        "complete_login",
+        "smoke_test_auth",
+        "build_interaction_filter",
+        "search_conversations",
+        "fetch_transcript",
+        "fetch_transcripts_bulk",
+        "fetch_existing_summaries_bulk",
+        "get_existing_summaries",
+        "list_transcripts",
+        "list_summary_settings",
+        "get_summary_setting",
+        "generate_preview_summary",
+        "generate_test_case",
+        "save_test_case",
+        "list_test_cases",
+        "save_test_set",
+        "list_test_sets",
+        "generate_rubric",
+        "save_rubric",
+        "list_rubrics",
+        "prepare_prompt_test",
+        "start_eval_run",
+        "submit_eval_scores",
+        "finalize_eval_run",
+        "list_eval_runs",
+        "save_version",
+        "list_versions",
+        "save_improvement_recommendations",
+        "generate_eval_run_dashboard",
+        "generate_improvements_dashboard"
+      ]
+    }
+  }
+}

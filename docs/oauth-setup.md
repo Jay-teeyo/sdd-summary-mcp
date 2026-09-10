@@ -59,7 +59,7 @@ Under the **Scope** tab of the OAuth client, add **all of the following scopes**
 |---|---|---|
 | `ai-studio` | AI Studio API | `list_summary_settings`, `get_summary_setting`, `create_summary_setting`, `update_summary_setting`, `generate_preview_summary` — all summary configuration and preview endpoints require the `ai-studio` scope (the Conversations Summaries API sits under the AI Studio product in Genesys) |
 | `analytics` | Analytics API | `search_conversations` — queries conversation analytics by date/queue/wrap-up code; `fetch_transcript` — resolves customer communication ID from conversation details |
-| `conversations` | Conversations API | `list_summary_settings`, `get_summary_setting`, `create_summary_setting`, `update_summary_setting`, `generate_preview_summary` — summary configuration endpoints live under `/api/v2/conversations/summaries/...` |
+| `conversations` | Conversations API | `fetch_transcripts_bulk` / `fetch_transcript` — the **messaging transcript fallback**. When STA transcript retrieval fails on a messaging interaction, the server falls back to `GET /api/v2/conversations/messages/{id}` followed by `POST .../messages/bulk`. Without this scope, voice transcripts still work but messaging transcripts fail with 403. Note this scope is *not* what authorises the summary settings endpoints — those authorise under `ai-studio` despite sitting beneath `/api/v2/conversations/` |
 | `notifications` | Notifications API | `generate_preview_summary` — the preview API delivers results asynchronously via a user-scoped WebSocket notification channel; requires creating a channel and subscribing to the topic `v2.users.{userId}.conversations.summaries.settings.preview` |
 | `speechandtextanalytics` | Speech & Text Analytics API | `fetch_transcript` — fetches pre-signed S3 transcript URLs; `get_existing_summaries` — retrieves production summaries for completed conversations |
 | `users` | Users API | `generate_preview_summary` — resolves the current user's ID (`GET /api/v2/users/me`) to construct the correct WebSocket notification topic |
@@ -115,7 +115,7 @@ When you see **"Logged in to Genesys Cloud ✓"** in the browser, return to the 
 complete_login()
 ```
 
-This exchanges the auth code for a user token using PKCE and verifies all required OAuth scopes. A **7/7** result confirms everything is configured correctly.
+This exchanges the auth code for a user token using PKCE and verifies all required OAuth scopes. A **8/8** result confirms everything is configured correctly.
 
 ### Subsequent logins
 
@@ -135,7 +135,7 @@ Call `login(authorization_url="...")` with the new org's URL. Config is updated 
 smoke_test_auth()
 ```
 
-Run this any time you want to confirm all 7 scopes are active — especially after adding a new scope to the OAuth client.
+Run this any time you want to confirm all 8 scopes are active — especially after adding a new scope to the OAuth client.
 
 **Common regions (for reference only — extracted automatically from the URL):**
 

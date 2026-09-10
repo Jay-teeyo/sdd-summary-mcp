@@ -2,114 +2,44 @@
 
 An MCP (Model Context Protocol) server for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**.
 
-Connect it to Cursor, Claude Code, Kiro, or any MCP-compatible agent. The agent orchestrates the full workflow through natural language.
+Distributed as a Cursor plugin. The agent orchestrates the full workflow through natural language.
 
 ---
 
-## Quick Start
+## Installation
 
-### 1. Prerequisites
+This server is distributed as a **Cursor plugin** from the repository root — you do not configure it by hand. See [`../docs/setup.md`](../docs/setup.md).
+
+The plugin runs the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`, declared in the repo-root `mcp.json` via `${CURSOR_PLUGIN_ROOT}`. There is no dependency install or build step on the consuming machine.
+
+### Prerequisites
 
 - Node.js 18+
-- A Genesys Cloud OAuth2 client with all 7 required scopes — see `../docs/oauth-setup.md`
+- A Genesys Cloud OAuth2 client with all 8 required scopes — see [`../docs/oauth-setup.md`](../docs/oauth-setup.md)
 
-Required scopes: `users`, `ai-studio`, `analytics`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
+Required scopes: `users`, `ai-studio`, `analytics`, `conversations`, `speechandtextanalytics`, `assistants`, `notifications`, `routing`
 
-### 2. Install & build
+---
+
+## Developing This Server
 
 ```bash
 cd mcp-server
-npm install
-npm run build
+npm install          # first time only
+npm run typecheck    # verify types without emitting
+npm run bundle       # regenerate bundle/sdd-summary-mcp.mjs
 ```
 
-The compiled server is at `dist/index.js`. Note the **absolute path** — you need it in your MCP config.
+`bundle/sdd-summary-mcp.mjs` is a **committed artefact**, because Cursor installs a plugin by cloning its repository and never runs a build. Any change under `src/` therefore requires `npm run bundle` plus a commit, or the change will not reach users.
 
----
+`npm run build` (plain `tsc` into `dist/`) remains available for local type-checking and debugging, but `dist/` is gitignored and is not what Cursor runs.
 
-## Connect to Your Environment
+To verify a bundle in isolation:
 
-### Cursor
-
-Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
-
-```json
-{
-  "mcpServers": {
-    "sdd-summary": {
-      "command": "node",
-      "args": ["/absolute/path/to/SDD-Summary/mcp-server/dist/index.js"],
-      "env": {
-        "GENESYS_CLIENT_ID": "your-client-id",
-        "GENESYS_REGION": "YOUR_REGION_HERE",
-        "SDDSUM_STORAGE_PATH": "/absolute/path/to/SDD-Summary/.sdd-summary"
-      },
-      "alwaysAllow": [
-        "login", "complete_login", "smoke_test_auth", "get_pipeline_guide",
-        "build_interaction_filter", "fetch_transcripts_bulk", "fetch_existing_summaries_bulk",
-        "list_transcripts", "list_test_cases", "list_test_sets", "list_eval_runs", "list_versions",
-        "start_eval_run", "submit_eval_scores", "finalize_eval_run",
-        "prepare_prompt_test", "save_improvement_recommendations",
-        "generate_eval_run_dashboard", "generate_improvements_dashboard",
-        "save_test_case", "save_test_set", "save_version", "generate_test_case"
-      ]
-    }
-  }
-}
-```
-
-`alwaysAllow` suppresses per-call approval prompts — required for the parallel eval subagent pattern.
-
-### Claude Code (CLI or VS Code extension)
-
-Create `.mcp.json` at the project root:
-
-```json
-{
-  "mcpServers": {
-    "sdd-summary": {
-      "command": "node",
-      "args": ["/absolute/path/to/SDD-Summary/mcp-server/dist/index.js"],
-      "env": {
-        "GENESYS_CLIENT_ID": "your-client-id",
-        "GENESYS_REGION": "YOUR_REGION_HERE",
-        "SDDSUM_STORAGE_PATH": "/absolute/path/to/SDD-Summary/.sdd-summary"
-      }
-    }
-  }
-}
-```
-
-Run `claude` from the project root — it detects `.mcp.json` automatically.
-For eval runs: `claude --dangerously-skip-permissions` to avoid per-call approval prompts.
-
-### Kiro
-
-Copy the template and fill in your credentials:
 ```bash
-cp ../.kiro/settings/mcp.json.template ../.kiro/settings/mcp.json
+node bundle/sdd-summary-mcp.mjs
+# should print: SDD Summary MCP server running (stdio)
 ```
-Use the same JSON structure as the Claude Code config above.
-
-### Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "sdd-summary": {
-      "command": "node",
-      "args": ["/absolute/path/to/SDD-Summary/mcp-server/dist/index.js"],
-      "env": {
-        "GENESYS_CLIENT_ID": "your-client-id",
-        "GENESYS_REGION": "YOUR_REGION_HERE"
-      }
-    }
-  }
-}
-```
-
 ---
 
 ## Workflow Overview
@@ -139,22 +69,23 @@ prepare_prompt_test(summary_config_name=..., test_set_name=..., version_number=N
 start_eval_run → [score batches] → finalize_eval_run
 ```
 
-**Cursor:** spawn one subagent per batch in parallel using `composer-2.5-fast`  
-**Claude Code / Kiro:** process batches sequentially within one session
+Spawn one subagent per batch in parallel using `composer-2.5-fast`.
 
 ---
 
 ## Environment Variables
 
+Credentials normally come from `login()`, which parses the Authorization URL and stores the result under `.sdd-summary/`. The plugin sets only the two path variables.
+
 | Variable | Description |
 |---|---|
-| `GENESYS_CLIENT_ID` | OAuth2 client ID |
-| `GENESYS_CLIENT_SECRET` | Not required. Only for the machine-to-machine client credentials fallback — omit for standard user login. |
-| `GENESYS_REGION` | Region domain (e.g. `mypurecloud.com.au`) |
-| `SDDSUM_STORAGE_PATH` | Override the `.sdd-summary` directory (auth tokens + config) |
-| `SDDSUM_LIFECYCLE_PATH` | Override the `.summaryconfig-lifecycle` directory |
+| `SDDSUM_STORAGE_PATH` | Path for `.sdd-summary/` (OAuth config + tokens). Plugin sets this to `${workspaceFolder}/.sdd-summary`. |
+| `SDDSUM_LIFECYCLE_PATH` | Path for `.summaryconfig-lifecycle/`. Plugin sets this to `${workspaceFolder}/.summaryconfig-lifecycle`. |
+| `GENESYS_CLIENT_ID` | **Avoid setting.** Shadows the stored config and causes logins against the wrong org. Let `login()` manage it. |
+| `GENESYS_REGION` | **Avoid setting.** Extracted from the Authorization URL automatically. |
+| `GENESYS_CLIENT_SECRET` | Not required. Only for the vestigial machine-to-machine fallback — omit for standard user login. |
 
-Alternatively, run `configure_credentials` from the agent to store credentials interactively.
+Pinning storage to `${workspaceFolder}` keeps user data in the consuming project rather than the plugin directory, so reinstalling or updating the plugin cannot destroy work.
 
 ---
 
@@ -182,7 +113,7 @@ Alternatively, run `configure_credentials` from the agent to store credentials i
 | **Auth** | `login` | Open browser OAuth login |
 | | `complete_login` | Exchange auth code for token |
 | | `logout` | Clear stored token |
-| | `smoke_test_auth` | Verify all 7 required scopes |
+| | `smoke_test_auth` | Verify all 8 required scopes |
 | | `configure_credentials` | Store client ID, secret, region |
 | **Pipeline** | `build_interaction_filter` | Resolve copilot → queues → save filter |
 | | `fetch_transcripts_bulk` | Bulk-fetch transcripts for a date range |

@@ -98,7 +98,7 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "PIPELINE STEP 1 of 4 (continued). Complete the Genesys Cloud login flow. " +
       "Call this AFTER login() has opened the browser and the user has seen 'Logged in to Genesys Cloud ✓'. " +
       "Exchanges the authorization code for a user token, stores it, and runs the 7-scope verification automatically. " +
-      "NEXT STEP: if 7/7 scopes pass, call build_interaction_filter(copilot_name=...) to set up the working directory.",
+      "NEXT STEP: if 8/8 scopes pass, call build_interaction_filter(copilot_name=...) to set up the working directory.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -118,8 +118,8 @@ export const TOOL_DEFINITIONS: Tool[] = [
   {
     name: "smoke_test_auth",
     description:
-      "Verify all 7 required Genesys Cloud OAuth scopes are active: " +
-      "users, ai-studio, analytics, speechandtextanalytics, assistants, notifications, routing. " +
+      "Verify all 8 required Genesys Cloud OAuth scopes are active: " +
+      "users, ai-studio, analytics, conversations, speechandtextanalytics, assistants, notifications, routing. " +
       "Call this after login/complete_login if you see unexpected 403 errors, or after adding scopes to your OAuth client. " +
       "complete_login() runs this automatically — only call manually if troubleshooting. " +
       "See docs/oauth-setup.md for the full OAuth client setup guide.",

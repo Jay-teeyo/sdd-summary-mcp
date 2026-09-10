@@ -570,6 +570,27 @@ export async function smoke_test_auth(_args: Args) {
         await genesys.get("/api/v2/routing/queues?pageSize=1");
       },
     ),
+
+    // 8. conversations scope — read a messaging conversation.
+    //    Required by the messaging transcript fallback in fetch_transcripts_bulk
+    //    (GET /conversations/messages/{id} + POST .../messages/bulk), which runs
+    //    whenever STA transcript retrieval fails on a messaging interaction.
+    //    NOTE: this scope is NOT what authorises the summary settings endpoints —
+    //    those authorise under ai-studio despite living beneath /conversations/.
+    //    A well-formed but non-existent conversation ID gives us clean
+    //    discrimination: 403 when the scope is absent, 404 when it is present
+    //    (runScopeCheck treats non-auth errors as proof the scope exists).
+    runScopeCheck(
+      "Conversations: read messaging conversation",
+      "conversations",
+      false,
+      hasUserToken,
+      async () => {
+        await genesys.get(
+          "/api/v2/conversations/messages/00000000-0000-0000-0000-000000000000",
+        );
+      },
+    ),
   ]);
 
   const passed = checks.filter((c) => c.status === "ok").length;

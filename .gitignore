@@ -1,9 +1,10 @@
-# ─── Credentials and MCP configs (contain live OAuth client IDs and tokens) ───
-# These files are machine-specific and must NEVER be committed.
-# Each developer generates their own via setup.js or by hand.
+# ─── Machine-specific MCP config ──────────────────────────────────────────────
+# Only produced by the setup.js fallback; the plugin route needs no such file.
+# Contains absolute paths, and historically contained credentials.
+#
+# NOTE: the repo-root mcp.json is the PLUGIN's server definition. It is
+# intentionally committed — it holds only placeholders, never credentials.
 .cursor/mcp.json
-.kiro/settings/mcp.json
-.mcp.json
 .env
 .env.local
 
@@ -15,6 +16,10 @@
 mcp-server/.sdd-summary/
 
 # ─── Node build output and dependencies ───────────────────────────────────────
+# dist/ is the local tsc output, used for type-checking and debugging only.
+# mcp-server/bundle/ is deliberately NOT ignored: Cursor installs a plugin by
+# cloning the repo without running a build, so the bundled server must be
+# committed or the plugin has nothing to run.
 mcp-server/dist/
 mcp-server/node_modules/
 

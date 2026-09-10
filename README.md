@@ -1,32 +1,52 @@
 # SDD Summary — Genesys Cloud Summary Prompt Testing Pipeline
 
-An MCP (Model Context Protocol) server for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**.
+A **Cursor plugin** for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**.
 
-Connect it to your AI coding environment. The agent orchestrates the full workflow — fetching transcripts, running evaluations, generating dashboards, and iterating on prompts — through natural language.
+It bundles an MCP server with the pipeline guidance Cursor needs to orchestrate the whole workflow — fetching transcripts, authoring requirements and test cases, running evaluations, generating dashboards, and iterating on prompts — through natural language.
 
 ---
 
-## Quickest Setup — `node setup.js`
+## Install
 
-Clone the repo, then run:
+The plugin ships a **pre-built, self-contained server bundle**. There is no `npm install` and no build step — you need only Node.js 18+ and Cursor.
+
+### Option A — Install from the repository URL
+
+In Cursor, open **Customize → Plugins**, paste this repository's URL into the plugin search, and install it.
+
+### Option B — Local install (works offline)
+
+Use this when you have the repo as a folder or zip and want no network or git dependency at all.
 
 ```bash
-node setup.js
+# Copy (or symlink) the repo into Cursor's local plugin directory
+ln -s /path/to/SDD-Summary ~/.cursor/plugins/local/sdd-summary
 ```
 
-This builds the server and generates config files for whichever environments you choose. Then reload your AI environment and run `login()`.
+Then run **Developer: Reload Window** in Cursor, or restart it.
 
----
+> On Enterprise plans, local plugin imports are disabled by default. An admin must enable **Allow Local Plugin Imports** under Dashboard → Settings → Security & Identity.
 
-## Prerequisites
+### What installing gives you
 
-- **Node.js 18+**
-- **A Genesys Cloud OAuth2 client** configured as below
-- One of the supported AI coding environments below
+| Component | Effect |
+|---|---|
+| MCP server | Registered automatically — no `.cursor/mcp.json` to write, no absolute paths to fix |
+| Skills / rules | Pipeline guidance loaded into Cursor agent sessions |
+| Approval suppression | Safe tools are pre-approved so eval runs don't stop for hundreds of prompts |
+
+Working data is written to **your workspace**, not the plugin directory:
+
+- `.summaryconfig-lifecycle/` — transcripts, test cases, eval runs, version history
+- `.sdd-summary/` — credentials and tokens
+
+Because these are workspace-relative, updating or reinstalling the plugin never touches your data.
 
 ---
 
 ## Genesys Cloud OAuth Client Setup
+
+You need a Genesys OAuth client before first use.
 
 ### 1. Create the OAuth client
 
@@ -35,25 +55,27 @@ In Genesys Admin → **Integrations → OAuth → Add Client**:
 | Field | Value |
 |---|---|
 | **App Name** | `SDD Summary MCP` (or any name) |
-| **Grant Types** | ✅ **Code Authorization** (required) · ✅ **Client Credentials** (optional fallback) |
+| **Grant Types** | ✅ **Code Authorization** |
 | **Redirect URI** | `http://localhost:8787/callback` |
 
-Copy the **Client ID** shown after saving (secret is not needed for the user login flow).
+The client secret is not needed — this uses the Authorization Code + PKCE user login flow.
 
-### 2. Add all 7 required scopes
+### 2. Add all 8 required scopes
 
-Under the **Scope** tab, add every scope below. Add them all now — missing any will block specific tools later.
+Under the **Scope** tab, add every scope below. Add them all now — a missing scope blocks specific tools later, sometimes in non-obvious ways.
 
 | Scope | Why it's needed |
 |---|---|
 | `ai-studio` | Summary config CRUD and preview summary generation |
 | `analytics` | Conversation search and communication ID resolution |
-| `conversations` | Summary settings endpoints (`/api/v2/conversations/summaries/...`) |
+| `conversations` | Messaging transcript fallback when STA retrieval fails |
 | `notifications` | Preview API delivers results via WebSocket notification channel |
 | `speechandtextanalytics` | Transcript URL fetch and existing summary retrieval |
 | `users` | Resolves current user ID for WebSocket topic construction |
 | `assistants` | Agent Copilot config — lists assistants and queue associations |
 | `routing` | Resolves queue display names from IDs |
+
+> `conversations` is easy to miss because its absence is not obvious: voice transcripts keep working and only **messaging** transcripts fail with 403. `smoke_test_auth()` checks it explicitly.
 
 ### 3. Find your Authorization URL
 
@@ -63,41 +85,33 @@ In Genesys Admin → **IT and Integrations → OAuth** → open your client → 
 https://login.{your-region}/oauth/authorize?client_id=abc123-...&response_type=...
 ```
 
-This URL is the only thing you need — client ID and region are extracted from it automatically.
+This URL is the only thing you need — client ID and region are extracted from it automatically. Do not set `GENESYS_CLIENT_ID` as an environment variable; it shadows the stored config and causes logins against the wrong org.
 
-> Full OAuth setup reference including troubleshooting: [`docs/oauth-setup.md`](docs/oauth-setup.md)
+> Full OAuth reference including troubleshooting: [`docs/oauth-setup.md`](docs/oauth-setup.md)
 
 ---
 
-## Quick Start
+## First Run
 
-### 1. Build the MCP server
-
-```bash
-cd mcp-server
-npm install
-npm run build
-```
-
-### 2. Connect your AI coding environment
-
-| Environment | Config file | Guidance file | Setup guide |
-|---|---|---|---|
-| **Cursor** | `.cursor/mcp.json` | `.cursor/rules/sdd-summary-pipeline.mdc` *(auto-applied)* | [Setup → Cursor](#cursor) |
-| **Claude Code** (CLI or VS Code) | `.mcp.json` at project root | `CLAUDE.md` *(auto-applied)* | [Setup → Claude Code](#claude-code--vs-code) |
-| **Kiro** | `.kiro/settings/mcp.json` | `.kiro/steering/sdd-summary-pipeline.md` *(auto-applied)* | [Setup → Kiro](#kiro) |
-
-Detailed setup steps: [`docs/setup.md`](docs/setup.md)
-
-### 3. Log in
+Open your working project in Cursor and ask the agent to log in:
 
 ```
 login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
 ```
 
-After the browser confirms login: `complete_login()`
+A browser opens. After it confirms login:
 
-Confirm all 7 scopes are present: `smoke_test_auth()`
+```
+complete_login()
+```
+
+Then verify every scope is active — expect **8/8**:
+
+```
+smoke_test_auth()
+```
+
+On later sessions, `login()` needs no argument; the Authorization URL is stored.
 
 ---
 
@@ -117,118 +131,64 @@ Full reference: ask the agent to call `get_pipeline_guide()`, or see [`docs/work
 
 ---
 
-## Environment Setup
-
-### Cursor
-
-Create `.cursor/mcp.json` in this project (or `~/.cursor/mcp.json` globally):
-
-```json
-{
-  "mcpServers": {
-    "sdd-summary": {
-      "command": "node",
-      "args": ["/absolute/path/to/SDD-Summary/mcp-server/dist/index.js"],
-      "env": {
-        "GENESYS_CLIENT_ID": "your-client-id",
-        "GENESYS_REGION": "YOUR_REGION_HERE",
-        "SDDSUM_STORAGE_PATH": "/absolute/path/to/SDD-Summary/.sdd-summary"
-      },
-      "alwaysAllow": [
-        "login", "complete_login", "smoke_test_auth",
-        "build_interaction_filter", "fetch_transcripts_bulk", "fetch_existing_summaries_bulk",
-        "list_transcripts", "list_test_cases", "list_test_sets", "list_eval_runs", "list_versions",
-        "start_eval_run", "submit_eval_scores", "finalize_eval_run",
-        "prepare_prompt_test", "save_improvement_recommendations",
-        "generate_eval_run_dashboard", "generate_improvements_dashboard", "get_pipeline_guide",
-        "save_test_case", "save_test_set", "save_version",
-        "generate_test_case", "generate_rubric"
-      ]
-    }
-  }
-}
-```
-
-> **`alwaysAllow`** suppresses approval prompts during parallel eval subagent runs — required for the full test suite to run without interruption.
-
-The `.cursor/rules/sdd-summary-pipeline.mdc` workspace rule is already present and auto-applied to every Cursor agent session.
-
-### Claude Code / VS Code
-
-Create `.mcp.json` at the project root:
-
-```json
-{
-  "mcpServers": {
-    "sdd-summary": {
-      "command": "node",
-      "args": ["/absolute/path/to/SDD-Summary/mcp-server/dist/index.js"],
-      "env": {
-        "GENESYS_CLIENT_ID": "your-client-id",
-        "GENESYS_REGION": "YOUR_REGION_HERE",
-        "SDDSUM_STORAGE_PATH": "/absolute/path/to/SDD-Summary/.sdd-summary"
-      }
-    }
-  }
-}
-```
-
-Run `claude` from the project root — it detects `.mcp.json` automatically. The `CLAUDE.md` at the project root is auto-included in every Claude Code session.
-
-For eval runs with many tool calls, launch with `--dangerously-skip-permissions` to avoid manual approval on each `submit_eval_scores` call:
-
-```bash
-claude --dangerously-skip-permissions
-```
-
-> **Eval approach in Claude Code:** Process batches sequentially within one session rather than spawning parallel subagents. See [CLAUDE.md](CLAUDE.md) for details.
-
-### Kiro
-
-1. Copy the template and fill in your credentials:
-   ```bash
-   cp .kiro/settings/mcp.json.template .kiro/settings/mcp.json
-   # Edit .kiro/settings/mcp.json with your credentials
-   ```
-
-2. The `.kiro/steering/sdd-summary-pipeline.md` is auto-applied to every Kiro agent session.
-
-3. **Do not commit `.kiro/settings/mcp.json`** — it contains credentials.
-
----
-
-## Directory Structure
+## Repository Structure
 
 ```
 SDD-Summary/
-├── CLAUDE.md                         ← Claude Code agent guidance (auto-applied)
-├── .cursor/rules/                    ← Cursor agent guidance (auto-applied)
-├── .kiro/steering/                   ← Kiro agent guidance (auto-applied)
-├── docs/                             ← Methodology guides
-│   ├── setup.md                      ← Per-environment setup
-│   ├── eval-guide.md
+├── .cursor-plugin/plugin.json     ← plugin manifest
+├── mcp.json                       ← MCP server definition (plugin-relative)
+├── rules/                         ← pipeline guidance shipped to users
+├── docs/                          ← methodology guides
+│   ├── setup.md
 │   ├── oauth-setup.md
+│   ├── workflow.md
+│   ├── eval-guide.md
 │   ├── requirements-guide.md
-│   ├── test-case-guide.md
-│   └── workflow.md
-├── mcp-server/                       ← MCP server source
-│   ├── src/
-│   └── dist/                         ← compiled (run npm run build)
-└── .summaryconfig-lifecycle/         ← per-config working data
-    └── {SummaryConfigName}/
-        ├── interaction-filter.json
-        ├── requirements/
-        ├── transcripts/static/
-        ├── test-cases/
-        ├── test-sets/
-        ├── version-history/
-        └── eval-runs/
+│   └── test-case-guide.md
+└── mcp-server/
+    ├── src/                       ← TypeScript source
+    ├── build.mjs                  ← esbuild bundler
+    ├── bundle/
+    │   └── sdd-summary-mcp.mjs    ← COMMITTED single-file server
+    └── dist/                      ← local tsc output (gitignored)
 ```
+
+Per-config working data lives in the **consuming workspace**, not here:
+
+```
+.summaryconfig-lifecycle/{SummaryConfigName}/
+├── interaction-filter.json
+├── requirements/
+├── transcripts/static/
+├── test-cases/
+├── test-sets/
+├── version-history/
+└── eval-runs/
+```
+
+---
+
+## Developing the Server
+
+The committed bundle is what Cursor actually runs, so **any source change requires a rebundle and a commit**.
+
+```bash
+cd mcp-server
+npm install          # first time only
+npm run typecheck    # verify types
+npm run bundle       # regenerate bundle/sdd-summary-mcp.mjs
+```
+
+Then reload Cursor to pick up the new bundle.
+
+To develop against a live copy, symlink the repo as a local plugin (Option B above) — edits become active on the next rebundle plus window reload.
 
 ---
 
 ## Security
 
-- **Never commit credentials.** `.cursor/mcp.json`, `.kiro/settings/mcp.json`, `.mcp.json`, and `.sdd-summary/config.json` are all in `.gitignore`.
-- Credentials can also be stored via the `configure_credentials` tool, which writes to `.sdd-summary/config.json` (also gitignored).
+- **Never commit credentials.** `.sdd-summary/` and `.cursor/mcp.json` are gitignored.
+- **Never commit customer data.** `.summaryconfig-lifecycle/` contains transcripts with PII and is gitignored in full.
+- Tokens are user-scoped and expire in roughly 30 minutes; any API call reopens the browser on expiry.
+- `update_summary_setting` and `update_copilot_config` write to live Genesys and are deliberately **not** pre-approved — they always require explicit confirmation.
 - See `.env.example` for the full list of environment variables.

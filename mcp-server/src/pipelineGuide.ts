@@ -22,7 +22,7 @@ Two modes — use the same three-tool flow for both:
 - mode: "existing"      → scores production summaries already stored (no API calls)
 - mode: "prompt_test"   → generates new summaries from a candidate prompt via Genesys preview API
 
-Spawn one agent per batch — parallel if your environment supports it (Cursor: Task tool with composer-2.5-fast), or sequential batches in Claude Code / Kiro.
+Spawn one subagent per batch in parallel using the Task tool with model composer-2.5-fast.
 ALWAYS call save_improvement_recommendations after finalize_eval_run — do not skip this.
 
 ## Version Management — CRITICAL RULES
@@ -59,8 +59,8 @@ This MCP server manages the full lifecycle of Genesys Cloud AI Studio / Agent Co
 
 ---
 
-## Required OAuth Scopes (all 7)
-\`users\`, \`ai-studio\`, \`analytics\`, \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`
+## Required OAuth Scopes (all 8)
+\`users\`, \`ai-studio\`, \`analytics\`, \`conversations\`, \`speechandtextanalytics\`, \`assistants\`, \`notifications\`, \`routing\`
 
 Run \`smoke_test_auth()\` after login to verify.
 

@@ -1,0 +1,15 @@
+{
+  "name": "sdd-summary",
+  "version": "2.0.0",
+  "description": "Develop, test, and iteratively improve Genesys Cloud Agent Copilot summary prompts. Bundles the SDD Summary MCP server with the pipeline skills for requirements authoring, test-case design, evaluation runs, and prompt versioning.",
+  "author": {
+    "name": "Jay-teeyo"
+  },
+  "keywords": [
+    "genesys",
+    "agent-copilot",
+    "summary",
+    "evaluation",
+    "prompt-engineering"
+  ]
+}
