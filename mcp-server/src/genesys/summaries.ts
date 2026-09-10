@@ -8,6 +8,10 @@ import type { SummarySetting, PreviewSummaryResponse } from "../types.js";
 
 /**
  * Build the summarySetting body fragment (fields only, no session/transcript).
+ *
+ * Everything here influences the generated summary, so a field dropped from this body
+ * makes previews diverge from production output — which then shows up as a test-case
+ * failure that no prompt change can fix.
  */
 function buildSettingBody(setting: SummarySetting) {
   return {
@@ -16,6 +20,7 @@ function buildSettingBody(setting: SummarySetting) {
     summaryType: setting.summaryType,
     format: setting.format,
     maskPII: setting.maskPII,
+    ...(setting.participantLabels ? { participantLabels: setting.participantLabels } : {}),
     predefinedInsights: setting.predefinedInsights,
     settingType: setting.settingType,
     prompt: setting.prompt,

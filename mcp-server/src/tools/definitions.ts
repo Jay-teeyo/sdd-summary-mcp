@@ -303,7 +303,11 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "  1. Confirm the candidate version has been evaluated (start_eval_run → finalize_eval_run) and results reviewed.\n" +
       "  2. Call save_version first to snapshot the currently live prompt — this creates a rollback point.\n" +
       "  3. Only then call update_summary_setting with the approved prompt.\n" +
-      "  4. After deploying, call save_version with status='deployed' to record the newly live state.",
+      "  4. After deploying, call save_version with status='deployed' to record the newly live state.\n\n" +
+      "WHAT IS SENT: Genesys treats this endpoint as a full replace, so the tool reads the live setting first " +
+      "and sends it back whole with only the prompt (and name, if given) changed. Format, participant labels, " +
+      "PII masking, predefined insights and timeout are preserved exactly as they are in Genesys — " +
+      "the response lists them under preserved_fields.",
     inputSchema: {
       type: "object",
       properties: {

@@ -374,6 +374,14 @@ Every improvement suggestion must account for how this model processes prompts:
 | `list_versions` | Lists all snapshots in version-history for a config, with each one's status. |
 | `update_summary_setting` | Pushes a prompt update **directly to the live Genesys config**. Accepts `summary_config_name` (resolves the setting ID from the interaction filter) or `summary_setting_id`. This goes live immediately — only call when explicitly approved. |
 
+### The summary setting is a full object, not just a prompt
+
+A summary setting carries `language`, `summaryType`, `format`, `maskPII`, `participantLabels`, `predefinedInsights`, `settingType`, `serviceType` and `timeoutDuration` alongside the prompt. Genesys treats the update endpoint as a **full replace** — a body containing only the prompt is rejected with `Language must not be blank`.
+
+- `update_summary_setting` reads the live setting and sends it back whole, changing only the prompt (and `name` if given). Its response lists what it preserved under `preserved_fields`. Unrecognised fields are passed through untouched, so a field Genesys adds later is not wiped.
+- Preview generation (`prepare_prompt_test`, `start_eval_run` in `prompt_test` mode) and `save_version` snapshots inherit the **live** structure and vary only the prompt. This matters: a config that is `BulletPoints` in production must not be previewed as `TextBlock`, or formatting dimensions fail for a reason no prompt change can fix.
+- `start_eval_run` reports `preview_structure`. If it reads `fallback defaults`, the live setting could not be read — report that alongside the results rather than treating formatting failures as real.
+
 ### Local candidate versions (do not auto-deploy)
 
 Version snapshots with `"status": "candidate"` are **local-only drafts**. They are never pushed to Genesys automatically. They exist so agents can author, review, and track prompt changes before a deployment decision is made.

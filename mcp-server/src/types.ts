@@ -100,6 +100,13 @@ export interface SummarySetting {
   summaryType: SummaryType;
   format: SummaryFormat;
   maskPII: { all: boolean };
+  /**
+   * How each speaker is named in the generated summary, e.g.
+   * { internal: "Customer Service Consultant", external: "Customer" }.
+   * Genesys applies these when generating, so a preview that omits them produces
+   * differently-worded summaries from production.
+   */
+  participantLabels?: { internal?: string; external?: string };
   predefinedInsights: PredefinedInsight[];
   settingType: SummarySettingType;
   prompt: string;

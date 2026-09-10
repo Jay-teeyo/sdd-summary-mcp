@@ -51,6 +51,12 @@ submit_eval_scores accepts score: null for any dimension whose applicabilityCond
 Null scores are excluded from overallScore, overallPassed, pass rates, and failure analysis.
 start_eval_run includes applicability_condition on every dimension in the test_cases payload — check it first before scoring.
 
+## Summary Setting Updates and Previews — structure comes from the live config
+The summary setting is a full object (language, format, participantLabels, maskPII, predefinedInsights, timeoutDuration).
+update_summary_setting reads the live setting and PUTs it back whole, changing only the prompt — Genesys rejects a partial body.
+Preview generation and version snapshots inherit that same structure so previews match production output; only the prompt varies.
+If start_eval_run reports preview_structure as "fallback defaults", the live setting could not be read — say so, because formatting dimensions may then fail for the wrong reason.
+
 ## Eval Scoring — interactions with no summary
 A transcript whose summary is "The interaction is too short to create a summary." is skipped entirely, not scored.
 This overrides applicabilityCondition, including "always" — no prompt can change that output.

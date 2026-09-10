@@ -1174,14 +1174,113 @@ export async function update_summary_setting(args: Args) {
       throw new Error("Either summary_setting_id or summary_config_name is required");
     }
 
-    const patch: Partial<SummarySetting> = { prompt: str(args, "prompt") };
-    if (args.name) patch.name = str(args, "name");
-    const updated = await updateSummarySetting(id, patch);
-    return json({ success: true, id: updated.id, name: updated.name });
+    // Genesys treats this endpoint as a full replace, not a patch: a body containing only
+    // the prompt is rejected ("Language must not be blank") and would otherwise silently
+    // drop participant labels, insights and PII masking. Read the live setting and send it
+    // back whole, changing only what was asked for. Unrecognised fields are carried through
+    // untouched so a field added by Genesys later is not wiped by an older client.
+    const current = (await getSummarySetting(id)) as unknown as Record<string, unknown>;
+
+    // `id` is dropped as well: the Genesys Admin UI sends the body without it, and this
+    // request is deliberately shaped to match the one the UI is known to accept.
+    const READ_ONLY_FIELDS = ["id", "selfUri", "dateCreated", "dateModified", "createdBy", "modifiedBy"];
+    const body: Record<string, unknown> = { ...current };
+    for (const field of READ_ONLY_FIELDS) delete body[field];
+
+    const newPrompt = str(args, "prompt");
+    const previousPrompt = typeof current.prompt === "string" ? current.prompt : "";
+    body.prompt = newPrompt;
+    if (args.name) body.name = str(args, "name");
+
+    if (!body.language) {
+      throw new Error(
+        `Summary setting ${id} came back from Genesys without a language, so it cannot be ` +
+        `updated without wiping a required field. Check the setting in Genesys Admin.`,
+      );
+    }
+
+    const updated = await updateSummarySetting(id, body as unknown as Partial<SummarySetting>);
+
+    const preservedFields = Object.keys(body)
+      .filter((k) => k !== "prompt")
+      .sort();
+
+    return json({
+      success: true,
+      id: updated.id,
+      name: updated.name,
+      prompt_changed: newPrompt !== previousPrompt,
+      previous_prompt_length: previousPrompt.length,
+      new_prompt_length: newPrompt.length,
+      preserved_fields: preservedFields,
+      note:
+        "The full setting was sent back to Genesys with only the prompt" +
+        (args.name ? " and name" : "") +
+        " changed; every other field was preserved as read from the live setting.",
+    });
   });
 }
 
 // ─── Summary generation ───────────────────────────────────────────────────────
+
+/**
+ * Structural fields used for preview generation when the live setting cannot be read.
+ * Deliberately minimal — a preview built on these will not match production output,
+ * so callers surface which base was used.
+ */
+const FALLBACK_PREVIEW_STRUCTURE = {
+  summaryType: "Concise" as const,
+  format: "TextBlock" as const,
+  maskPII: { all: false },
+  predefinedInsights: [] as SummarySetting["predefinedInsights"],
+  settingType: "Prompt" as const,
+  serviceType: "Native",
+};
+
+/**
+ * Read the live summary setting for a config, resolved through its interaction filter.
+ *
+ * Preview generation must borrow production's structure — format, participant labels,
+ * PII masking, predefined insights — and vary only the prompt. Generating previews from
+ * hardcoded defaults instead means a bullet-point production config gets evaluated as
+ * plain text, so formatting dimensions fail for a reason no prompt change can address.
+ *
+ * Returns null rather than throwing: a preview on fallback structure is still more useful
+ * than a failed run, and callers report which base they used.
+ */
+async function loadLiveSettingForPreview(configName: string): Promise<SummarySetting | null> {
+  const filter = storage.loadInteractionFilter(configName);
+  if (!filter?.summarySettingId) return null;
+  try {
+    return await getSummarySetting(filter.summarySettingId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compose the setting used to generate preview summaries: production structure, candidate
+ * prompt. `timeoutDuration` is intentionally longer than production because previews are
+ * generated in bulk over a WebSocket rather than inline on a live conversation.
+ */
+function buildPreviewSetting(opts: {
+  base: SummarySetting | null;
+  name: string;
+  prompt: string;
+  language?: string;
+  timeoutDuration: number;
+}): SummarySetting {
+  const { base, name, prompt, language, timeoutDuration } = opts;
+  return {
+    ...FALLBACK_PREVIEW_STRUCTURE,
+    ...(base ?? {}),
+    name,
+    prompt,
+    language: language ?? base?.language ?? "en-au",
+    settingType: "Prompt",
+    timeoutDuration,
+  };
+}
 
 export async function generate_preview_summary(args: Args) {
   const configName = optStr(args, "summary_config_name");
@@ -1500,18 +1599,14 @@ export async function run_test_suite(args: Args) {
     setting = await getSummarySetting(str(args, "summary_setting_id"));
     setting.prompt = prompt;
   } else {
-    setting = {
+    // Production structure, candidate prompt — see buildPreviewSetting.
+    setting = buildPreviewSetting({
+      base: await loadLiveSettingForPreview(configName),
       name: testSetName,
       prompt,
-      language: optStr(args, "language") ?? "en-au",
-      summaryType: "Concise",
-      format: "TextBlock",
-      maskPII: { all: false },
-      predefinedInsights: [],
-      settingType: "Prompt",
-      serviceType: "Native",
+      language: optStr(args, "language"),
       timeoutDuration: 20,
-    };
+    });
   }
 
   // Load test cases from the test set
@@ -1702,20 +1797,26 @@ export async function save_version(args: Args) {
     (args.summary_setting_id ? "deployed" : "candidate");
 
   let setting: SummarySetting;
+  let structureSource: string;
   if (args.summary_setting_id) {
     setting = await getSummarySetting(str(args, "summary_setting_id"));
+    structureSource = "read from the live Genesys setting";
   } else if (args.prompt) {
+    // A candidate snapshot must carry the structure it will be deployed into, otherwise
+    // preview generation and the eventual deploy both inherit fabricated defaults.
+    const liveSetting = await loadLiveSettingForPreview(configName);
+    structureSource = liveSetting
+      ? "inherited from the live Genesys setting (only the prompt is local)"
+      : "fallback defaults — the live setting could not be read, so format, participant labels, " +
+        "PII masking and predefined insights may not match production. Check the snapshot before deploying.";
     setting = {
-      name: configName,
+      ...FALLBACK_PREVIEW_STRUCTURE,
+      ...(liveSetting ?? {}),
+      name: liveSetting?.name ?? configName,
       prompt: str(args, "prompt"),
-      language: optStr(args, "language") ?? "en-au",
-      summaryType: "Concise",
-      format: "TextBlock",
-      maskPII: { all: false },
-      predefinedInsights: [],
+      language: optStr(args, "language") ?? liveSetting?.language ?? "en-au",
       settingType: "Prompt",
-      serviceType: "Native",
-      timeoutDuration: 20,
+      timeoutDuration: liveSetting?.timeoutDuration ?? 20,
     };
   } else {
     throw new Error("Either summary_setting_id or prompt is required");
@@ -1729,6 +1830,7 @@ export async function save_version(args: Args) {
     summaryConfigName: configName,
     snapshotAt: snapshot.snapshotAt,
     notes: snapshot.notes,
+    structure_source: structureSource,
   });
 }
 
@@ -2012,18 +2114,15 @@ export async function prepare_prompt_test(args: Args) {
       );
     }
 
-    const setting: SummarySetting = {
+    // Production structure, candidate prompt — see buildPreviewSetting.
+    const liveSetting = await loadLiveSettingForPreview(configName);
+    const setting = buildPreviewSetting({
+      base: liveSetting ?? snapshot.setting,
       name: testSetName,
       prompt: snapshot.setting.prompt,
-      language: optStr(args, "language") ?? "en-au",
-      summaryType: "Concise",
-      format: "TextBlock",
-      maskPII: { all: false },
-      predefinedInsights: [],
-      settingType: "Prompt",
-      serviceType: "Native",
+      language: optStr(args, "language"),
       timeoutDuration: 50,
-    };
+    });
 
     const toProcess = pending.slice(0, batchSize);
     let generated = 0;
@@ -2142,18 +2241,16 @@ export async function start_eval_run(args: Args) {
     }> = [];
 
     const previewConcurrency = Math.min(Number(args.concurrency ?? 5), 10);
-    const previewSetting: SummarySetting = {
+    // Production structure, candidate prompt. Only read the live setting when previews will
+    // actually be generated — mode="existing" must stay free of Genesys API calls.
+    const previewBase = mode === "existing" ? null : await loadLiveSettingForPreview(configName);
+    const previewSetting: SummarySetting = buildPreviewSetting({
+      base: previewBase,
       name: testSetName,
       prompt: prompt!,
-      language: optStr(args, "language") ?? "en-au",
-      summaryType: "Concise",
-      format: "TextBlock",
-      maskPII: { all: false },
-      predefinedInsights: [],
-      settingType: "Prompt",
-      serviceType: "Native",
+      language: optStr(args, "language"),
       timeoutDuration: 50,
-    };
+    });
 
     if (mode === "existing") {
       for (const tId of testSet.transcriptIds) {
@@ -2329,6 +2426,14 @@ export async function start_eval_run(args: Args) {
       prompt_version_status: promptVersionStatus ?? null,
       prompt_text: prompt ?? null,
       total_transcripts: transcriptPayloads.length,
+      preview_structure: mode === "existing"
+        ? "n/a — evaluating existing production summaries"
+        : previewBase
+          ? `inherited from the live Genesys setting (format: ${previewBase.format}, ` +
+            `insights: ${previewBase.predefinedInsights?.length ?? 0}, ` +
+            `participant labels: ${previewBase.participantLabels ? "yes" : "no"})`
+          : "fallback defaults — the live setting could not be read, so previews may be " +
+            "structured differently from production output",
       skipped_transcripts: skippedTranscripts.length,
       skipped_detail: skippedTranscripts.map((s) => ({
         transcript_id: s.transcriptId,
