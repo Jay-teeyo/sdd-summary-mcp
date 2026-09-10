@@ -37,41 +37,55 @@ Cursor documents **no way to disable a user-scoped plugin for individual project
 
 ## Option A — Project scope (recommended)
 
-Create your project, clone this repo inside it, and deploy from the clone.
+Every step happens inside Cursor. You create an empty project folder, open it as your workspace, then clone and deploy from its own terminal.
 
-### 1. Create the project folder
+The order matters. Opening the folder *first* means Cursor's workspace root is already correct when the files land in it, which removes the single most common way this install goes wrong.
 
-```bash
-mkdir my-summary-project
-cd my-summary-project
-```
+### 1. Create and open the project folder in Cursor
 
-This folder is what you will open as your Cursor workspace. Name it whatever suits the work.
+On the Cursor welcome screen, click **Open...** — or use **File → Open…** (`⌘O`) if a project is already open.
 
-### 2. Clone the repo inside it
+In the file dialog:
+
+1. Navigate to wherever you keep your work.
+2. Click **New Folder** (bottom-left of the macOS dialog).
+3. Name it — `my-summary-project` works, or anything that suits the job.
+4. Create it, then **Open** it.
+
+Cursor now shows that empty folder in the Explorer. It is your **workspace root**, and it is where all the tooling will be installed.
+
+> On Windows and Linux the welcome button reads **Open Folder...** instead, and the shortcut is `Ctrl+K Ctrl+O`. On Cursor 3+, if you land on the Agents Window rather than the classic welcome screen, use the **File** menu.
+
+### 2. Open the built-in terminal
+
+Press `` Ctrl+` `` (control plus backtick — not `⌘`).
+
+The integrated terminal starts in the workspace root, so you are already in the right directory. If you have customised `terminal.integrated.cwd`, confirm with `pwd` before continuing.
+
+### 3. Clone this repo into the project
 
 ```bash
 git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
 ```
 
-The explicit `sdd-summary-mcp` target is the default folder name anyway, but naming it keeps the layout below accurate if the repo is ever renamed.
-
 Cloning *inside* the project keeps everything in one place: the deployed tooling and the server it came from travel together, and re-deploying later is a two-word command rather than a hunt for wherever the repo was put.
 
-### 3. Deploy into the project
+The explicit `sdd-summary-mcp` target is the default folder name anyway, but naming it keeps the layout below accurate if the repo is ever renamed.
+
+### 4. Deploy into the project
 
 ```bash
 cd sdd-summary-mcp
 node deploy.js ..
 ```
 
-The `..` argument is the target — the project folder created in step 1. The script takes the target path as its only argument and defaults to the current directory, so passing `..` is what points it at the parent rather than at the clone itself.
+The `..` is the target — your project folder. `deploy.js` takes the target path as its only argument and defaults to the current directory, so `..` is what points it at the parent instead of at the clone itself.
 
-### 4. Open the project in Cursor
+### 5. Reload Cursor
 
-Open `my-summary-project` — **not** `sdd-summary-mcp` — then **Cmd+Shift+P → Developer: Reload Window**.
+`⌘⇧P` → **Developer: Reload Window**.
 
-This matters: Cursor reads `.cursor/mcp.json` from the workspace root only. Open the clone by mistake and the server simply will not appear.
+Because you opened the project folder back in step 1, there is nothing to re-open — the workspace root is already correct. Reloading is only needed so Cursor picks up the newly written `.cursor/mcp.json`.
 
 ### Resulting layout
 
@@ -91,7 +105,7 @@ my-summary-project/            ← Cursor workspace root
 
 ### The nested clone is gitignored deliberately
 
-If your project is itself a git repo, a clone inside it would otherwise be committed as an *embedded repository* — dragging the full server source and the 727 KB bundle into your history, and confusing git along the way. `deploy.js` detects that it is running from inside the target and adds the clone's folder name to the project's `.gitignore`.
+A folder you create this way is not a git repo yet, but most projects become one. The moment yours does, the clone sitting inside it would be committed as an *embedded repository* — dragging the full server source and the 727 KB bundle into your history, and confusing git along the way. So `deploy.js` gets ahead of it: on detecting that it is running from inside its own target, it adds the clone's folder name to the project's `.gitignore`.
 
 The comparison is made on resolved real paths, so a symlink above either location cannot hide the nesting.
 
@@ -202,8 +216,8 @@ This keeps user data outside the install location under both options, so re-depl
 
 ## Verify
 
-1. Reload the Cursor window (**Cmd+Shift+P → Developer: Reload Window**).
-2. Open a new chat in the project you want to work in.
+1. Check **Customize → MCP** lists `sdd-summary` as connected, with 47 tools.
+2. Open a new chat in the project.
 3. Ask the agent to log in:
 
    ```
@@ -239,11 +253,15 @@ Common to both options:
 
 Project scope specifically:
 
-- Confirm you opened the **project folder** as the workspace root — not the nested
-  `sdd-summary-mcp/` clone, and not a parent folder. This is the most common mistake.
-- Confirm `.cursor/mcp.json` exists in that project and is valid JSON.
-- If you ran `node deploy.js` without `..`, it deployed into the clone instead of the
-  project. Delete `sdd-summary-mcp/.cursor/` and re-run with `..`.
+- Confirm `.cursor/mcp.json` sits at the **top level of the Explorer**, beside
+  `sdd-summary-mcp/`. If it is nested inside `sdd-summary-mcp/` instead, the deploy ran
+  with the wrong target — see the next point.
+- If you ran `node deploy.js` without `..`, it deployed into the clone rather than the
+  project. Delete `sdd-summary-mcp/.cursor/`, then re-run `node deploy.js ..`.
+- Confirm the workspace root is the project folder, not the `sdd-summary-mcp/` clone.
+  Following the steps above makes this correct by default, but it can drift if you later
+  reopen the clone directly from Cursor's recent-projects list.
+- Confirm `.cursor/mcp.json` is valid JSON.
 
 User scope specifically:
 

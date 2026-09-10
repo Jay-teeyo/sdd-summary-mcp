@@ -22,25 +22,36 @@ Choose a scope first, because it determines which projects the tooling is active
 
 ### Option A — Project scope (recommended)
 
-Create the project you want to work in, clone this repo inside it, and deploy from there:
+Everything happens inside Cursor, starting from an empty project folder.
+
+**1. Create and open your project folder**
+
+In Cursor, click **Open...** on the welcome screen (or **File → Open…**, `⌘O`). In the dialog, click **New Folder**, name it — say `my-summary-project` — then create and open it.
+
+Cursor now has that folder as your workspace root, which is exactly where the tooling needs to land.
+
+**2. Open the built-in terminal**
+
+`` Ctrl+` ``. It starts in the workspace root, so no `cd` is needed.
+
+**3. Clone and deploy**
 
 ```bash
-# 1. Create your project folder and move into it
-mkdir my-summary-project
-cd my-summary-project
-
-# 2. Clone this repo inside it
 git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
-
-# 3. Deploy into the project — ".." is the project folder you just created
 cd sdd-summary-mcp
 node deploy.js ..
 ```
 
+The `..` points the deploy at your project folder rather than at the clone it lives in.
+
+**4. Reload**
+
+`⌘⇧P` → **Developer: Reload Window**. The correct folder is already open, so there is nothing to re-open.
+
 You end up with:
 
 ```
-my-summary-project/            ← open THIS as your Cursor workspace
+my-summary-project/            ← your workspace root
 ├── .cursor/
 │   ├── mcp.json               ← server definition, with the pre-approved tool list
 │   ├── rules/                 ← pipeline guidance
@@ -50,10 +61,6 @@ my-summary-project/            ← open THIS as your Cursor workspace
 ├── .gitignore                 ← written/extended for you
 └── sdd-summary-mcp/           ← this repo, gitignored
 ```
-
-Then open `my-summary-project` in Cursor and run **Developer: Reload Window**.
-
-Open the **project folder**, not `sdd-summary-mcp` — Cursor only reads `.cursor/mcp.json` from the workspace root.
 
 The config uses `${workspaceFolder}` and contains **no absolute paths**, so the project keeps working if it's moved, renamed, or handed to a colleague. If the project already has a `.cursor/mcp.json`, the script merges into it and preserves any other MCP servers.
 
