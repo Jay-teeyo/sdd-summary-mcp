@@ -32,6 +32,14 @@ Rules:
 - Retired requirements keep their ID — append `[DEPRECATED]` to the requirement text instead of deleting the row
 - When adding requirements from a new source (e.g. an artefact), continue from the highest existing ID
 
+Requirements found in artefacts but judged out of scope are recorded separately in `ignored.md` (see §7.2) under their own prefix:
+
+```
+IG-{SummaryConfigName}-{NNN}
+```
+
+The separate prefix and sequence mean an ignored entry can be referred to directly in conversation without ever being mistaken for an active requirement. An entry promoted out of `ignored.md` is assigned the next available `BR-` ID; its `IG-` ID is not carried over and is not reissued.
+
 ---
 
 ## 3. File Location
@@ -188,7 +196,34 @@ The following are out of scope no matter how prominently or firmly they appear:
 
 **The conduct exception.** Rules about what an agent must *do* often imply something the summary must *record*. "The agent must verify the customer's identity before discussing the claim" is a conduct rule and out of scope as written — but the summary requirement it implies, "the summary must record whether identity verification occurred", is in scope and testable. Capture the recording obligation, never the conduct itself.
 
-**Report your exclusions.** After filtering, tell the user in one line per theme what you set aside and why — not an exhaustive catalogue, just enough that a wrong exclusion is visible. Silent over-filtering is as damaging as silent over-inclusion, and the user is the only one positioned to catch it.
+**Record your exclusions in `ignored.md`.** Silent over-filtering is as damaging as silent over-inclusion, and it is harder to notice: an excluded requirement leaves no trace anywhere in the output. Rather than listing exclusions in chat, where they add noise and are lost as soon as the conversation moves on, write them to `requirements/final/ignored.md` alongside `requirements.md`.
+
+The file is a staging area, not an audit log. Its purpose is to let a reviewer pull a requirement back if it was set aside in error, so it mirrors the structure of `requirements.md` — same columns, in the same order, with one extra column for the reason. Each entry carries its own identifier so it can be named directly in conversation.
+
+```markdown
+# Ignored Requirements — {SummaryConfigName}
+
+*Identified in artefacts but judged out of scope for interaction summary testing. Nothing here appears in `requirements.md` or is covered by any test case.*
+
+*To reinstate one: copy its Category, Requirement and Source into the `requirements.md` table, assign the next available `BR-{ConfigName}-NNN`, and delete the row here.*
+
+| ID | Category | Requirement | Source | Excluded because |
+|----|----------|-------------|--------|------------------|
+| IG-{ConfigName}-001 | Routing | Calls about disputed charges must route to the billing specialist queue. | BR-Support-2026.docx | Routing rule — not observable in a summary |
+| IG-{ConfigName}-002 | Agent Conduct | Identity must be verified before account details are discussed. | qa-feedback.eml | Conduct rule — the recording obligation is captured as BR-{ConfigName}-014 |
+```
+
+Rules for the file:
+
+- Write it whenever anything was excluded. If nothing was, do not create it.
+- **Identifiers use the `IG-` prefix:** `IG-{SummaryConfigName}-{NNN}`, numbered from 001 in its own sequence. The distinct prefix keeps ignored entries from ever being mistaken for requirements, while still giving each one a reference — so a reviewer can say "reinstate IG-Acme_CallSummary-003" instead of quoting the text back.
+- `IG-` numbers are never reused, and are not renumbered when a row is promoted or removed. A gap in the sequence is normal and means an entry was reinstated.
+- On promotion the entry gets a fresh `BR-` ID; the `IG-` ID is not carried across. Keeping the sequences separate means `requirements.md` numbering stays contiguous and no ID ever refers to two different things.
+- One row per discarded requirement, phrased as the requirement itself — not as a description of what you rejected. A row reading "various routing rules" cannot be reinstated.
+- `Category` uses the theme that caused the exclusion (Routing, Agent Conduct, Reporting, and so on), not the requirement categories from §5, which apply only to in-scope requirements.
+- `Excluded because` must be specific enough to argue with. Name the reason rather than restating "out of scope".
+- Where a conduct rule was excluded but its recording obligation *was* captured, cross-reference that `BR-` ID, as in the second example. This is the case most likely to look like a mistake when it isn't.
+- In chat, report only that the file was written and how many entries it holds, then refer to individual entries by `IG-` ID as needed. The detail lives in the file.
 
 ### 7.3 Process
 

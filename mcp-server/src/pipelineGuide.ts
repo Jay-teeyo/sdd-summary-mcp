@@ -232,9 +232,18 @@ could ever validate it. Some rules about agent conduct do translate — "the age
 customer's identity" becomes a summary requirement only insofar as the summary must record whether
 identity was confirmed. Capture the recording obligation, not the conduct.
 
-After filtering, briefly tell the user which themes you excluded as out of scope (a one-line summary per
-theme, not a catalogue). A wrongly excluded requirement is invisible otherwise, and they are the only
-one who can catch it.
+Write everything you excluded to \`requirements/final/ignored.md\` rather than listing it in chat. Use the
+same table as \`requirements.md\` — \`ID | Category | Requirement | Source\` — plus a trailing
+\`Excluded because\` column, so a row can be copied straight across. Identify entries as
+\`IG-{SummaryConfigName}-{NNN}\`, numbered from 001 in their own sequence: the \`IG-\` prefix keeps them
+from ever being confused with requirements, while still letting either of you say "reinstate
+IG-Acme_CallSummary-003" instead of quoting text. On promotion the row gets a fresh \`BR-\` ID and the
+\`IG-\` ID is dropped.
+
+Phrase each row as the requirement itself, not as a description of what you rejected — "various routing
+rules" cannot be reinstated. In chat, say only that the file was written and how many entries it holds.
+Over-filtering is the more dangerous failure here, because a wrongly excluded requirement otherwise
+leaves no trace anywhere; the file makes it reviewable and reversible.
 
 **3. Offer the prompt as an additional source — optional.** Ask whether they also want requirements
 derived from the existing summary prompt. This is genuinely optional: useful for capturing current
@@ -244,9 +253,10 @@ from — stop and say so.
 
 **4. Have the user review before any test cases exist.** Write \`requirements/final/requirements.md\`
 from the chosen sources, then present it for review. State explicitly that they can add, change or
-remove requirements now, and that test cases will be written from whatever they approve. Wait for
-approval before authoring a single test case — reworking test cases after the fact is far more
-expensive than editing a requirement.
+remove requirements now, and that test cases will be written from whatever they approve. Point them at
+\`ignored.md\` too, so anything you filtered out can be pulled back in. Wait for approval before
+authoring a single test case — reworking test cases after the fact is far more expensive than editing a
+requirement.
 
 Record where each requirement came from, so a reviewer can tell an artefact-derived requirement from a
 prompt-derived one and challenge it. Note in the document when a requirement came from an artefact that
@@ -553,7 +563,8 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... — waiting 12
     ├── requirements/
     │   ├── artefacts/
     │   └── final/
-    │       └── requirements.md
+    │       ├── requirements.md
+    │       └── ignored.md
     ├── transcripts/
     │   └── static/
     ├── test-cases/

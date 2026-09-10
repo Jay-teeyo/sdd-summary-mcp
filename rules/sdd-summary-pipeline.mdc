@@ -172,9 +172,10 @@ Requirements are gathered **with the user**, in this order, waiting for a reply 
    - Expect most of it to be noise. A requirements document may cover a whole programme of work; an email thread wanders. **Only extract requirements that constrain the interaction summary or agent notes** — content, exclusions, structure, wording, formatting, accuracy.
    - Out of scope however firmly stated: routing and queueing, IVR, telephony, CRM or order-system fields, workforce management, agent conduct on the call, reporting and dashboards, SLAs, security and access control.
    - Test for relevance: could this ever be evaluated by reading a generated summary? If not, it cannot become a test case, so it does not belong in `requirements.md`. Conduct rules translate only as recording obligations — "the agent must verify identity" becomes "the summary must record whether identity was verified".
-   - After filtering, tell the user in one line per theme what you excluded as out of scope. They are the only one who can catch a wrong exclusion.
+   - Write everything you excluded to `requirements/final/ignored.md`, using the same table as `requirements.md` — `ID | Category | Requirement | Source` — plus a trailing `Excluded because` column, so a row copies straight across. Identify entries `IG-{SummaryConfigName}-{NNN}` from 001 in their own sequence; the `IG-` prefix prevents confusion with requirements while giving each a reference for chat ("reinstate IG-Acme_CallSummary-003"). On promotion the row gets a fresh `BR-` ID and the `IG-` ID is dropped.
+   - Phrase each row as the requirement itself, not a description of what you rejected — "various routing rules" cannot be reinstated. In chat, report only that the file was written and how many entries it holds.
 3. **Offer the existing prompt as an additional source — optional.** Ask whether they also want requirements derived from it. Useful as a baseline of current behaviour, but skippable when artefacts already define the standard. If there were no artefacts and they decline this too, stop and say there is nothing to derive from.
-4. **Have them review before test cases exist.** Write `requirements.md`, present it, and state explicitly that they can add, change or remove requirements now, and that test cases will be written from whatever they approve. Wait for approval — reworking test cases later costs far more than editing a requirement.
+4. **Have them review before test cases exist.** Write `requirements.md`, present it, and state explicitly that they can add, change or remove requirements now, and that test cases will be written from whatever they approve. Point them at `ignored.md` as well, so anything filtered out can be pulled back in. Wait for approval — reworking test cases later costs far more than editing a requirement.
 
 Record the source of each requirement so a reviewer can tell artefact-derived from prompt-derived. Flag any requirement the current prompt does not satisfy: that's a known gap and a likely test failure, not a mistake.
 
@@ -506,7 +507,8 @@ The Genesys preview summary API has two relevant limits:
     ├── requirements/
     │   ├── artefacts/             ← raw inputs: emails, docs, screenshots
     │   └── final/
-    │       └── requirements.md    ← BR-{ConfigName}-NNN requirements table
+    │       ├── requirements.md    ← BR-{ConfigName}-NNN requirements table
+    │       └── ignored.md         ← IG-{ConfigName}-NNN out-of-scope, reinstatable
     ├── transcripts/
     │   ├── static/                ← bulk-fetched + enriched transcripts
     │   └── dynamic/
