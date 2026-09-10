@@ -31,10 +31,19 @@ If no credentials are stored yet, do **not** start reciting setup instructions. 
 
 > "Do you already have a Genesys Cloud OAuth client set up for this?"
 
-**If yes** — ask for the Authorization URL (Genesys Admin → IT and Integrations → OAuth → open the client → bottom of the page → "Authorization URL" field), then:
+**If yes** — ask for the Authorization URL (Genesys Admin → IT and Integrations → OAuth → open the client → bottom of the page → "Authorization URL" field), then pass it through verbatim:
 ```
-login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
+login(authorization_url="<whatever they pasted>")
 ```
+
+**Never reject, correct, or second-guess the URL they paste.** Two formats are valid and both are parsed:
+
+| Form | Notes |
+|---|---|
+| `https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}` | What the Genesys UI field **usually** contains |
+| `https://login.{region}/oauth/authorize?client_id={id}` | Also accepted |
+
+The admin deep-link form looks nothing like an OAuth authorize URL, but it is the correct value — the client ID is the UUID at the end and the region comes from the host. Hand it to `login()` and let the tool judge; it returns a clear error if it genuinely cannot parse it.
 
 **If no** — walk them through creating it, one step at a time, confirming each before moving on. Do not paste the whole thing at once.
 

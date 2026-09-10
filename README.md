@@ -146,11 +146,15 @@ Under the **Scope** tab, add every scope below. Add them all now — a missing s
 
 ### 3. Find your Authorization URL
 
-In Genesys Admin → **IT and Integrations → OAuth** → open your client → scroll to the bottom. Copy the full **Authorization URL** field:
+In Genesys Admin → **IT and Integrations → OAuth** → open your client → scroll to the bottom. Copy the full **Authorization URL** field.
+
+It usually looks like this — an admin deep-link, *not* an OAuth endpoint:
 
 ```
-https://login.{your-region}/oauth/authorize?client_id=abc123-...&response_type=...
+https://apps.{your-region}/directory/#/admin/access-management/authorized-apps/abc123-...
 ```
+
+That is the correct value. Paste it exactly as shown; don't try to reshape it into an `/oauth/authorize` URL. The `/oauth/authorize?client_id=...` form is also accepted if your org shows that instead.
 
 This URL is the only thing you need — client ID and region are extracted from it automatically. Do not set `GENESYS_CLIENT_ID` as an environment variable; it shadows the stored config and causes logins against the wrong org.
 
@@ -172,7 +176,7 @@ It then calls `complete_login()` once your browser confirms, and `smoke_test_aut
 If you would rather drive it yourself:
 
 ```
-login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
+login(authorization_url="<the Authorization URL field, pasted verbatim>")
 complete_login()
 smoke_test_auth()
 ```

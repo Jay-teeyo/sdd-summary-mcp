@@ -256,10 +256,12 @@ The agent asks whether you already have a Genesys OAuth client:
 Expect **8/8 scopes** from `smoke_test_auth()`. If you would rather drive it manually:
 
 ```
-login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
+login(authorization_url="<the Authorization URL field, pasted verbatim>")
 complete_login()
 smoke_test_auth()
 ```
+
+The value in that field is usually an `apps.{region}/directory/#/...` admin deep-link rather than an `/oauth/authorize` URL. Both are accepted — paste whichever you see, unchanged. See [`oauth-setup.md`](./oauth-setup.md#step-4--find-your-authorization-url).
 
 On later sessions `login()` takes no argument, since the Authorization URL is stored.
 

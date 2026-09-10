@@ -76,10 +76,17 @@ a user who already has a client:
 > "Do you already have a Genesys Cloud OAuth client set up for this?"
 
 **Yes** → ask for the Authorization URL (Genesys Admin → IT and Integrations →
-OAuth → open the client → bottom of the page), then:
+OAuth → open the client → bottom of the page), then pass it through verbatim:
 \`\`\`
-login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=...")
+login(authorization_url="<whatever they pasted>")
 \`\`\`
+
+**Do not reject or rewrite what they paste.** Both of these are valid:
+- \`https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\`
+  — what the Genesys UI field usually contains
+- \`https://login.{region}/oauth/authorize?client_id={id}\`
+
+The first looks nothing like an authorize URL but is correct. Let \`login()\` decide.
 
 **No** → walk them through it one step at a time, confirming as you go:
 

@@ -28,15 +28,17 @@ Paste the **Authorization URL** from your Genesys OAuth client page:
 **Genesys Admin → IT and Integrations → OAuth → your client → Authorization URL field**
 
 ```
-login(authorization_url="https://login.{your-region}/oauth/authorize?client_id=abc123-...")
+login(authorization_url="<the Authorization URL field, pasted verbatim>")
 ```
 
-Two URL formats are accepted — paste whichever one Genesys Admin shows you:
+Two formats are accepted — paste whichever one Genesys Admin shows you, unchanged:
 
-| Format | Example |
-|--------|---------|
-| OAuth authorize endpoint | `https://login.{your-region}/oauth/authorize?client_id={client_id}` |
-| Admin deep-link | `https://apps.{your-region}/directory/#/admin/access-management/authorized-apps/{client_id}` |
+| Format | Example | Seen where |
+|--------|---------|------------|
+| Admin deep-link | `https://apps.{your-region}/directory/#/admin/access-management/authorized-apps/{client_id}` | Usually what the field contains |
+| OAuth authorize endpoint | `https://login.{your-region}/oauth/authorize?client_id={client_id}` | Some orgs / older UI |
+
+The deep-link form does not look like an OAuth URL, but it is correct — don't try to convert it.
 
 The `client_id`, region, and login domain are all extracted from the URL automatically — there is nothing else to configure.
 

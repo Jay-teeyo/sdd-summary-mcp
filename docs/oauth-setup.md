@@ -76,18 +76,18 @@ Locate the **Authorization URL** for your OAuth client — this is the only thin
 
 1. In Genesys Admin, go to **IT and Integrations → OAuth**.
 2. Open the OAuth client you just created.
-3. At the **bottom** of the page, find the field labelled **"Authorization URL"**. It looks like:
+3. At the **bottom** of the page, find the field labelled **"Authorization URL"**. In current Genesys Admin it typically contains an admin deep-link:
    ```
-   https://login.{your-region}/oauth/authorize?client_id=abc123-...&response_type=...
+   https://apps.{your-region}/directory/#/admin/access-management/authorized-apps/abc123-...
    ```
-4. Copy the **entire URL** — client ID and all. Do not truncate it.
+4. Copy the **entire URL** — client ID and all. Do not truncate it, and do not try to convert it into something that looks more like an OAuth URL.
 
-Two URL formats are accepted:
+**Do not be put off by that URL not looking like an OAuth endpoint.** It is the correct value: the client ID is the UUID at the end and the region comes from the host. Both of these formats are accepted and parsed identically:
 
-| Format | Example |
-|--------|---------|
-| OAuth authorize endpoint | `https://login.{your-region}/oauth/authorize?client_id={client_id}` |
-| Admin deep-link | `https://apps.{your-region}/directory/#/admin/access-management/authorized-apps/{client_id}` |
+| Format | Example | Seen where |
+|--------|---------|------------|
+| Admin deep-link | `https://apps.{your-region}/directory/#/admin/access-management/authorized-apps/{client_id}` | Usually what the "Authorization URL" field contains |
+| OAuth authorize endpoint | `https://login.{your-region}/oauth/authorize?client_id={client_id}` | Some orgs / older UI versions |
 
 > **Why the full URL matters:** The `client_id` is embedded in the URL. Pasting the full URL means there is nothing else to configure — no separate client ID entry, no region selection.
 

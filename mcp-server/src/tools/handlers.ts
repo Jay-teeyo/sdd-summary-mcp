@@ -280,15 +280,20 @@ export async function login(args: Args) {
       extractedRegion = parsed.host.replace(/^apps\./, "");
     } else {
       return ok(
-        `Unrecognised URL format.\n\n` +
-        `Paste the Authorization URL from the field labelled "Authorization URL" at the bottom of your\n` +
-        `OAuth client page in Genesys Admin → IT and Integrations → OAuth → your client.`,
+        `Unrecognised URL format: host "${parsed.host}" is neither apps.* nor login.*\n\n` +
+        `Accepted forms (either is fine):\n` +
+        `  https://apps.{region}/directory/#/admin/access-management/authorized-apps/{clientId}\n` +
+        `  https://login.{region}/oauth/authorize?client_id={clientId}\n\n` +
+        `Copy the field labelled "Authorization URL" at the bottom of your OAuth client page in\n` +
+        `Genesys Admin → IT and Integrations → OAuth → your client.`,
       );
     }
 
     if (!extractedClientId || extractedClientId.length < 10) {
       return ok(
-        `Could not extract a client ID from: "${rawAuthUrl}"\n\n` +
+        `Could not extract a client ID from: "${effectiveAuthUrl}"\n\n` +
+        `The URL looked like the right shape but no 36-character client ID was found in it.\n` +
+        `Expected a UUID after /authorized-apps/ or /oauth-clients/, or a client_id query parameter.\n\n` +
         `Copy the Authorization URL from the field labelled "Authorization URL" at the bottom of\n` +
         `your OAuth client page in Genesys Admin → IT and Integrations → OAuth → your client.`,
       );
@@ -324,8 +329,15 @@ export async function login(args: Args) {
       "─── If they say YES ───\n" +
       "Ask for the Authorization URL:\n" +
       "  Genesys Admin → IT and Integrations → OAuth → open the client →\n" +
-      "  scroll to the bottom → copy the \"Authorization URL\" field.\n" +
-      "Then call: login(authorization_url=\"<pasted URL>\")\n\n" +
+      "  scroll to the bottom → copy the \"Authorization URL\" field.\n\n" +
+      "Pass whatever they paste straight to login(authorization_url=\"...\").\n" +
+      "DO NOT judge, correct, or reject the URL. Two different formats are valid\n" +
+      "and BOTH are accepted — the client ID and region are parsed from either:\n" +
+      "  • https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n" +
+      "  • https://login.{region}/oauth/authorize?client_id={id}\n" +
+      "The Genesys UI field usually contains the FIRST (apps./directory) form.\n" +
+      "That is correct and expected. If it does not parse, login() will say so —\n" +
+      "let the tool decide, do not pre-screen it.\n\n" +
       "─── If they say NO ───\n" +
       "Walk them through creating one, one step at a time, confirming as you go.\n" +
       "Do not paste all of this at once.\n\n" +
@@ -343,9 +355,11 @@ export async function login(args: Args) {
       "  messaging transcripts fail, with a 403 that looks unrelated.\n\n" +
       "Step 3 — Save, then copy the Authorization URL\n" +
       "  Reopen the client → scroll to the bottom → copy \"Authorization URL\".\n" +
-      "  It looks like:\n" +
-      "    https://login.{your-region}/oauth/authorize?client_id=abc123...\n\n" +
-      "Then call: login(authorization_url=\"<pasted URL>\")\n\n" +
+      "  It is usually the admin deep-link form, which is correct:\n" +
+      "    https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n" +
+      "  The /oauth/authorize?client_id=... form is also accepted.\n\n" +
+      "Then call: login(authorization_url=\"<pasted URL>\") with whatever they pasted.\n" +
+      "Do not reject or rewrite it — pass it through as-is.\n\n" +
       "That URL is all that is needed — client ID and region are parsed from it.\n" +
       "Do not set GENESYS_CLIENT_ID as an environment variable; it shadows the\n" +
       "stored config and causes logins against the wrong org.",
