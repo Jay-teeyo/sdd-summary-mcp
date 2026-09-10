@@ -479,6 +479,7 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... — waiting 12
 
 | Concern | Correct API |
 |---|---|
+| List assistants | \`GET /api/v2/assistants?tier=Copilot\` — \`tier\` is REQUIRED; omitting it returns 500, not all tiers |
 | Queues for an assistant | \`GET /api/v2/assistants/{assistantId}/queues\` (cursor pagination with \`after\`/\`nextUri\`) |
 | Queue display names | \`GET /api/v2/routing/queues?id=id1&id=id2...\` |
 | Voice transcript URL | \`GET /api/v2/speechandtextanalytics/conversations/{id}/communications/{commId}/transcriptUrls\` |

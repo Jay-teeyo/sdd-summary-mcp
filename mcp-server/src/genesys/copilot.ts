@@ -43,15 +43,26 @@ export interface CopilotConfig {
   [key: string]: unknown;
 }
 
+/**
+ * `tier=Copilot` is required, not optional: without it this endpoint responds
+ * 500 rather than defaulting to all tiers. Every assistant this server deals
+ * with is an Agent Copilot, so the filter costs nothing.
+ */
+export const ASSISTANT_TIER = "Copilot";
+
 export async function listAssistants(): Promise<Assistant[]> {
   const all: Assistant[] = [];
   let pageNumber = 1;
   const pageSize = 100;
 
   while (true) {
-    const resp = await genesys.get<AssistantsResponse>(
-      `/api/v2/assistants?pageSize=${pageSize}&pageNumber=${pageNumber}`,
-    );
+    const params = new URLSearchParams({
+      pageSize: String(pageSize),
+      pageNumber: String(pageNumber),
+      tier: ASSISTANT_TIER,
+    });
+
+    const resp = await genesys.get<AssistantsResponse>(`/api/v2/assistants?${params}`);
     const entities = resp.entities ?? [];
     all.push(...entities);
 

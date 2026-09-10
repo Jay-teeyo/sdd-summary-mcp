@@ -20,7 +20,7 @@ import {
   extractSummaryText,
   getExistingSummaries,
 } from "../genesys/summaries.js";
-import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues } from "../genesys/copilot.js";
+import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues, ASSISTANT_TIER } from "../genesys/copilot.js";
 import { generateDashboard } from "../dashboard.js";
 import { generateEvalRunDashboardHtml, generateImprovementsDashboardHtml } from "../dashboardHtml.js";
 import type {
@@ -535,7 +535,9 @@ export async function smoke_test_auth(_args: Args) {
       false,
       hasUserToken,
       async () => {
-        await genesys.get("/api/v2/assistants?pageSize=1");
+        // tier is mandatory here — omitting it returns 500, which this check
+        // would otherwise report as a missing `assistants` scope.
+        await genesys.get(`/api/v2/assistants?pageSize=1&tier=${ASSISTANT_TIER}`);
       },
     ),
 

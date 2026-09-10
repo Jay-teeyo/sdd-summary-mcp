@@ -15879,6 +15879,7 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... \u2014 waiting
 
 | Concern | Correct API |
 |---|---|
+| List assistants | \`GET /api/v2/assistants?tier=Copilot\` \u2014 \`tier\` is REQUIRED; omitting it returns 500, not all tiers |
 | Queues for an assistant | \`GET /api/v2/assistants/{assistantId}/queues\` (cursor pagination with \`after\`/\`nextUri\`) |
 | Queue display names | \`GET /api/v2/routing/queues?id=id1&id=id2...\` |
 | Voice transcript URL | \`GET /api/v2/speechandtextanalytics/conversations/{id}/communications/{commId}/transcriptUrls\` |
@@ -16607,14 +16608,18 @@ async function getExistingSummaries(conversationId) {
 
 // src/genesys/copilot.ts
 init_client();
+var ASSISTANT_TIER = "Copilot";
 async function listAssistants() {
   const all = [];
   let pageNumber = 1;
   const pageSize = 100;
   while (true) {
-    const resp = await genesys.get(
-      `/api/v2/assistants?pageSize=${pageSize}&pageNumber=${pageNumber}`
-    );
+    const params = new URLSearchParams({
+      pageSize: String(pageSize),
+      pageNumber: String(pageNumber),
+      tier: ASSISTANT_TIER
+    });
+    const resp = await genesys.get(`/api/v2/assistants?${params}`);
     const entities = resp.entities ?? [];
     all.push(...entities);
     const total = resp.total ?? 0;
@@ -17806,7 +17811,7 @@ async function smoke_test_auth(_args) {
       false,
       hasUserToken,
       async () => {
-        await genesys2.get("/api/v2/assistants?pageSize=1");
+        await genesys2.get(`/api/v2/assistants?pageSize=1&tier=${ASSISTANT_TIER}`);
       }
     ),
     // 6. notifications scope — create a notification channel (user token only; required for preview summaries)
