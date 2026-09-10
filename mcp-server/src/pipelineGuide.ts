@@ -14,6 +14,9 @@ SDD Summary MCP Server — Genesys Cloud AI Studio / Agent Copilot summary confi
 2. build_interaction_filter(copilot_name="<CopilotName>")
 3. fetch_transcripts_bulk(summary_config_name=..., date_from=..., date_to=..., max_conversations=...) — runs TOGETHER with step 4
 4. fetch_existing_summaries_bulk(summary_config_name=...) — ALWAYS run immediately after step 3
+5. Requirements — ASK the user to add artefacts to requirements/artefacts/ first, ASK whether to also
+   derive from the existing prompt (optional), then have them REVIEW requirements.md before any test
+   cases are written. Never derive requirements silently. See the Requirements section of the full guide.
 
 ## Evaluation Workflow
 Two modes — use the same three-tool flow for both:
@@ -192,6 +195,45 @@ After steps 3 + 4, each file in \`transcripts/static/\` looks like:
 - Live in \`requirements/final/requirements.md\` using IDs: \`BR-{SummaryConfigName}-{NNN}\`
 - Raw artefacts (emails, QA feedback, complaint logs) go in \`requirements/artefacts/\`
 - **\`settingType: "Prompt"\` — the \`prompt\` field is the sole source of instructions.** All other config fields are platform metadata — ignore them when deriving requirements or authoring test cases.
+
+### Gathering requirements — ASK, do not assume
+
+Requirements are the foundation of every test case, so they are gathered WITH the user, not inferred
+silently. Work through these four steps in order and wait for a reply at each one. Never skip ahead to
+test cases because the user has not answered yet.
+
+**1. Invite artefacts first.** Before deriving anything, tell the user the artefacts folder exists and
+what it is for, giving the real path:
+
+\`\`\`
+.summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/
+\`\`\`
+
+Explain that anything describing what a good summary looks like belongs there — emails from the
+customer, example transcripts, agent notes, existing business requirement documents, QA feedback,
+complaint logs, screenshots of bad summaries. Then ask them to add whatever they have and tell you
+when they are done. Wait.
+
+**2. Read whatever landed there.** If the folder has contents, read every file and treat it as a primary
+source of requirements. Artefacts outrank the prompt: they describe what the business actually wants,
+whereas the prompt only describes what it currently asks for. If the folder is still empty, say so
+plainly rather than pretending otherwise.
+
+**3. Offer the prompt as an additional source — optional.** Ask whether they also want requirements
+derived from the existing summary prompt. This is genuinely optional: useful for capturing current
+behaviour as a baseline, but skippable when artefacts already define the intended standard. Respect the
+answer either way. If there were no artefacts and they decline this too, there is nothing to derive
+from — stop and say so.
+
+**4. Have the user review before any test cases exist.** Write \`requirements/final/requirements.md\`
+from the chosen sources, then present it for review. State explicitly that they can add, change or
+remove requirements now, and that test cases will be written from whatever they approve. Wait for
+approval before authoring a single test case — reworking test cases after the fact is far more
+expensive than editing a requirement.
+
+Record where each requirement came from, so a reviewer can tell an artefact-derived requirement from a
+prompt-derived one and challenge it. Note in the document when a requirement came from an artefact that
+the current prompt does not satisfy — that is a known gap and a likely test failure, not an error.
 
 ---
 

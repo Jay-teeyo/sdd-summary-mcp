@@ -70,10 +70,10 @@ The requirements file must follow this exact structure. Do not add extra section
 
 ## Requirements
 
-| ID | Category | Requirement |
-|----|----------|-------------|
-| BR-{ConfigName}-001 | {Category} | {Requirement text.} |
-| BR-{ConfigName}-002 | {Category} | {Requirement text.} |
+| ID | Category | Requirement | Source |
+|----|----------|-------------|--------|
+| BR-{ConfigName}-001 | {Category} | {Requirement text.} | {source} |
+| BR-{ConfigName}-002 | {Category} | {Requirement text.} | {source} |
 ```
 
 ### 4.2 Rules for Each Element
@@ -93,7 +93,9 @@ The requirements file must follow this exact structure. Do not add extra section
 - Do not list configuration values here
 
 **Requirements table**
-- Three columns only: `ID`, `Category`, `Requirement`
+- Four columns: `ID`, `Category`, `Requirement`, `Source`
+- `Source` names where the requirement came from — `summary prompt` or the artefact filename. It exists so a reviewer can tell which requirements merely restate current behaviour and which came from the business, and challenge them accordingly. Omit the column only when every requirement shares one source, which the header line already states.
+- Mark any requirement the current prompt does not satisfy with ` [GAP]` after the source. Its test case is expected to fail until the prompt is changed.
 - All requirements in a single flat table — no sub-tables, no section headings within the table
 - Rows ordered by ID number ascending
 - Each requirement cell ends with a full stop
@@ -122,7 +124,9 @@ Guidelines:
 
 ## 6. Deriving Requirements from a Summary Configuration
 
-When a summary configuration exists in Genesys, fetch it with `get_summary_setting(summary_setting_id=...)`, then follow the rules for its `settingType`.
+Deriving from the configuration is **optional, and only with the user's agreement** — ask before doing it (see §7.1). It captures what the prompt currently asks for, which is a useful baseline but is not the same as what the business wants. Requirements derived this way can confirm current behaviour; they cannot reveal that the behaviour is wrong.
+
+When the user opts in, fetch the configuration with `get_summary_setting(summary_setting_id=...)`, then follow the rules for its `settingType`.
 
 ### settingType: "Prompt"
 
@@ -147,7 +151,22 @@ For non-Prompt setting types, consult the Genesys documentation for that type to
 
 ## 7. Deriving Requirements from Artefacts
 
-Artefacts are raw source materials in `requirements/artefacts/` — e.g. quality review emails, complaint logs, team feedback, or QA audit results.
+Artefacts are raw source materials in `requirements/artefacts/` — emails from the customer, example transcripts, agent notes, existing business requirement documents, quality review emails, complaint logs, team feedback, or QA audit results.
+
+### 7.1 Ask for artefacts before deriving anything
+
+Artefacts are the better source, because they describe what the business actually wants, whereas the prompt only describes what it currently asks for. A requirement set derived from the prompt alone can only ever confirm existing behaviour — it cannot reveal that the behaviour is wrong.
+
+So the gathering sequence is a conversation, not an inference. Work through it in order, waiting for a reply at each step:
+
+1. Point the user at `.summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/`, explain what belongs there, and ask them to add what they have before you derive anything.
+2. Read everything they added and treat it as a primary source. If the folder is still empty, say so plainly rather than quietly falling back to the prompt.
+3. Ask whether they also want requirements derived from the existing summary prompt. This is optional — valuable as a baseline of current behaviour, but unnecessary when artefacts already define the intended standard.
+4. Present the resulting `requirements.md` for review, and say explicitly that they can add, change or remove requirements before any test cases are written. Wait for approval: reworking test cases afterwards costs far more than editing a requirement now.
+
+Where a requirement comes from an artefact that the current prompt does not satisfy, keep it and flag it. That is a known gap, and the test case built from it is *expected* to fail on the current prompt — which is precisely the signal worth having.
+
+### 7.2 Process
 
 Process:
 1. Read each artefact and identify every implicit or explicit statement about what the summary should or should not do
