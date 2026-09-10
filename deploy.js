@@ -183,25 +183,54 @@ if (fs.existsSync(SOURCE_SKILLS)) {
   ok(`Skills copied (${copyTree(SOURCE_SKILLS, dest)} file(s)) → .cursor/skills/`);
 }
 
-// ─── 5. Remind about ignoring generated data ──────────────────────────────────
+// ─── 5. Protect generated data from being committed ───────────────────────────
+// Done automatically rather than merely advised: these directories hold OAuth
+// tokens and real customer transcripts, so a missed manual step means leaking
+// credentials and PII into a repo. Appends only what is absent, and never
+// rewrites or reorders existing entries.
 const gitignorePath = path.join(target, '.gitignore');
 const NEEDED = ['.sdd-summary/', '.summaryconfig-lifecycle/'];
-let missing = NEEDED;
-if (fs.existsSync(gitignorePath)) {
-  const gi = fs.readFileSync(gitignorePath, 'utf8');
-  missing = NEEDED.filter((n) => !gi.includes(n));
+
+const existingGitignore = fs.existsSync(gitignorePath)
+  ? fs.readFileSync(gitignorePath, 'utf8')
+  : null;
+
+const missing = NEEDED.filter((n) => {
+  if (existingGitignore === null) return true;
+  // Match the entry as its own line, with or without a leading slash, so that
+  // an existing "/.sdd-summary/" or ".sdd-summary" is recognised.
+  const bare = n.replace(/\/$/, '');
+  return !existingGitignore
+    .split(/\r?\n/)
+    .some((line) => {
+      const t = line.trim().replace(/^\//, '').replace(/\/$/, '');
+      return t === bare;
+    });
+});
+
+if (missing.length) {
+  const block =
+    (existingGitignore === null
+      ? ''
+      : existingGitignore.endsWith('\n')
+        ? '\n'
+        : '\n\n') +
+    '# SDD Summary — OAuth tokens and customer transcripts (PII). Never commit.\n' +
+    missing.join('\n') +
+    '\n';
+  fs.appendFileSync(gitignorePath, block);
+  ok(
+    `${existingGitignore === null ? 'Created' : 'Updated'} .gitignore ` +
+    `(added ${missing.join(', ')})`,
+  );
+} else {
+  ok('.gitignore already covers generated data.');
 }
 
 console.log('\n');
 hr();
 console.log(bold('  Deployed'));
 hr();
-
-if (missing.length) {
-  console.log(yellow('\n  ⚠  Add these to the target .gitignore before committing:'));
-  missing.forEach((m) => console.log(`       ${m}`));
-  console.log(dim('     They hold OAuth tokens and customer transcripts (PII).'));
-}
 
 console.log(`
   Scope: this project only. Tools, rules and skills are inactive in every
