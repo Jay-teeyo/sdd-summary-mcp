@@ -23,13 +23,11 @@ import {
   TOO_SHORT_SUMMARY_MESSAGE,
 } from "../genesys/summaries.js";
 import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues } from "../genesys/copilot.js";
-import { generateDashboard } from "../dashboard.js";
-import { generateEvalRunDashboardHtml, generateImprovementsDashboardHtml } from "../dashboardHtml.js";
+import { buildImprovementsReport, buildRunReport } from "../reports/build.js";
+import { renderImprovementsReport, renderRunReport } from "../reports/render.js";
 import type {
   SummarySetting,
   StoredTranscript,
-  TestRun,
-  TranscriptResult,
   TestCase,
   TestSet,
   EvalRunMeta,
@@ -1848,50 +1846,6 @@ export async function list_versions(args: Args) {
   );
 }
 
-// ─── Reporting ────────────────────────────────────────────────────────────────
-
-export async function generate_dashboard(args: Args) {
-  const configName = str(args, "summary_config_name");
-  const testSetName = optStr(args, "test_set_name");
-  const title = optStr(args, "title") ?? `SDD Summary Dashboard — ${configName}`;
-
-  const evalRunMetas = storage.listEvalRuns(configName, testSetName);
-  if (evalRunMetas.length === 0) {
-    throw new Error(
-      `No eval runs found for config "${configName}"${testSetName ? ` / test set "${testSetName}"` : ""}. Run a test suite first.`,
-    );
-  }
-
-  // Reconstruct TestRun-compatible objects for the dashboard renderer
-  const runs: TestRun[] = evalRunMetas.map((meta) => {
-    const results = storage.getEvalRunResults(configName, meta.testSetName, meta.runNumber);
-    const transcriptResults: TranscriptResult[] = results.map((r) => ({
-      transcriptId: r.transcriptId,
-      transcriptLabel: r.transcriptLabel,
-      summary: r.summary,
-      dimensionScores: r.dimensionScores,
-      overallPassed: r.overallPassed,
-      overallScore: r.overallScore,
-    }));
-    return {
-      id: `${meta.testSetName}-${String(meta.runNumber).padStart(4, "0")}`,
-      label: `${meta.testSetName} / Run ${meta.runNumber}`,
-      summarySettingId: undefined,
-      summarySetting: meta.summarySetting,
-      rubricId: meta.testCaseNames.join(","),
-      transcriptIds: meta.transcriptIds,
-      results: transcriptResults,
-      aggregatePassRate: meta.aggregatePassRate,
-      promptVersion: meta.runNumber,
-      suggestedImprovements: meta.suggestedImprovements,
-      createdAt: meta.createdAt,
-    };
-  });
-
-  const outputPath = await generateDashboard(runs, title);
-  return json({ success: true, path: outputPath, runs_included: runs.length });
-}
-
 // ─── Copilot config ───────────────────────────────────────────────────────────
 
 export async function list_assistants(_args: Args) {
@@ -2371,6 +2325,18 @@ export async function start_eval_run(args: Args) {
 
     transcriptPayloads = scorablePayloads;
 
+    // Recorded on the run so the report can say whether previews matched production
+    // structure. A silent fallback is the failure mode worth surfacing: the summaries look
+    // plausible but are formatted differently from anything the prompt can control.
+    const previewStructure = mode === "existing"
+      ? "n/a — evaluating existing production summaries"
+      : previewBase
+        ? `inherited from the live Genesys setting (format: ${previewBase.format}, ` +
+          `insights: ${previewBase.predefinedInsights?.length ?? 0}, ` +
+          `participant labels: ${previewBase.participantLabels ? "yes" : "no"})`
+        : "fallback defaults — the live setting could not be read, so previews may be " +
+          "structured differently from production output";
+
     // Create the disk-backed run (claims the run number atomically)
     const pendingMeta = storage.createPendingEvalRun(configName, testSetName, {
       summaryConfigName: configName,
@@ -2383,6 +2349,7 @@ export async function start_eval_run(args: Args) {
       promptText: prompt,
       promptVersionNumber,
       promptVersionStatus,
+      previewStructure,
     });
 
     // Split into batches
@@ -2426,14 +2393,7 @@ export async function start_eval_run(args: Args) {
       prompt_version_status: promptVersionStatus ?? null,
       prompt_text: prompt ?? null,
       total_transcripts: transcriptPayloads.length,
-      preview_structure: mode === "existing"
-        ? "n/a — evaluating existing production summaries"
-        : previewBase
-          ? `inherited from the live Genesys setting (format: ${previewBase.format}, ` +
-            `insights: ${previewBase.predefinedInsights?.length ?? 0}, ` +
-            `participant labels: ${previewBase.participantLabels ? "yes" : "no"})`
-          : "fallback defaults — the live setting could not be read, so previews may be " +
-            "structured differently from production output",
+      preview_structure: previewStructure,
       skipped_transcripts: skippedTranscripts.length,
       skipped_detail: skippedTranscripts.map((s) => ({
         transcript_id: s.transcriptId,
@@ -2560,6 +2520,46 @@ export async function submit_eval_scores(args: Args) {
   });
 }
 
+// ─── Report generation ─────────────────────────────────────────────────────────
+
+/**
+ * Renders and writes both reports for a finalized run: the run dashboard, and the
+ * test-set-level improvements report that now includes it.
+ *
+ * Report generation is deliberately non-fatal for callers that have already written
+ * results to disk. A template bug or a half-edited requirements.md must not lose a
+ * finalized run — the scores are the record, the HTML is a derived artefact that can be
+ * regenerated at any time with regenerate_reports.
+ */
+function writeReportsForRun(
+  configName: string,
+  testSetName: string,
+  runNumber: number,
+): { dashboardPath: string | null; improvementsPath: string | null; error: string | null } {
+  try {
+    const runModel = buildRunReport(configName, testSetName, runNumber);
+    const dashboardPath = storage.saveEvalRunDashboard(
+      configName,
+      testSetName,
+      runNumber,
+      renderRunReport(runModel),
+    );
+    const improvementsModel = buildImprovementsReport(configName, testSetName);
+    const improvementsPath = storage.saveImprovementsDashboard(
+      configName,
+      testSetName,
+      renderImprovementsReport(improvementsModel),
+    );
+    return { dashboardPath, improvementsPath, error: null };
+  } catch (err) {
+    return {
+      dashboardPath: null,
+      improvementsPath: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
 export async function finalize_eval_run(args: Args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
@@ -2591,15 +2591,8 @@ export async function finalize_eval_run(args: Args) {
   const finalizedMeta = storage.getPendingEvalRun(configName, testSetName, runNumber)!;
   storage.finalizePendingEvalRun(configName, testSetName, runNumber, overallPassRate, testCasePassRates);
 
-  // Auto-generate the run dashboard
-  const finalMeta = storage.getPendingEvalRun(configName, testSetName, runNumber)!;
-  const html = generateEvalRunDashboardHtml(finalMeta, merged);
-  const dashboardPath = storage.saveEvalRunDashboard(configName, testSetName, runNumber, html);
-
-  // Auto-regenerate the test-set-level improvements dashboard
-  const allMetas = storage.readAllFinalizedRunMetas(configName, testSetName);
-  const improvementsHtml = generateImprovementsDashboardHtml(testSetName, configName, allMetas);
-  storage.saveImprovementsDashboard(configName, testSetName, improvementsHtml);
+  // Auto-generate this run's dashboard and refresh the improvements report
+  const reports = writeReportsForRun(configName, testSetName, runNumber);
 
   const breakdown = merged
     .map((f) => `  • ${f.testCaseName}: avg ${f.averageScore.toFixed(2)} · ${(f.passRate * 100).toFixed(0)}% pass`)
@@ -2655,7 +2648,11 @@ export async function finalize_eval_run(args: Args) {
     `By test case:\n${breakdown}\n\n` +
     `Output: eval-runs/${testSetName}/${String(runNumber).padStart(4, "0")}/\n` +
     merged.map((f) => `  ${f.testCaseName}.json  (${f.totalTranscripts} transcripts)`).join("\n") + "\n\n" +
-    `Dashboard: ${dashboardPath}` +
+    (reports.error
+      ? `Reports: FAILED to generate — ${reports.error}\n` +
+        `         The run itself is saved. Fix the cause and call regenerate_reports.`
+      : `Dashboard:   ${reports.dashboardPath}\n` +
+        `Improvements: ${reports.improvementsPath}`) +
     promptSection +
     `\n\nFAILING DIMENSION ANALYSIS:\n${failureAnalysis}` +
     `\n\n${"═".repeat(60)}\n` +
@@ -2718,36 +2715,128 @@ export async function generate_eval_run_dashboard(args: Args) {
   const testSetName = str(args, "test_set_name");
   const runNumber = Number(args.run_number);
 
-  const result = storage.readFinalizedEvalRun(configName, testSetName, runNumber);
-  if (!result) {
-    throw new Error(
-      `Eval run ${runNumber} for "${testSetName}" not found or not yet finalized. ` +
-      `Run finalize_eval_run first.`,
-    );
-  }
+  const model = buildRunReport(configName, testSetName, runNumber);
+  const dashboardPath = storage.saveEvalRunDashboard(
+    configName,
+    testSetName,
+    runNumber,
+    renderRunReport(model),
+  );
 
-  const html = generateEvalRunDashboardHtml(result.meta, result.testCaseFiles);
-  const dashboardPath = storage.saveEvalRunDashboard(configName, testSetName, runNumber, html);
-
-  return ok(`Dashboard generated: ${dashboardPath}`);
+  return ok(
+    `Run dashboard generated: ${dashboardPath}\n\n` +
+    `Run ${runNumber} — ${Math.round(model.headline.passRate * 100)}% of interactions passed every test case\n` +
+    `Weighted score: ${model.headline.stats.weightedScore?.toFixed(2) ?? "—"} ` +
+    `(unweighted ${model.headline.stats.averageScore?.toFixed(2) ?? "—"})\n` +
+    `${model.testCases.length} test cases · ${model.headline.transcriptsEvaluated} interactions · ` +
+    `${model.findings.length} findings\n` +
+    (model.coverage.requirementsUnavailable
+      ? `Requirements pivot unavailable — requirements/final/requirements.md was not found.\n`
+      : `Requirement coverage: ${model.coverage.requirementsCovered}/${model.coverage.requirementsTotal}` +
+        (model.coverage.uncoveredRequirementIds.length
+          ? ` (untested: ${model.coverage.uncoveredRequirementIds.join(", ")})`
+          : "") + "\n") +
+    `\nOpen the file in a browser. Every view is self-contained — no server needed.`,
+  );
 }
 
 export async function generate_improvements_dashboard(args: Args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
 
-  const allMetas = storage.readAllFinalizedRunMetas(configName, testSetName);
-  if (allMetas.length === 0) {
-    throw new Error(`No finalized runs found for test set "${testSetName}". Finalize at least one run first.`);
-  }
+  const model = buildImprovementsReport(configName, testSetName);
+  const filePath = storage.saveImprovementsDashboard(
+    configName,
+    testSetName,
+    renderImprovementsReport(model),
+  );
 
-  const html = generateImprovementsDashboardHtml(testSetName, configName, allMetas);
-  const filePath = storage.saveImprovementsDashboard(configName, testSetName, html);
+  const trend = model.runs
+    .map((r) => `Run ${r.runNumber} (${r.passRate === null ? "—" : Math.round(r.passRate * 100) + "%"})`)
+    .join(" → ");
 
   return ok(
-    `Improvements dashboard generated: ${filePath}\n` +
-    `Covers ${allMetas.length} run${allMetas.length !== 1 ? "s" : ""}: ` +
-    allMetas.map((m) => `Run ${String(m.runNumber).padStart(4, "0")} (${Math.round((m.aggregatePassRate ?? 0) * 100)}%)`).join(" → "),
+    `Improvements report generated: ${filePath}\n\n` +
+    `Covers ${model.runs.length} run${model.runs.length !== 1 ? "s" : ""}: ${trend}\n` +
+    `Watchlist: ${model.watchlist.length} unresolved item${model.watchlist.length === 1 ? "" : "s"} in the latest run\n` +
+    `Changelog: ${model.changelog.filter((c) => c.promptDiff.added || c.promptDiff.removed).length} runs with prompt changes`,
+  );
+}
+
+/**
+ * Rebuilds every report for a config from the results on disk.
+ *
+ * This is what makes the templates shippable: reports are derived artefacts, so pulling a
+ * newer version of this plugin and running this brings historical runs into the current
+ * views without re-scoring anything.
+ */
+export async function regenerate_reports(args: Args) {
+  const configName = str(args, "summary_config_name");
+  const only = args.test_set_name ? str(args, "test_set_name") : null;
+
+  const testSetNames = [
+    ...new Set(
+      storage
+        .listEvalRuns(configName)
+        .map((r) => r.testSetName)
+        .filter((name) => only === null || name === only),
+    ),
+  ].sort();
+
+  if (testSetNames.length === 0) {
+    throw new Error(
+      only
+        ? `No finalized runs found for test set "${only}" in "${configName}".`
+        : `No finalized runs found for "${configName}". Nothing to regenerate.`,
+    );
+  }
+
+  const lines: string[] = [];
+  let runsRebuilt = 0;
+  let failures = 0;
+
+  for (const testSetName of testSetNames) {
+    const metas = storage.readAllFinalizedRunMetas(configName, testSetName);
+    for (const meta of metas) {
+      try {
+        storage.saveEvalRunDashboard(
+          configName,
+          testSetName,
+          meta.runNumber,
+          renderRunReport(buildRunReport(configName, testSetName, meta.runNumber)),
+        );
+        runsRebuilt++;
+      } catch (err) {
+        failures++;
+        lines.push(
+          `  ✗ ${testSetName} run ${meta.runNumber}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    try {
+      const path = storage.saveImprovementsDashboard(
+        configName,
+        testSetName,
+        renderImprovementsReport(buildImprovementsReport(configName, testSetName)),
+      );
+      lines.push(`  ✓ ${testSetName}: ${metas.length} run report${metas.length === 1 ? "" : "s"} + ${path}`);
+    } catch (err) {
+      failures++;
+      lines.push(
+        `  ✗ ${testSetName} improvements: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  return ok(
+    `─── Reports Regenerated ───\n\n` +
+    `Config:     ${configName}\n` +
+    `Test sets:  ${testSetNames.length}\n` +
+    `Run reports: ${runsRebuilt}\n` +
+    (failures > 0 ? `Failures:   ${failures}\n` : "") +
+    `\n${lines.join("\n")}\n\n` +
+    `Reports are rebuilt from the results on disk, so nothing was re-scored and no ` +
+    `Genesys calls were made.`,
   );
 }
 

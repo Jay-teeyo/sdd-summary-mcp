@@ -8,7 +8,7 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "Returns the complete SDD Summary pipeline reference guide as markdown. " +
       "Call this at the start of a session to get the full workflow documentation: " +
       "pipeline step order, authentication, transcript fetching, evaluation modes, " +
-      "version management rules, deployment gate, dashboard rules, rate limiting notes, " +
+      "version management rules, deployment gate, report rules, rate limiting notes, " +
       "folder structure, and Genesys API facts. " +
       "The server also surfaces a concise summary automatically via the MCP handshake — " +
       "call this tool when you need the full details for any step.",
@@ -791,7 +791,7 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "WHAT IT DOES:\n" +
       "Merges intermediate per-transcript files into one {TestCaseName}.json per test case, deletes intermediates, " +
       "computes overall and per-test-case pass rates and average scores, updates _pending.json, " +
-      "auto-generates dashboard.html (run-level) and improvements.html (test-set-level).\n\n" +
+      "and writes both reports: dashboard.html for this run and improvements.html for the test set.\n\n" +
       "WHAT IT RETURNS:\n" +
       "A human-readable breakdown including: version tested (e.g. 'Version 1 (candidate)'), " +
       "the full prompt under test, per-dimension failure analysis with sample evaluator reasoning, " +
@@ -926,31 +926,17 @@ export const TOOL_DEFINITIONS: Tool[] = [
 
   // ─── Reporting ───────────────────────────────────────────────────────────────
   {
-    name: "generate_improvements_dashboard",
-    description:
-      "Generate a self-contained HTML improvements dashboard for a test set, saved as improvements.html " +
-      "in eval-runs/{testSetName}/. Shows all finalized runs side by side: overall pass rate trend (sparkline), " +
-      "per-test-case pass rates as a colour-coded table (green ≥80%, amber 50–79%, red <50%), " +
-      "delta indicators (↑↓→) between consecutive runs, and links to each run's individual dashboard. " +
-      "Called automatically by finalize_eval_run — use this tool to regenerate without re-running.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        summary_config_name: { type: "string", description: "Summary configuration name" },
-        test_set_name: { type: "string", description: "Test set name" },
-      },
-      required: ["summary_config_name", "test_set_name"],
-    },
-  },
-  {
     name: "generate_eval_run_dashboard",
     description:
-      "Generate a self-contained HTML dashboard for a finalized eval run. " +
-      "Writes dashboard.html into the eval run directory. " +
-      "The dashboard shows: overall pass rate, per-test-case pass rates and scores (clickable rows), " +
-      "transcript-level results with dimension-by-dimension scoring and reasoning, " +
-      "failure themes derived from the scoring data, and prompt improvement recommendations. " +
-      "Called automatically by finalize_eval_run — use this tool to regenerate the dashboard without re-running.",
+      "Generate the self-contained HTML report for one finalized eval run, written as " +
+      "dashboard.html in the run directory.\n\n" +
+      "The report drills down from the run to the evidence: an overview with findings derived " +
+      "from this run's own data, then every test case, every rubric dimension scored against " +
+      "every interaction with the evaluator's reasoning, every interaction's summary beside its " +
+      "source conversation, and a requirements pivot showing which business requirements are " +
+      "covered, passing, or untested.\n\n" +
+      "Scoring is weighted by dimension weight (1–5) by default, with the unweighted mean shown " +
+      "alongside. Called automatically by finalize_eval_run — use this tool to re-render one run.",
     inputSchema: {
       type: "object",
       properties: {
@@ -962,22 +948,42 @@ export const TOOL_DEFINITIONS: Tool[] = [
     },
   },
   {
-    name: "generate_dashboard",
+    name: "generate_improvements_dashboard",
     description:
-      "Generate a self-contained HTML dashboard showing eval run history for a summary configuration. " +
-      "Includes per-test-case scores, summaries, prompt diffs, and improvement suggestions.",
+      "Generate the self-contained HTML improvements report for a test set, written as " +
+      "improvements.html in eval-runs/{testSetName}/.\n\n" +
+      "This is the run-over-run view: a trend of pass rate and weighted score across every " +
+      "finalized run, a changelog of what changed between runs (prompt diffs, plus which test " +
+      "cases and requirements moved), per-test-case and per-requirement heat matrices, and a " +
+      "watchlist of what is still unresolved in the latest run.\n\n" +
+      "Runs whose test set composition changed are marked, because a delta across that boundary " +
+      "compares different populations. Called automatically by finalize_eval_run.",
     inputSchema: {
       type: "object",
       properties: {
-        summary_config_name: {
-          type: "string",
-          description: "Name of the summary configuration to generate the dashboard for",
-        },
+        summary_config_name: { type: "string", description: "Summary configuration name" },
+        test_set_name: { type: "string", description: "Test set name" },
+      },
+      required: ["summary_config_name", "test_set_name"],
+    },
+  },
+  {
+    name: "regenerate_reports",
+    description:
+      "Rebuild every HTML report for a summary configuration from the results already on disk.\n\n" +
+      "Reports are derived artefacts, never the record — the JSON in eval-runs/ is. So after " +
+      "pulling a newer version of this plugin, run this once to bring historical runs into the " +
+      "current report templates. Nothing is re-scored and no Genesys calls are made.\n\n" +
+      "Also use it after editing requirements.md (to refresh requirement coverage and the " +
+      "untested-requirement warnings) or after a report failed to generate during finalization.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string", description: "Summary configuration name" },
         test_set_name: {
           type: "string",
-          description: "Optional: filter to runs for a specific test set",
+          description: "Optional: limit to one test set. Omit to rebuild every test set.",
         },
-        title: { type: "string", description: "Dashboard title" },
       },
       required: ["summary_config_name"],
     },

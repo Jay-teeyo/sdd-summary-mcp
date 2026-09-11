@@ -278,20 +278,24 @@ For smaller smoke tests, use a reduced test set of 5–10 transcripts and a sing
 
 ---
 
-## 6. Dashboards
+## 6. Reports
 
-`finalize_eval_run` automatically generates **both dashboards**. Open either in any browser — no server required.
+`finalize_eval_run` writes both reports automatically. Open either in any browser — no server, no network, nothing to install. Each file embeds its own data, so it can be copied, attached to an email, or committed for review and it still works.
 
-### Run dashboard — `{NNNN}/dashboard.html`
+Both are rendered from templates that ship inside the plugin, so every report from every project looks and behaves the same, and pulling a newer version of the plugin gives you newer reports.
 
-Generated automatically. Shows:
-- Overall pass rate and run metadata
-- Per-test-case pass rates and average scores — click a row to drill into transcript-level results
-- Dimension-by-dimension scores and reasoning per transcript (expandable rows)
-- Failure themes auto-derived from the scoring data
-- Prioritised prompt improvement recommendations
+### Run report — `{NNNN}/dashboard.html`
 
-To regenerate without re-running:
+The run, then the evidence behind it:
+
+- **Headline** — the share of interactions that passed *every* test case, the weighted score, and the unweighted mean beside it. Weighting uses each dimension's weight (1–5), so a compliance rule does not count the same as a style preference. A toggle switches every table between weighted and unweighted.
+- **Findings** — derived from this run's own scores, ranked by weighted impact, each quoting the evaluator's reasoning so you can disagree with it. Includes regressions against the previous run, requirements with no coverage, and dimensions pointing at requirement IDs that do not exist.
+- **Drill-down** — test case → rubric dimension → how that dimension scored against every interaction → an interaction's summary beside its source transcript. A dimension × interaction heat grid shows at a glance whether a row (the rubric) or a column (one summary) is the problem.
+- **Requirements pivot** — the same results indexed by business requirement: covered, passing, failing, or untested.
+
+Runs excluded before scoring (interactions Genesys refused to summarise) and the preview structure used are both shown, so a run measured against the wrong setting structure is visible rather than silently wrong.
+
+To re-render without re-running:
 ```
 generate_eval_run_dashboard(
   summary_config_name="Acme_CallSummary",
@@ -300,16 +304,17 @@ generate_eval_run_dashboard(
 )
 ```
 
-### Improvements dashboard — `improvements.html`
+### Improvements report — `improvements.html`
 
-Saved at `eval-runs/{test_set_name}/improvements.html` — one level above the numbered run folders. Updated automatically on every `finalize_eval_run`. Shows:
-- Overall pass rate sparkline across all runs for this test set
-- Colour-coded comparison table: test cases as rows, runs as columns
-  - Green = ≥ 80% pass, Amber = 50–79%, Red = < 50%
-- Delta indicators (↑↓→) between consecutive runs
-- Links to each individual run dashboard
+Saved at `eval-runs/{test_set_name}/improvements.html`, one level above the numbered run folders, and refreshed on every `finalize_eval_run`. This is the run-over-run view:
 
-To regenerate without re-running:
+- Pass rate and weighted score trend across every finalized run, labelled by prompt version
+- **Changelog** — what changed between runs: the prompt diff, the version's notes, and which test cases and requirements moved
+- Heat matrices per test case and per requirement across all runs
+- **Watchlist** — what is still unresolved in the latest run
+- Runs whose test set composition changed are marked, because a delta across that boundary compares different populations rather than measuring progress
+
+To re-render without re-running:
 ```
 generate_improvements_dashboard(
   summary_config_name="Acme_CallSummary",
@@ -317,9 +322,17 @@ generate_improvements_dashboard(
 )
 ```
 
-### Template rule
+### Rebuilding reports
 
-> **Never write dashboard HTML manually.** Both dashboards must always be generated via their respective MCP tools to guarantee consistent structure and styling. The shared template is in `mcp-server/src/dashboardHtml.ts` — edit it there if the design needs to change; the update applies to all future generations automatically.
+Reports are derived artefacts — the JSON files in `eval-runs/` are the record. Nothing is lost by deleting a report, and none of this re-scores anything or calls Genesys:
+
+```
+regenerate_reports(summary_config_name="Acme_CallSummary")
+```
+
+Run it after pulling a newer version of the plugin (historical runs then render in the current templates), after editing `requirements.md` (requirement coverage and the untested-requirement warnings refresh), or if report generation failed during finalization.
+
+> **Never write report HTML manually.** The templates live in `mcp-server/src/reports/templates/` and the model that feeds them in `mcp-server/src/reports/`. Change the design there — `npm run preview:reports` renders the templates against fixture data for review, and `npm run verify:reports` checks the whole pipeline against a synthetic workspace. Hand-patched HTML is overwritten on the next run.
 
 ---
 

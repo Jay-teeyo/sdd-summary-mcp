@@ -8,9 +8,10 @@ import {
 import { TOOL_DEFINITIONS } from "./tools/definitions.js";
 import * as handlers from "./tools/handlers.js";
 import { SERVER_INSTRUCTIONS } from "./pipelineGuide.js";
+import { SERVER_VERSION } from "./version.js";
 
 const server = new Server(
-  { name: "sdd-summary-mcp", version: "2.0.0" },
+  { name: "sdd-summary-mcp", version: SERVER_VERSION },
   { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS },
 );
 
@@ -88,7 +89,7 @@ const toolHandlers: Record<string, HandlerFn> = {
   // Reporting
   generate_improvements_dashboard: handlers.generate_improvements_dashboard,
   generate_eval_run_dashboard: handlers.generate_eval_run_dashboard,
-  generate_dashboard: handlers.generate_dashboard,
+  regenerate_reports: handlers.regenerate_reports,
 
   // Copilot
   list_assistants: handlers.list_assistants,

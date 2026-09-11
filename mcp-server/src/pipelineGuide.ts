@@ -34,10 +34,11 @@ ALWAYS call save_improvement_recommendations after finalize_eval_run — do not 
 - To test a candidate: start_eval_run(mode="prompt_test", version_number=N, ...)
 - To deploy after approval: update_summary_setting → then save_version with status="deployed" to record it.
 
-## Dashboard Rules
-- NEVER write dashboard HTML manually or via file tools.
-- finalize_eval_run auto-generates both dashboards (run dashboard + improvements dashboard).
-- To force regenerate: call generate_eval_run_dashboard or generate_improvements_dashboard.
+## Report Rules
+- NEVER write report HTML manually or via file tools. The templates ship inside the plugin.
+- finalize_eval_run auto-generates both reports (run report + improvements report).
+- To re-render one: generate_eval_run_dashboard or generate_improvements_dashboard.
+- After pulling a newer plugin version, or after editing requirements.md: regenerate_reports.
 
 ## Test Case Authoring — applicabilityCondition (REQUIRED on every dimension)
 Every dimension must have applicabilityCondition set:
@@ -554,15 +555,42 @@ start_eval_run(
 
 ---
 
-## Dashboard Rules (MANDATORY)
+## Report Rules (MANDATORY)
 
-| Dashboard | Tool | Location |
+| Report | Tool | Location |
 |---|---|---|
-| Run dashboard | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/{NNNN}/dashboard.html\` |
-| Improvements dashboard | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/improvements.html\` |
+| Run report | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/{NNNN}/dashboard.html\` |
+| Improvements report | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/improvements.html\` |
+| Both, rebuilt for every run | \`regenerate_reports\` | as above |
 
-- **NEVER generate dashboard HTML manually** — always use \`generate_eval_run_dashboard\` or \`generate_improvements_dashboard\`
-- Both are called automatically by \`finalize_eval_run\` — only call them explicitly to force regeneration
+- **NEVER generate report HTML manually.** The templates live inside the plugin, so hand-written
+  or hand-patched HTML is overwritten on the next run and is inconsistent with every other report.
+- Both reports are written automatically by \`finalize_eval_run\` — call the generate tools only to
+  re-render without re-scoring.
+- Reports are **derived artefacts**: they are rebuilt from the JSON in \`eval-runs/\`, so nothing is
+  lost by deleting them. \`regenerate_reports\` rebuilds every report for a config, which is what to
+  run after pulling a newer plugin version (to pick up template changes) or after editing
+  \`requirements.md\` (to refresh requirement coverage).
+
+### What the run report contains
+
+Overview with findings derived from that run's own scores, then drill-down: test case → rubric
+dimension → how it scored against every interaction with the evaluator's reasoning → the interaction's
+summary beside its source transcript. Plus a requirements pivot: which business requirements are
+covered, passing, failing or untested.
+
+Scoring is **weighted by dimension weight (1–5)** by default, with the unweighted mean alongside.
+A weight-5 compliance rule and a weight-1 style preference must not count the same.
+
+### What the improvements report contains
+
+Pass rate and weighted score across every finalized run, a changelog of what changed between runs
+(prompt diff, plus which test cases and requirements moved), heat matrices per test case and per
+requirement, and a watchlist of what is still unresolved in the latest run. Runs whose test set
+composition changed are flagged, because a delta across that boundary compares different populations.
+
+**Reading the reports is how you write improvements.md.** The findings and the changelog already name
+the failing dimensions and quote the evidence — do not re-derive that analysis by hand.
 
 ---
 

@@ -3239,8 +3239,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path3) {
-      let input = path3;
+    function removeDotSegments(path4) {
+      let input = path4;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3492,8 +3492,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path3, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path3 && path3 !== "/" ? path3 : void 0;
+        const [path4, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path4 && path4 !== "/" ? path4 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -6912,12 +6912,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list, fs3, exportName) {
+    function addFormats(ajv, list, fs4, exportName) {
       var _a;
       var _b;
       (_a = (_b = ajv.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs3[f]);
+        ajv.addFormat(f, fs4[f]);
     }
     module.exports = exports = formatsPlugin;
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -7258,7 +7258,7 @@ function retryDelayMs(headers, fallbackSecs = 30) {
   const jitter = Math.random() * base * 0.3;
   return Math.min((base + jitter) * 1e3, 65e3);
 }
-async function request(method, path3, body) {
+async function request(method, path4, body) {
   const config2 = getGenesysConfig();
   if (!config2) {
     throw new Error(
@@ -7269,7 +7269,7 @@ async function request(method, path3, body) {
   const MAX_RETRIES_5XX = 2;
   for (let attempt = 0; ; attempt++) {
     const token = await getAccessToken(config2);
-    const url = `${getBaseUrl(config2.region)}${path3}`;
+    const url = `${getBaseUrl(config2.region)}${path4}`;
     const headers = {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -7282,22 +7282,22 @@ async function request(method, path3, body) {
     });
     if (resp.status === 429) {
       if (attempt >= MAX_RETRIES_429) {
-        throw new GenesysApiError(429, path3, `Rate limited after ${MAX_RETRIES_429} retries.`);
+        throw new GenesysApiError(429, path4, `Rate limited after ${MAX_RETRIES_429} retries.`);
       }
       const waitMs = retryDelayMs(resp.headers);
       console.error(
-        `[rate-limit] 429 on ${method} ${path3} \u2014 waiting ${(waitMs / 1e3).toFixed(1)}s (retry ${attempt + 1}/${MAX_RETRIES_429})`
+        `[rate-limit] 429 on ${method} ${path4} \u2014 waiting ${(waitMs / 1e3).toFixed(1)}s (retry ${attempt + 1}/${MAX_RETRIES_429})`
       );
       await sleep(waitMs);
       continue;
     }
     if (resp.status >= 500 && resp.headers.has("retry-after")) {
       if (attempt >= MAX_RETRIES_5XX) {
-        throw new GenesysApiError(resp.status, path3, `Server error after ${MAX_RETRIES_5XX} retries.`);
+        throw new GenesysApiError(resp.status, path4, `Server error after ${MAX_RETRIES_5XX} retries.`);
       }
       const waitMs = retryDelayMs(resp.headers);
       console.error(
-        `[rate-limit] ${resp.status} on ${method} ${path3} \u2014 waiting ${(waitMs / 1e3).toFixed(1)}s (retry ${attempt + 1}/${MAX_RETRIES_5XX})`
+        `[rate-limit] ${resp.status} on ${method} ${path4} \u2014 waiting ${(waitMs / 1e3).toFixed(1)}s (retry ${attempt + 1}/${MAX_RETRIES_5XX})`
       );
       await sleep(waitMs);
       continue;
@@ -7320,7 +7320,7 @@ async function request(method, path3, body) {
         if (detail) message = `${message} (${detail})`;
       } catch {
       }
-      throw new GenesysApiError(resp.status, path3, message);
+      throw new GenesysApiError(resp.status, path4, message);
     }
     if (resp.status === 204) return void 0;
     return resp.json();
@@ -7360,10 +7360,10 @@ var init_client = __esm({
     init_config();
     init_auth();
     GenesysApiError = class extends Error {
-      constructor(status, path3, message) {
-        super(`Genesys API error ${status} on ${path3}: ${message}`);
+      constructor(status, path4, message) {
+        super(`Genesys API error ${status} on ${path4}: ${message}`);
         this.status = status;
-        this.path = path3;
+        this.path = path4;
         this.name = "GenesysApiError";
       }
       status;
@@ -7371,11 +7371,11 @@ var init_client = __esm({
     };
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     genesys = {
-      get: (path3) => request("GET", path3),
-      post: (path3, body) => request("POST", path3, body),
-      put: (path3, body) => request("PUT", path3, body),
-      patch: (path3, body) => request("PATCH", path3, body),
-      delete: (path3) => request("DELETE", path3)
+      get: (path4) => request("GET", path4),
+      post: (path4, body) => request("POST", path4, body),
+      put: (path4, body) => request("PUT", path4, body),
+      patch: (path4, body) => request("PATCH", path4, body),
+      delete: (path4) => request("DELETE", path4)
     };
   }
 });
@@ -7575,10 +7575,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path3) {
-  if (!path3)
+function getElementAtPath(obj, path4) {
+  if (!path4)
     return obj;
-  return path3.reduce((acc, key) => acc?.[key], obj);
+  return path4.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -7898,11 +7898,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path3, issues) {
+function prefixIssues(path4, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path3);
+    iss.path.unshift(path4);
     return iss;
   });
 }
@@ -14473,7 +14473,7 @@ var TOOL_DEFINITIONS = [
   // ─── Pipeline guide ─────────────────────────────────────────────────────────
   {
     name: "get_pipeline_guide",
-    description: "Returns the complete SDD Summary pipeline reference guide as markdown. Call this at the start of a session to get the full workflow documentation: pipeline step order, authentication, transcript fetching, evaluation modes, version management rules, deployment gate, dashboard rules, rate limiting notes, folder structure, and Genesys API facts. The server also surfaces a concise summary automatically via the MCP handshake \u2014 call this tool when you need the full details for any step.",
+    description: "Returns the complete SDD Summary pipeline reference guide as markdown. Call this at the start of a session to get the full workflow documentation: pipeline step order, authentication, transcript fetching, evaluation modes, version management rules, deployment gate, report rules, rate limiting notes, folder structure, and Genesys API facts. The server also surfaces a concise summary automatically via the MCP handshake \u2014 call this tool when you need the full details for any step.",
     inputSchema: { type: "object", properties: {}, required: [] }
   },
   // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -15111,7 +15111,7 @@ Call once per (transcript_id \xD7 test_case_name) combination.`,
   },
   {
     name: "finalize_eval_run",
-    description: "Aggregate all submitted scores for a run and write the final output files. Call this after ALL subagents have finished calling submit_eval_scores \u2014 do not call early.\n\nWHAT IT DOES:\nMerges intermediate per-transcript files into one {TestCaseName}.json per test case, deletes intermediates, computes overall and per-test-case pass rates and average scores, updates _pending.json, auto-generates dashboard.html (run-level) and improvements.html (test-set-level).\n\nWHAT IT RETURNS:\nA human-readable breakdown including: version tested (e.g. 'Version 1 (candidate)'), the full prompt under test, per-dimension failure analysis with sample evaluator reasoning, and explicit instructions for the improvement recommendations step.\n\nMANDATORY NEXT STEP \u2014 save_improvement_recommendations:\nAfter finalize_eval_run returns, you MUST read its output carefully and write improvements.md using the failure analysis and prompt provided. Then call save_improvement_recommendations to persist it. Do not skip this step.",
+    description: "Aggregate all submitted scores for a run and write the final output files. Call this after ALL subagents have finished calling submit_eval_scores \u2014 do not call early.\n\nWHAT IT DOES:\nMerges intermediate per-transcript files into one {TestCaseName}.json per test case, deletes intermediates, computes overall and per-test-case pass rates and average scores, updates _pending.json, and writes both reports: dashboard.html for this run and improvements.html for the test set.\n\nWHAT IT RETURNS:\nA human-readable breakdown including: version tested (e.g. 'Version 1 (candidate)'), the full prompt under test, per-dimension failure analysis with sample evaluator reasoning, and explicit instructions for the improvement recommendations step.\n\nMANDATORY NEXT STEP \u2014 save_improvement_recommendations:\nAfter finalize_eval_run returns, you MUST read its output carefully and write improvements.md using the failure analysis and prompt provided. Then call save_improvement_recommendations to persist it. Do not skip this step.",
     inputSchema: {
       type: "object",
       properties: {
@@ -15207,20 +15207,8 @@ Call once per (transcript_id \xD7 test_case_name) combination.`,
   },
   // ─── Reporting ───────────────────────────────────────────────────────────────
   {
-    name: "generate_improvements_dashboard",
-    description: "Generate a self-contained HTML improvements dashboard for a test set, saved as improvements.html in eval-runs/{testSetName}/. Shows all finalized runs side by side: overall pass rate trend (sparkline), per-test-case pass rates as a colour-coded table (green \u226580%, amber 50\u201379%, red <50%), delta indicators (\u2191\u2193\u2192) between consecutive runs, and links to each run's individual dashboard. Called automatically by finalize_eval_run \u2014 use this tool to regenerate without re-running.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        summary_config_name: { type: "string", description: "Summary configuration name" },
-        test_set_name: { type: "string", description: "Test set name" }
-      },
-      required: ["summary_config_name", "test_set_name"]
-    }
-  },
-  {
     name: "generate_eval_run_dashboard",
-    description: "Generate a self-contained HTML dashboard for a finalized eval run. Writes dashboard.html into the eval run directory. The dashboard shows: overall pass rate, per-test-case pass rates and scores (clickable rows), transcript-level results with dimension-by-dimension scoring and reasoning, failure themes derived from the scoring data, and prompt improvement recommendations. Called automatically by finalize_eval_run \u2014 use this tool to regenerate the dashboard without re-running.",
+    description: "Generate the self-contained HTML report for one finalized eval run, written as dashboard.html in the run directory.\n\nThe report drills down from the run to the evidence: an overview with findings derived from this run's own data, then every test case, every rubric dimension scored against every interaction with the evaluator's reasoning, every interaction's summary beside its source conversation, and a requirements pivot showing which business requirements are covered, passing, or untested.\n\nScoring is weighted by dimension weight (1\u20135) by default, with the unweighted mean shown alongside. Called automatically by finalize_eval_run \u2014 use this tool to re-render one run.",
     inputSchema: {
       type: "object",
       properties: {
@@ -15232,20 +15220,28 @@ Call once per (transcript_id \xD7 test_case_name) combination.`,
     }
   },
   {
-    name: "generate_dashboard",
-    description: "Generate a self-contained HTML dashboard showing eval run history for a summary configuration. Includes per-test-case scores, summaries, prompt diffs, and improvement suggestions.",
+    name: "generate_improvements_dashboard",
+    description: "Generate the self-contained HTML improvements report for a test set, written as improvements.html in eval-runs/{testSetName}/.\n\nThis is the run-over-run view: a trend of pass rate and weighted score across every finalized run, a changelog of what changed between runs (prompt diffs, plus which test cases and requirements moved), per-test-case and per-requirement heat matrices, and a watchlist of what is still unresolved in the latest run.\n\nRuns whose test set composition changed are marked, because a delta across that boundary compares different populations. Called automatically by finalize_eval_run.",
     inputSchema: {
       type: "object",
       properties: {
-        summary_config_name: {
-          type: "string",
-          description: "Name of the summary configuration to generate the dashboard for"
-        },
+        summary_config_name: { type: "string", description: "Summary configuration name" },
+        test_set_name: { type: "string", description: "Test set name" }
+      },
+      required: ["summary_config_name", "test_set_name"]
+    }
+  },
+  {
+    name: "regenerate_reports",
+    description: "Rebuild every HTML report for a summary configuration from the results already on disk.\n\nReports are derived artefacts, never the record \u2014 the JSON in eval-runs/ is. So after pulling a newer version of this plugin, run this once to bring historical runs into the current report templates. Nothing is re-scored and no Genesys calls are made.\n\nAlso use it after editing requirements.md (to refresh requirement coverage and the untested-requirement warnings) or after a report failed to generate during finalization.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string", description: "Summary configuration name" },
         test_set_name: {
           type: "string",
-          description: "Optional: filter to runs for a specific test set"
-        },
-        title: { type: "string", description: "Dashboard title" }
+          description: "Optional: limit to one test set. Omit to rebuild every test set."
+        }
       },
       required: ["summary_config_name"]
     }
@@ -15438,10 +15434,11 @@ ALWAYS call save_improvement_recommendations after finalize_eval_run \u2014 do n
 - To test a candidate: start_eval_run(mode="prompt_test", version_number=N, ...)
 - To deploy after approval: update_summary_setting \u2192 then save_version with status="deployed" to record it.
 
-## Dashboard Rules
-- NEVER write dashboard HTML manually or via file tools.
-- finalize_eval_run auto-generates both dashboards (run dashboard + improvements dashboard).
-- To force regenerate: call generate_eval_run_dashboard or generate_improvements_dashboard.
+## Report Rules
+- NEVER write report HTML manually or via file tools. The templates ship inside the plugin.
+- finalize_eval_run auto-generates both reports (run report + improvements report).
+- To re-render one: generate_eval_run_dashboard or generate_improvements_dashboard.
+- After pulling a newer plugin version, or after editing requirements.md: regenerate_reports.
 
 ## Test Case Authoring \u2014 applicabilityCondition (REQUIRED on every dimension)
 Every dimension must have applicabilityCondition set:
@@ -15957,15 +15954,42 @@ start_eval_run(
 
 ---
 
-## Dashboard Rules (MANDATORY)
+## Report Rules (MANDATORY)
 
-| Dashboard | Tool | Location |
+| Report | Tool | Location |
 |---|---|---|
-| Run dashboard | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/{NNNN}/dashboard.html\` |
-| Improvements dashboard | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/improvements.html\` |
+| Run report | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/{NNNN}/dashboard.html\` |
+| Improvements report | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/improvements.html\` |
+| Both, rebuilt for every run | \`regenerate_reports\` | as above |
 
-- **NEVER generate dashboard HTML manually** \u2014 always use \`generate_eval_run_dashboard\` or \`generate_improvements_dashboard\`
-- Both are called automatically by \`finalize_eval_run\` \u2014 only call them explicitly to force regeneration
+- **NEVER generate report HTML manually.** The templates live inside the plugin, so hand-written
+  or hand-patched HTML is overwritten on the next run and is inconsistent with every other report.
+- Both reports are written automatically by \`finalize_eval_run\` \u2014 call the generate tools only to
+  re-render without re-scoring.
+- Reports are **derived artefacts**: they are rebuilt from the JSON in \`eval-runs/\`, so nothing is
+  lost by deleting them. \`regenerate_reports\` rebuilds every report for a config, which is what to
+  run after pulling a newer plugin version (to pick up template changes) or after editing
+  \`requirements.md\` (to refresh requirement coverage).
+
+### What the run report contains
+
+Overview with findings derived from that run's own scores, then drill-down: test case \u2192 rubric
+dimension \u2192 how it scored against every interaction with the evaluator's reasoning \u2192 the interaction's
+summary beside its source transcript. Plus a requirements pivot: which business requirements are
+covered, passing, failing or untested.
+
+Scoring is **weighted by dimension weight (1\u20135)** by default, with the unweighted mean alongside.
+A weight-5 compliance rule and a weight-1 style preference must not count the same.
+
+### What the improvements report contains
+
+Pass rate and weighted score across every finalized run, a changelog of what changed between runs
+(prompt diff, plus which test cases and requirements moved), heat matrices per test case and per
+requirement, and a watchlist of what is still unresolved in the latest run. Runs whose test set
+composition changed are flagged, because a delta across that boundary compares different populations.
+
+**Reading the reports is how you write improvements.md.** The findings and the changelog already name
+the failing dimensions and quote the evidence \u2014 do not re-derive that analysis by hand.
 
 ---
 
@@ -16056,18 +16080,6 @@ function readJson(p) {
 function listJsonFiles(dir) {
   if (!fs2.existsSync(dir)) return [];
   return fs2.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).map((f) => f.replace(/\.json$/, ""));
-}
-function legacyDir(subdir) {
-  return ensureDir(path2.join(getStorageDir(), subdir));
-}
-function legacyDashboardsDir() {
-  return legacyDir("dashboards");
-}
-function saveDashboard(id, html) {
-  const d = legacyDashboardsDir();
-  const p = path2.join(d, `${id}.html`);
-  fs2.writeFileSync(p, html, "utf-8");
-  return p;
 }
 function lifecycleConfigDir(configName) {
   return ensureDir(path2.join(getLifecycleDir(), configName));
@@ -16206,14 +16218,6 @@ function saveEvalRun(configName, testSetName, runNumber, meta, results) {
   for (const result of results) {
     writeJson(path2.join(dir, `${result.testCaseName}.json`), result);
   }
-}
-function getEvalRunResults(configName, testSetName, runNumber) {
-  const dir = evalRunDir(configName, testSetName, runNumber);
-  if (!fs2.existsSync(dir)) return [];
-  return fs2.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).flatMap((f) => {
-    const parsed = readJson(path2.join(dir, f));
-    return Array.isArray(parsed.results) ? parsed.results : [parsed];
-  });
 }
 function listEvalRuns(configName, testSetName) {
   const baseDir = evalRunsBaseDir(configName);
@@ -16828,734 +16832,2000 @@ async function getAssistantQueues(assistantId) {
   return allIds.map((id) => ({ id, name: nameMap.get(id) ?? id }));
 }
 
-// src/dashboard.ts
-function esc2(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function passRateBadge(rate) {
-  const pct2 = (rate * 100).toFixed(1);
-  const colour = rate >= 0.9 ? "#22c55e" : rate >= 0.6 ? "#f59e0b" : "#ef4444";
-  return `<span style="background:${colour};color:#fff;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:600">${pct2}%</span>`;
-}
-function renderRun(run) {
-  const dimensionNames = run.results[0]?.dimensionScores.map((d) => d.dimension) ?? [];
-  const rubricsHeader = dimensionNames.map((d) => `<th>${esc2(d)}</th>`).join("");
-  const rows = run.results.map((r) => {
-    const dimCells = r.dimensionScores.map((d) => {
-      const colour = d.passed ? "#22c55e" : "#ef4444";
-      const icon = d.passed ? "\u2713" : "\u2717";
-      const scoreDisplay = d.score === null ? "N/A" : `${(d.score * 100).toFixed(0)}%`;
-      return `<td title="${esc2(d.reasoning)}" style="text-align:center;color:${colour};font-weight:700">${icon} ${scoreDisplay}</td>`;
-    }).join("");
-    return `
-      <tr>
-        <td class="transcript-label">${esc2(r.transcriptLabel)}</td>
-        <td style="color:${r.overallPassed ? "#22c55e" : "#ef4444"};font-weight:600">${r.overallPassed ? "Pass" : "Fail"}</td>
-        <td>${(r.overallScore * 100).toFixed(1)}%</td>
-        ${dimCells}
-      </tr>
-    `;
-  }).join("");
-  const improvements = run.suggestedImprovements ? `<div class="improvements">
-        <h4>Suggested Improvements</h4>
-        <p>${esc2(run.suggestedImprovements).replace(/\n/g, "<br>")}</p>
-       </div>` : "";
-  return `
-    <div class="run-card" id="run-${run.id}">
-      <div class="run-header">
-        <div class="run-title">
-          <span class="run-label">${esc2(run.label)}</span>
-          ${passRateBadge(run.aggregatePassRate)}
-        </div>
-        <div class="run-meta">
-          <span>${new Date(run.createdAt).toLocaleString("en-AU")}</span>
-          <span>${run.transcriptIds.length} transcript${run.transcriptIds.length !== 1 ? "s" : ""}</span>
-          <span>Prompt v${run.promptVersion}</span>
-        </div>
-      </div>
+// src/version.ts
+var SERVER_VERSION = "2.0.0";
 
-      <details open>
-        <summary>Prompt Used</summary>
-        <pre class="prompt-text">${esc2(run.summarySetting.prompt)}</pre>
-      </details>
-
-      <details open>
-        <summary>Results</summary>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Transcript</th>
-                <th>Overall</th>
-                <th>Score</th>
-                ${rubricsHeader}
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-        <p class="hint">Hover dimension cells to see reasoning.</p>
-      </details>
-
-      ${improvements}
-    </div>
-  `;
-}
-async function generateDashboard(runs, title) {
-  const runCards = runs.map(renderRun).join("\n");
-  const passRates = runs.map((r) => r.aggregatePassRate);
-  const avgPassRate = passRates.length > 0 ? passRates.reduce((a, b) => a + b, 0) / passRates.length : 0;
-  const bestRun = runs.reduce((best, r) => r.aggregatePassRate > best.aggregatePassRate ? r : best, runs[0]);
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc2(title)}</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e2e8f0; font-size: 14px; line-height: 1.5; }
-  a { color: #60a5fa; }
-  h1, h2, h3, h4 { font-weight: 600; }
-  .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
-  .header { margin-bottom: 32px; border-bottom: 1px solid #1e293b; padding-bottom: 24px; }
-  .header h1 { font-size: 22px; color: #f1f5f9; }
-  .header .subtitle { color: #64748b; font-size: 13px; margin-top: 4px; }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
-  .stat-card { background: #1e293b; border-radius: 8px; padding: 16px; }
-  .stat-card .value { font-size: 28px; font-weight: 700; color: #f1f5f9; }
-  .stat-card .label { color: #64748b; font-size: 12px; margin-top: 4px; }
-  .run-card { background: #1e293b; border-radius: 8px; margin-bottom: 24px; overflow: hidden; }
-  .run-header { padding: 16px 20px; border-bottom: 1px solid #0f172a; }
-  .run-title { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-  .run-label { font-size: 15px; font-weight: 600; color: #f1f5f9; }
-  .run-meta { display: flex; gap: 16px; color: #64748b; font-size: 12px; }
-  details { border-top: 1px solid #0f172a; }
-  summary { padding: 10px 20px; cursor: pointer; font-weight: 500; color: #94a3b8; font-size: 13px; user-select: none; }
-  summary:hover { color: #e2e8f0; }
-  details[open] summary { color: #e2e8f0; }
-  .prompt-text { background: #0f1117; padding: 16px 20px; font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 12px; line-height: 1.7; white-space: pre-wrap; color: #a5f3fc; }
-  .table-wrap { overflow-x: auto; padding: 0 20px 12px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 8px 10px; border-bottom: 1px solid #334155; color: #94a3b8; font-size: 12px; white-space: nowrap; }
-  td { padding: 8px 10px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
-  .transcript-label { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cbd5e1; }
-  .hint { color: #475569; font-size: 11px; padding: 0 20px 12px; }
-  .improvements { padding: 16px 20px; border-top: 1px solid #0f172a; background: #0f172a; }
-  .improvements h4 { color: #fbbf24; font-size: 13px; margin-bottom: 8px; }
-  .improvements p { color: #cbd5e1; font-size: 13px; line-height: 1.7; }
-  .prompt-history { margin-bottom: 32px; }
-  .prompt-history h2 { font-size: 16px; color: #f1f5f9; margin-bottom: 12px; }
-  @media (max-width: 600px) { .stats { grid-template-columns: 1fr; } }
-</style>
-</head>
-<body>
-<div class="page">
-  <div class="header">
-    <h1>${esc2(title)}</h1>
-    <div class="subtitle">Generated ${(/* @__PURE__ */ new Date()).toLocaleString("en-AU")} \xB7 ${runs.length} test run${runs.length !== 1 ? "s" : ""}</div>
-  </div>
-
-  <div class="stats">
-    <div class="stat-card">
-      <div class="value">${runs.length}</div>
-      <div class="label">Test Runs</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" style="color:${avgPassRate >= 0.9 ? "#22c55e" : avgPassRate >= 0.6 ? "#f59e0b" : "#ef4444"}">${(avgPassRate * 100).toFixed(1)}%</div>
-      <div class="label">Average Pass Rate</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" style="color:#22c55e">${(bestRun.aggregatePassRate * 100).toFixed(1)}%</div>
-      <div class="label">Best Run Pass Rate</div>
-    </div>
-  </div>
-
-  <h2 style="font-size:16px;color:#f1f5f9;margin-bottom:16px">Test Runs (newest first)</h2>
-  ${runCards}
-</div>
-</body>
-</html>`;
-  const dashboardId = `dashboard-${Date.now()}`;
-  return saveDashboard(dashboardId, html);
-}
-
-// src/dashboardHtml.ts
-function deriveFailureThemes(testCaseFiles) {
-  const dimMap = /* @__PURE__ */ new Map();
-  for (const tc of testCaseFiles) {
-    for (const result of tc.results) {
-      for (const ds of result.dimensionScores) {
-        if (ds.na || ds.score === null) continue;
-        const key = `${tc.testCaseName}||${ds.dimension}`;
-        if (!dimMap.has(key)) dimMap.set(key, { testCase: tc.testCaseName, scores: [], reasons: [] });
-        const entry = dimMap.get(key);
-        entry.scores.push(ds.score);
-        if (!ds.passed && ds.reasoning) entry.reasons.push(ds.reasoning);
-      }
+// src/reports/diff.ts
+var CONTEXT_LINES = 2;
+var MAX_LINES = 120;
+function lcsDiff(before, after) {
+  const n = before.length;
+  const m = after.length;
+  const table = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i2 = n - 1; i2 >= 0; i2--) {
+    for (let j2 = m - 1; j2 >= 0; j2--) {
+      table[i2][j2] = before[i2] === after[j2] ? table[i2 + 1][j2 + 1] + 1 : Math.max(table[i2 + 1][j2], table[i2][j2 + 1]);
     }
   }
-  const themes = [];
-  for (const [key, { testCase, scores, reasons }] of dimMap) {
-    const dimension = key.split("||")[1];
-    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-    const failRate = scores.filter((s) => s < 0.8).length / scores.length;
-    if (failRate >= 0.3) {
-      themes.push({
-        dimension,
-        testCase,
-        failRate,
-        avgScore,
-        sampleReasons: [...new Set(reasons)].slice(0, 3)
+  const out = [];
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (before[i] === after[j]) {
+      out.push({ type: "context", text: before[i] });
+      i++;
+      j++;
+    } else if (table[i + 1][j] >= table[i][j + 1]) {
+      out.push({ type: "remove", text: before[i] });
+      i++;
+    } else {
+      out.push({ type: "add", text: after[j] });
+      j++;
+    }
+  }
+  while (i < n) out.push({ type: "remove", text: before[i++] });
+  while (j < m) out.push({ type: "add", text: after[j++] });
+  return out;
+}
+function trimContext(lines) {
+  const keep = new Array(lines.length).fill(false);
+  lines.forEach((line, idx) => {
+    if (line.type === "context") return;
+    for (let k = Math.max(0, idx - CONTEXT_LINES); k <= Math.min(lines.length - 1, idx + CONTEXT_LINES); k++) {
+      keep[k] = true;
+    }
+  });
+  const out = [];
+  let skipping = false;
+  lines.forEach((line, idx) => {
+    if (keep[idx]) {
+      out.push(line);
+      skipping = false;
+    } else if (!skipping) {
+      out.push({ type: "context", text: "\u2026" });
+      skipping = true;
+    }
+  });
+  return out.slice(0, MAX_LINES);
+}
+function diffPrompts(before, after) {
+  if (after === null) {
+    return { added: 0, removed: 0, lines: [], isFirst: false, unavailable: true };
+  }
+  if (before === null) {
+    return { added: 0, removed: 0, lines: [], isFirst: true, unavailable: false };
+  }
+  const lines = lcsDiff(before.split(/\r?\n/), after.split(/\r?\n/));
+  return {
+    added: lines.filter((l) => l.type === "add").length,
+    removed: lines.filter((l) => l.type === "remove").length,
+    lines: trimContext(lines),
+    isFirst: false,
+    unavailable: false
+  };
+}
+
+// src/reports/findings.ts
+var DIMENSION_ATTENTION = 0.8;
+var REQUIREMENT_RISK = 0.7;
+var REGRESSION_THRESHOLD = 0.05;
+var MAX_DIMENSION_FINDINGS = 3;
+var MAX_REQUIREMENT_FINDINGS = 2;
+var MAX_EVIDENCE = 3;
+function pctOf(v) {
+  return Math.round((v ?? 0) * 100);
+}
+function deriveRunFindings(input) {
+  const findings = [];
+  const { testCases, requirements, coverage, comparison, regressions } = input;
+  const impact = (weight, passRate) => weight * (1 - (passRate ?? 1));
+  const failing = testCases.flatMap((tc) => tc.dimensions.map((d) => ({ testCase: tc.name, d }))).filter((x) => x.d.stats.evaluated > 0 && (x.d.stats.passRate ?? 1) < DIMENSION_ATTENTION).sort((a, b) => impact(b.d.weight, b.d.stats.passRate) - impact(a.d.weight, a.d.stats.passRate));
+  const shown = failing.slice(0, MAX_DIMENSION_FINDINGS);
+  for (const { testCase, d } of shown) {
+    const reasons = (testCases.find((t) => t.name === testCase)?.transcripts ?? []).flatMap((t) => t.scores.filter((s) => s.dimension === d.name && !s.na && !s.passed)).map((s) => s.reasoning).filter((r) => r.trim().length > 0);
+    findings.push({
+      severity: d.weight >= 4 ? "high" : "medium",
+      kind: "dimension-failure",
+      title: `${d.name} fails ${pctOf(1 - (d.stats.passRate ?? 1))}% of interactions`,
+      detail: `Weight ${d.weight} of 5, pass threshold ${d.passThreshold.toFixed(2)}. ${d.stats.failed} of ${d.stats.evaluated} evaluated interactions scored below it.`,
+      evidence: [...new Set(reasons)].slice(0, MAX_EVIDENCE),
+      links: { testCase, dimension: d.name }
+    });
+  }
+  const remaining = failing.length - shown.length;
+  if (remaining > 0) {
+    findings.push({
+      severity: "low",
+      kind: "dimension-failure",
+      title: `${remaining} further dimension${remaining === 1 ? " is" : "s are"} below ${Math.round(DIMENSION_ATTENTION * 100)}% pass`,
+      detail: "Lower weighted impact than those above. Open each test case to review them in full.",
+      evidence: failing.slice(MAX_DIMENSION_FINDINGS).map(
+        (x) => `${x.d.name} \u2014 ${pctOf(x.d.stats.passRate)}% pass (weight ${x.d.weight})`
+      ),
+      links: {}
+    });
+  }
+  const explained = new Set(shown.flatMap(({ d }) => d.requirementIds));
+  const atRisk = requirements.filter(
+    (r) => r.coveredBy.length > 0 && r.stats.evaluated > 0 && (r.stats.passRate ?? 1) < REQUIREMENT_RISK && !explained.has(r.id)
+  );
+  for (const req of atRisk.slice(0, MAX_REQUIREMENT_FINDINGS)) {
+    findings.push({
+      severity: "high",
+      kind: "requirement-risk",
+      title: `${req.id} is failing`,
+      detail: `${req.text} Compliance is ${pctOf(req.stats.passRate)}% across ${req.coveredBy.length} dimension${req.coveredBy.length === 1 ? "" : "s"}.`,
+      evidence: [],
+      links: { requirementId: req.id }
+    });
+  }
+  for (const r of regressions.slice(0, MAX_DIMENSION_FINDINGS)) {
+    findings.push({
+      severity: r.weight >= 4 ? "high" : "medium",
+      kind: "regression",
+      title: `${r.dimension} regressed since run ${r.previousRunNumber}`,
+      detail: `This weight-${r.weight} dimension moved from ${pctOf(r.from)}% to ${pctOf(r.to)}% pass. ` + (comparison && (comparison.passRateDelta ?? 0) >= 0 ? "The overall pass rate did not fall, so the run's headline number hides this." : "It is part of an overall decline in this run."),
+      evidence: [],
+      links: { testCase: r.testCase, dimension: r.dimension, runNumber: r.previousRunNumber }
+    });
+  }
+  if (!coverage.requirementsUnavailable && coverage.uncoveredRequirementIds.length > 0) {
+    const uncovered = coverage.uncoveredRequirementIds;
+    findings.push({
+      severity: "medium",
+      kind: "coverage-gap",
+      title: `${uncovered.length} requirement${uncovered.length === 1 ? " has" : "s have"} no test coverage`,
+      detail: "No dimension maps to these requirement IDs, so nothing in this run tells you whether they hold. An untested requirement is indistinguishable from a passing one on every other view.",
+      evidence: uncovered.map((id) => {
+        const req = requirements.find((r) => r.id === id);
+        return req ? `${id} \u2014 ${req.text}` : id;
+      }),
+      links: {}
+    });
+  }
+  if (coverage.unknownRequirementIds.length > 0) {
+    findings.push({
+      severity: "medium",
+      kind: "coverage-gap",
+      title: `${coverage.unknownRequirementIds.length} dimension reference${coverage.unknownRequirementIds.length === 1 ? "s" : ""} a requirement that does not exist`,
+      detail: "These look like coverage but test nothing traceable. Either the ID is a typo or the requirement was removed from requirements.md.",
+      evidence: coverage.unknownRequirementIds.map(
+        (u) => `${u.id} \u2014 ${u.testCase} \xB7 ${u.dimension}`
+      ),
+      links: {}
+    });
+  }
+  if (comparison?.testSetChanged) {
+    findings.push({
+      severity: "low",
+      kind: "scoring-anomaly",
+      title: `Test set composition changed since run ${comparison.previousRunNumber}`,
+      detail: "The transcripts or test cases differ between the two runs, so deltas across that boundary compare different populations. Re-run the earlier version against the current set for a like-for-like baseline.",
+      evidence: [],
+      links: { runNumber: comparison.previousRunNumber }
+    });
+  }
+  return findings;
+}
+function findDimensionRegressions(previous, current, previousRunNumber) {
+  const out = [];
+  for (const tc of current) {
+    const prevTc = previous.find((p) => p.name === tc.name);
+    if (!prevTc) continue;
+    for (const d of tc.dimensions) {
+      const prevD = prevTc.dimensions.find((p) => p.name === d.name);
+      if (!prevD) continue;
+      const from = prevD.stats.passRate;
+      const to = d.stats.passRate;
+      if (from === null || to === null) continue;
+      if (from - to < REGRESSION_THRESHOLD) continue;
+      out.push({
+        testCase: tc.name,
+        dimension: d.name,
+        weight: d.weight,
+        from,
+        to,
+        previousRunNumber
       });
     }
   }
-  return themes.sort((a, b) => b.failRate - a.failRate).slice(0, 8);
+  return out.sort((a, b) => b.weight * (b.from - b.to) - a.weight * (a.from - a.to));
 }
-function deriveRecommendations(testCaseFiles, themes) {
-  const recs = [];
-  const hasTheme = (kw) => themes.some((t) => t.dimension.toLowerCase().includes(kw.toLowerCase()));
-  if (hasTheme("resolution")) {
-    recs.push({
-      priority: "high",
-      area: "Resolution section",
-      description: 'The Resolution section consistently describes future/pending outcomes rather than concluded ones. Strengthen the prompt instruction: when no definitive outcome was reached, the Resolution section must use the prescribed fallback text (e.g. "Interaction concluded without final action.") followed by a single outstanding-item bullet. Completed actions belong in Actions Completed only.'
-    });
+
+// src/reports/model.ts
+var REPORT_SCHEMA_VERSION = 1;
+function computeStats(scores) {
+  const evaluated = scores.filter((s) => !s.na && s.score !== null);
+  const na = scores.length - evaluated.length;
+  const passed = evaluated.filter((s) => s.passed).length;
+  let weightSum = 0;
+  let weightedTotal = 0;
+  let plainTotal = 0;
+  for (const s of evaluated) {
+    const w = s.weight ?? 1;
+    weightSum += w;
+    weightedTotal += w * s.score;
+    plainTotal += s.score;
   }
-  if (hasTheme("actions") || hasTheme("action")) {
-    recs.push({
-      priority: "high",
-      area: "Actions Completed section",
-      description: "Future commitments (callbacks, emails to be sent, quotes to be prepared) are being listed as completed actions. The prompt should explicitly state: only include actions that were fully completed during the interaction. Future commitments must not appear here."
-    });
-  }
-  if (hasTheme("order status") || hasTheme("stage")) {
-    recs.push({
-      priority: "high",
-      area: "Status fallback",
-      description: 'Several summaries use "Not applicable" instead of the required "Status not confirmed." fallback. Update the prompt to specify the exact required fallback text for out-of-scope interactions.'
-    });
-  }
-  if (hasTheme("key information") || hasTheme("material")) {
-    recs.push({
-      priority: "medium",
-      area: "Key Information Obtained section",
-      description: "Summaries are capturing out-of-scope details in Key Information instead of relevant information or the prescribed fallback. Reinforce that Key Information is for order-material facts only, and specify the exact fallback text for out-of-scope calls."
-    });
-  }
-  if (hasTheme("domain") || hasTheme("relevance")) {
-    recs.push({
-      priority: "medium",
-      area: "Out-of-scope call handling",
-      description: "Some interactions in the corpus fall outside the summary's intended scope. Define explicit guidance in the prompt for out-of-scope calls: apply the template with all prescribed fallback texts rather than generating a disclaimer or refusing."
-    });
-  }
-  if (hasTheme("terminology") || hasTheme("customer")) {
-    recs.push({
-      priority: "high",
-      area: "Customer terminology",
-      description: 'The external participant is occasionally referred to as "customer" or "client" instead of "customer". Reinforce this rule at the top of the prompt and provide explicit examples.'
-    });
-  }
-  if (hasTheme("pii") || hasTheme("personal")) {
-    recs.push({
-      priority: "high",
-      area: "PII in summaries",
-      description: "Some summaries include personal details. Add an explicit PII prohibition to the prompt: do not include any personally identifiable information in the summary."
-    });
-  }
-  if (hasTheme("prohibited") || hasTheme("word")) {
-    recs.push({
-      priority: "medium",
-      area: "Prohibited words",
-      description: 'Prohibited words appear in some summaries. List them explicitly in the prompt with the instruction to never use them.'
-    });
-  }
-  const worstTc = [...testCaseFiles].sort((a, b) => a.averageScore - b.averageScore)[0];
-  if (worstTc && worstTc.averageScore < 0.6 && !recs.some((r) => r.area.toLowerCase().includes(worstTc.testCaseName.toLowerCase()))) {
-    recs.push({
-      priority: "medium",
-      area: worstTc.testCaseName.replace(/-/g, " "),
-      description: `This test case has the lowest average score (${worstTc.averageScore.toFixed(2)}) across the run. Review the failing transcript results in detail to identify the root cause and refine the relevant section of the prompt.`
-    });
-  }
-  return recs;
+  return {
+    evaluated: evaluated.length,
+    na,
+    passed,
+    failed: evaluated.length - passed,
+    passRate: evaluated.length > 0 ? passed / evaluated.length : null,
+    averageScore: evaluated.length > 0 ? plainTotal / evaluated.length : null,
+    weightedScore: weightSum > 0 ? weightedTotal / weightSum : null
+  };
 }
-function tcFailureSummary(tc) {
-  if (tc.passRate >= 0.9) return "";
-  const dimFailMap = /* @__PURE__ */ new Map();
-  for (const result of tc.results) {
-    for (const ds of result.dimensionScores) {
-      if (ds.na || ds.score === null) continue;
-      if (!dimFailMap.has(ds.dimension)) dimFailMap.set(ds.dimension, { count: 0, total: 0, reasons: [] });
-      const e = dimFailMap.get(ds.dimension);
-      e.total++;
-      if (!ds.passed) {
-        e.count++;
-        if (ds.reasoning) e.reasons.push(ds.reasoning);
+function testSetSignature(testCaseNames, transcriptIds) {
+  return `${[...testCaseNames].sort().join(",")}|${[...transcriptIds].sort().join(",")}`;
+}
+
+// src/reports/requirements.ts
+import fs3 from "fs";
+import path3 from "path";
+function requirementsPath(configName) {
+  return path3.join(lifecycleConfigDir(configName), "requirements", "final", "requirements.md");
+}
+function cleanCell(cell) {
+  return cell.replace(/`/g, "").replace(/\*\*/g, "").replace(/^\*|\*$/g, "").trim();
+}
+function parseRequirementsMarkdown(markdown) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const line of markdown.split(/\r?\n/)) {
+    if (!line.trimStart().startsWith("|")) continue;
+    const cells = line.split("|").slice(1, -1).map(cleanCell);
+    if (cells.length < 3) continue;
+    const id = cells[0];
+    if (!/^BR-[A-Za-z0-9_]+-\d+$/.test(id)) continue;
+    if (/\{|\}/.test(cells.join(" "))) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({
+      id,
+      category: cells[1] || "Uncategorised",
+      text: cells[2] || "",
+      source: cells[3] || ""
+    });
+  }
+  return out;
+}
+function loadRequirements(configName) {
+  const filePath = requirementsPath(configName);
+  if (!fs3.existsSync(filePath)) {
+    return { requirements: [], filePath: null, unavailable: true };
+  }
+  const requirements = parseRequirementsMarkdown(fs3.readFileSync(filePath, "utf-8"));
+  return { requirements, filePath, unavailable: requirements.length === 0 };
+}
+
+// src/reports/build.ts
+var DEFAULT_PASS_THRESHOLD = 0.8;
+function generator() {
+  return {
+    serverVersion: SERVER_VERSION,
+    schemaVersion: REPORT_SCHEMA_VERSION,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+function placeholderDimension(name) {
+  return {
+    name,
+    description: "Definition unavailable \u2014 the test case has changed since this run was scored.",
+    weight: 1,
+    passCriteria: "",
+    failCriteria: "",
+    passThreshold: DEFAULT_PASS_THRESHOLD,
+    requirementIds: [],
+    applicabilityCondition: "always"
+  };
+}
+function buildTestCases(configName, files, options) {
+  return files.map((file) => {
+    const definition = getTestCase(configName, file.testCaseName);
+    const definedDimensions = definition?.dimensions ?? [];
+    const scoredNames = [
+      ...new Set(file.results.flatMap((r) => r.dimensionScores.map((d) => d.dimension)))
+    ];
+    const dimensionDefs = [
+      ...definedDimensions,
+      ...scoredNames.filter((n) => !definedDimensions.some((d) => d.name === n)).map(placeholderDimension)
+    ].filter((d) => scoredNames.includes(d.name));
+    const weightOf = (name) => dimensionDefs.find((d) => d.name === name)?.weight ?? 1;
+    const transcripts = file.results.map((result) => {
+      const scores = result.dimensionScores.map((s) => ({
+        dimension: s.dimension,
+        score: s.score,
+        na: s.na,
+        passed: s.passed,
+        reasoning: s.reasoning
+      }));
+      const stored = options.includeTranscriptText ? getLifecycleTranscript(configName, result.transcriptId) : null;
+      return {
+        id: result.transcriptId,
+        label: result.transcriptLabel,
+        summary: result.summary,
+        transcriptText: stored?.plainText ?? null,
+        stats: computeStats(scores.map((s) => ({ ...s, weight: weightOf(s.dimension) }))),
+        passed: result.overallPassed,
+        scores
+      };
+    });
+    const dimensions = dimensionDefs.map((d) => {
+      const across = transcripts.map((t) => t.scores.find((s) => s.dimension === d.name)).filter((s) => s != null);
+      return {
+        name: d.name,
+        description: d.description,
+        weight: d.weight,
+        passThreshold: d.passThreshold ?? DEFAULT_PASS_THRESHOLD,
+        applicabilityCondition: d.applicabilityCondition ?? "always",
+        passCriteria: d.passCriteria,
+        failCriteria: d.failCriteria,
+        requirementIds: d.requirementIds ?? [],
+        stats: computeStats(across.map((s) => ({ ...s, weight: d.weight })))
+      };
+    });
+    const allScores = transcripts.flatMap(
+      (t) => t.scores.map((s) => ({ ...s, weight: weightOf(s.dimension) }))
+    );
+    return {
+      name: file.testCaseName,
+      description: definition?.description ?? "Test case definition no longer available.",
+      dimensions,
+      transcripts,
+      passRate: transcripts.length > 0 ? transcripts.filter((t) => t.passed).length / transcripts.length : 0,
+      stats: computeStats(allScores)
+    };
+  });
+}
+function buildRequirementsPivot(configName, testCases) {
+  const parsed = loadRequirements(configName);
+  const unknownRequirementIds = [];
+  const known = new Set(parsed.requirements.map((r) => r.id));
+  const coverage = /* @__PURE__ */ new Map();
+  for (const tc of testCases) {
+    for (const d of tc.dimensions) {
+      for (const id of d.requirementIds) {
+        if (!parsed.unavailable && !known.has(id)) {
+          unknownRequirementIds.push({ id, testCase: tc.name, dimension: d.name });
+          continue;
+        }
+        const entry = coverage.get(id) ?? { coveredBy: [], scores: [] };
+        entry.coveredBy.push({ testCase: tc.name, dimension: d.name, weight: d.weight });
+        for (const t of tc.transcripts) {
+          const s = t.scores.find((x) => x.dimension === d.name);
+          if (s) entry.scores.push({ ...s, weight: d.weight });
+        }
+        coverage.set(id, entry);
       }
     }
   }
-  const lines = [];
-  const sorted = [...dimFailMap.entries()].filter(([, v]) => v.count > 0).sort((a, b) => b[1].count / b[1].total - a[1].count / a[1].total);
-  for (const [dim, { count, total, reasons }] of sorted.slice(0, 5)) {
-    const pct2 = Math.round(count / total * 100);
-    const sampleReason = [...new Set(reasons)][0] ?? "";
-    lines.push(`<li><strong>${esc3(dim)}</strong> \u2014 failed ${pct2}% of transcripts${sampleReason ? `: <em>${esc3(sampleReason.slice(0, 120))}${sampleReason.length > 120 ? "\u2026" : ""}</em>` : ""}</li>`);
+  const requirements = parsed.requirements.map((r) => {
+    const entry = coverage.get(r.id);
+    return {
+      id: r.id,
+      category: r.category,
+      text: r.text,
+      source: r.source,
+      coveredBy: entry?.coveredBy ?? [],
+      stats: computeStats(entry?.scores ?? [])
+    };
+  });
+  const covered = requirements.filter((r) => r.coveredBy.length > 0);
+  return {
+    requirements,
+    coverage: {
+      requirementsTotal: requirements.length,
+      requirementsCovered: covered.length,
+      uncoveredRequirementIds: requirements.filter((r) => r.coveredBy.length === 0).map((r) => r.id),
+      unknownRequirementIds,
+      requirementsUnavailable: parsed.unavailable
+    }
+  };
+}
+function modeOf(meta) {
+  return meta.useExistingSummaries ? "existing" : "prompt_test";
+}
+function signatureOf(meta) {
+  return testSetSignature(meta.testCaseNames, meta.transcriptIds);
+}
+function previousFinalizedRun(configName, testSetName, runNumber) {
+  const earlier = readAllFinalizedRunMetas(configName, testSetName).filter((m) => m.runNumber < runNumber).sort((a, b) => b.runNumber - a.runNumber);
+  return earlier[0] ?? null;
+}
+function deltasByName(previous, current) {
+  return current.map((c) => {
+    const p = previous.find((x) => x.name === c.name);
+    return { name: c.name, from: p ? p.value : null, to: c.value };
+  }).filter((d) => d.from !== d.to);
+}
+function buildRunReport(configName, testSetName, runNumber) {
+  const finalized = readFinalizedEvalRun(configName, testSetName, runNumber);
+  if (!finalized) {
+    throw new Error(
+      `Eval run ${runNumber} for "${testSetName}" was not found, or has not been finalized yet.`
+    );
   }
-  return lines.join("\n");
-}
-function esc3(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function pct(n) {
-  return `${Math.round(n * 100)}%`;
-}
-function scoreColor(score) {
-  if (score === null) return "#475569";
-  if (score >= 0.9) return "#22c55e";
-  if (score >= 0.7) return "#f59e0b";
-  return "#ef4444";
-}
-function passBadge(passed, na) {
-  if (na) return `<span class="badge na">N/A</span>`;
-  return passed ? `<span class="badge pass">PASS</span>` : `<span class="badge fail">FAIL</span>`;
-}
-function generateEvalRunDashboardHtml(meta, testCaseFiles) {
-  const themes = deriveFailureThemes(testCaseFiles);
-  const recs = deriveRecommendations(testCaseFiles, themes);
-  const overallPct = pct(meta.aggregatePassRate ?? 0);
-  const overallColor = scoreColor(meta.aggregatePassRate ?? 0);
-  const runDate = meta.finalizedAt ? new Date(meta.finalizedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Unknown";
-  const summaryRows = testCaseFiles.sort((a, b) => a.passRate - b.passRate).map((tc) => {
-    const color = scoreColor(tc.averageScore);
-    const barWidth = Math.round(tc.passRate * 100);
-    return `
-      <tr class="tc-row" onclick="showDetail('${esc3(tc.testCaseName)}')">
-        <td class="tc-name">${esc3(tc.testCaseName.replace(/-/g, " "))}</td>
-        <td>
-          <div class="bar-wrap"><div class="bar" style="width:${barWidth}%;background:${scoreColor(tc.passRate)}"></div></div>
-          <span class="bar-label">${pct(tc.passRate)}</span>
-        </td>
-        <td style="color:${color};font-weight:600">${tc.averageScore.toFixed(2)}</td>
-        <td>${passBadge(tc.passRate >= 0.8)}</td>
-        <td class="chevron">\u203A</td>
-      </tr>`;
-  }).join("");
-  const themeItems = themes.length === 0 ? "<p>No significant failure themes detected.</p>" : themes.map((t) => `
-      <div class="theme-card">
-        <div class="theme-header">
-          <span class="theme-dim">${esc3(t.dimension)}</span>
-          <span class="theme-tc">${esc3(t.testCase.replace(/-/g, " "))}</span>
-          <span class="theme-rate" style="color:${scoreColor(1 - t.failRate)}">Fails ${pct(t.failRate)} of transcripts</span>
-        </div>
-        ${t.sampleReasons.length ? `<ul class="theme-reasons">${t.sampleReasons.map((r) => `<li>${esc3(r.slice(0, 150))}${r.length > 150 ? "\u2026" : ""}</li>`).join("")}</ul>` : ""}
-      </div>`).join("");
-  const recItems = recs.length === 0 ? "<p>No recommendations \u2014 all test cases passing well.</p>" : recs.map((r, i) => `
-      <div class="rec-card ${r.priority}">
-        <div class="rec-header">
-          <span class="rec-num">${i + 1}</span>
-          <span class="rec-priority ${r.priority}">${r.priority.toUpperCase()}</span>
-          <strong>${esc3(r.area)}</strong>
-        </div>
-        <p>${esc3(r.description)}</p>
-      </div>`).join("");
-  const detailViews = testCaseFiles.map((tc) => {
-    const failureSummaryItems = tcFailureSummary(tc);
-    const transcriptRows = [...tc.results].sort((a, b) => a.overallScore - b.overallScore).map((r, idx) => {
-      const dimRows = r.dimensionScores.map((ds) => `
-          <tr class="dim-row ${ds.na ? "dim-na" : ds.passed ? "dim-pass" : "dim-fail"}">
-            <td class="dim-name">${esc3(ds.dimension)}</td>
-            <td style="color:${scoreColor(ds.score)}">${ds.score === null ? "\u2014" : ds.score.toFixed(2)}</td>
-            <td>${passBadge(ds.passed, ds.na)}</td>
-            <td class="dim-reason">${esc3(ds.reasoning ?? "")}</td>
-          </tr>`).join("");
-      return `
-        <tr class="tr-row" onclick="toggleDims('dim-${esc3(tc.testCaseName)}-${idx}')">
-          <td class="tr-id" title="${esc3(r.transcriptId)}">${esc3(r.transcriptLabel ?? r.transcriptId.slice(0, 8))}</td>
-          <td style="color:${scoreColor(r.overallScore)};font-weight:600">${r.overallScore.toFixed(2)}</td>
-          <td>${passBadge(r.overallPassed)}</td>
-          <td class="chevron small">\u203A</td>
-        </tr>
-        <tr class="dim-group" id="dim-${esc3(tc.testCaseName)}-${idx}" style="display:none">
-          <td colspan="4" class="dim-cell">
-            <table class="dim-table">
-              <thead><tr><th>Dimension</th><th>Score</th><th>Result</th><th>Reasoning</th></tr></thead>
-              <tbody>${dimRows}</tbody>
-            </table>
-          </td>
-        </tr>`;
-    }).join("");
-    return `
-    <div class="detail-view" id="detail-${esc3(tc.testCaseName)}" style="display:none">
-      <button class="back-btn" onclick="showMain()">\u2190 Back to overview</button>
-      <h2>${esc3(tc.testCaseName.replace(/-/g, " "))}</h2>
-      <div class="detail-meta">
-        <span>${tc.totalTranscripts} transcripts</span>
-        <span>Pass rate: <strong style="color:${scoreColor(tc.passRate)}">${pct(tc.passRate)}</strong></span>
-        <span>Avg score: <strong style="color:${scoreColor(tc.averageScore)}">${tc.averageScore.toFixed(2)}</strong></span>
-      </div>
-      <p class="detail-hint">Click a row to expand dimension-level scores and reasoning.</p>
-      <table class="tr-table">
-        <thead><tr><th>Transcript</th><th>Score</th><th>Result</th><th></th></tr></thead>
-        <tbody>${transcriptRows}</tbody>
-      </table>
-      ${failureSummaryItems ? `
-      <div class="section">
-        <h3>Failure Summary</h3>
-        <ul class="failure-list">${failureSummaryItems}</ul>
-      </div>` : ""}
-    </div>`;
-  }).join("");
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Eval Dashboard \u2014 ${esc3(meta.testSetName)} Run ${meta.runNumber}</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
-  a { color: inherit; }
-
-  /* Layout */
-  .page { max-width: 960px; margin: 0 auto; padding: 32px 20px 80px; }
-
-  /* Header */
-  .run-header { margin-bottom: 32px; }
-  .run-header h1 { font-size: 1.6rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
-  .run-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; }
-  .run-meta span { background: #1e293b; padding: 4px 10px; border-radius: 6px; }
-  .version-badge { font-weight: 600 !important; }
-  .version-candidate { background: #1a2744 !important; color: #93c5fd !important; border: 1px solid #3b82f6; }
-  .version-deployed { background: #052e16 !important; color: #86efac !important; border: 1px solid #22c55e; }
-  .version-unknown { background: #1e293b !important; color: #94a3b8 !important; }
-  .prompt-block { margin-top: 12px; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
-  .prompt-summary { cursor: pointer; padding: 10px 16px; font-size: 0.85rem; font-weight: 500; color: #94a3b8; background: #1e293b; user-select: none; list-style: none; }
-  .prompt-summary:hover { color: #cbd5e1; background: #263347; }
-  .prompt-text { margin: 0; padding: 16px; background: #0f172a; color: #cbd5e1; font-family: 'Courier New', monospace; font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; border-top: 1px solid #334155; max-height: 400px; overflow-y: auto; }
-
-  /* Overall score */
-  .overall-score { display: inline-flex; align-items: center; gap: 12px; background: #1e293b; border-radius: 12px; padding: 16px 24px; margin-bottom: 32px; }
-  .overall-score .big { font-size: 2.5rem; font-weight: 800; }
-  .overall-score .label { font-size: 0.85rem; color: #94a3b8; }
-
-  /* Section */
-  .section { margin-bottom: 40px; }
-  .section h2 { font-size: 1.1rem; font-weight: 600; color: #f1f5f9; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; }
-  .section h3 { font-size: 1rem; font-weight: 600; color: #f1f5f9; margin-bottom: 12px; }
-
-  /* Summary table */
-  .summary-table { width: 100%; border-collapse: collapse; }
-  .summary-table th { text-align: left; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #64748b; padding: 8px 12px; }
-  .summary-table td { padding: 10px 12px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
-  .tc-row { cursor: pointer; transition: background .15s; }
-  .tc-row:hover { background: #1e293b; }
-  .tc-name { font-weight: 500; color: #e2e8f0; font-size: 0.9rem; }
-  .chevron { color: #475569; font-size: 1.2rem; text-align: right; }
-  .chevron.small { font-size: 1rem; }
-
-  /* Progress bar */
-  .bar-wrap { display: inline-block; width: 80px; height: 6px; background: #1e293b; border-radius: 3px; vertical-align: middle; margin-right: 8px; }
-  .bar { height: 100%; border-radius: 3px; }
-  .bar-label { font-size: 0.82rem; color: #94a3b8; }
-
-  /* Badges */
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.73rem; font-weight: 700; letter-spacing: .04em; }
-  .badge.pass { background: #14532d; color: #86efac; }
-  .badge.fail { background: #450a0a; color: #fca5a5; }
-  .badge.na { background: #1e293b; color: #64748b; }
-
-  /* Theme cards */
-  .theme-card { background: #1e293b; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
-  .theme-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
-  .theme-dim { font-weight: 600; color: #f1f5f9; font-size: 0.92rem; }
-  .theme-tc { font-size: 0.78rem; background: #0f172a; padding: 2px 8px; border-radius: 4px; color: #94a3b8; }
-  .theme-rate { font-size: 0.82rem; font-weight: 600; margin-left: auto; }
-  .theme-reasons { padding-left: 18px; margin-top: 6px; }
-  .theme-reasons li { font-size: 0.82rem; color: #94a3b8; margin-bottom: 3px; }
-
-  /* Recommendation cards */
-  .rec-card { background: #1e293b; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #334155; }
-  .rec-card.high { border-left-color: #ef4444; }
-  .rec-card.medium { border-left-color: #f59e0b; }
-  .rec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .rec-num { width: 22px; height: 22px; border-radius: 50%; background: #334155; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .rec-priority { font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
-  .rec-priority.high { background: #450a0a; color: #fca5a5; }
-  .rec-priority.medium { background: #451a03; color: #fcd34d; }
-  .rec-card p { font-size: 0.85rem; color: #cbd5e1; line-height: 1.55; }
-
-  /* Detail view */
-  .back-btn { background: #1e293b; border: none; color: #94a3b8; cursor: pointer; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; transition: background .15s; }
-  .back-btn:hover { background: #334155; color: #f1f5f9; }
-  .detail-view h2 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 10px; }
-  .detail-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; }
-  .detail-hint { font-size: 0.8rem; color: #475569; margin-bottom: 14px; }
-
-  /* Transcript table */
-  .tr-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-  .tr-table th { text-align: left; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #64748b; padding: 8px 12px; }
-  .tr-table td { padding: 10px 12px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
-  .tr-row { cursor: pointer; transition: background .15s; }
-  .tr-row:hover { background: #1e293b; }
-  .tr-id { font-size: 0.85rem; font-family: monospace; color: #94a3b8; }
-
-  /* Dimension table */
-  .dim-cell { padding: 0 !important; background: #0f172a; }
-  .dim-table { width: 100%; border-collapse: collapse; }
-  .dim-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; color: #475569; padding: 6px 12px; text-align: left; }
-  .dim-table td { padding: 8px 12px; border-bottom: 1px solid #1e293b; font-size: 0.82rem; vertical-align: top; }
-  .dim-name { font-weight: 500; color: #cbd5e1; }
-  .dim-reason { color: #94a3b8; line-height: 1.4; }
-  .dim-pass { background: #052e16; }
-  .dim-fail { background: #1c0505; }
-  .dim-na { background: #0f172a; opacity: 0.6; }
-
-  /* Failure list */
-  .failure-list { padding-left: 20px; }
-  .failure-list li { font-size: 0.85rem; color: #cbd5e1; margin-bottom: 8px; line-height: 1.5; }
-  .failure-list em { color: #94a3b8; }
-</style>
-</head>
-<body>
-<div class="page">
-
-<!-- \u2500\u2500 MAIN VIEW \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-<div id="main-view">
-  <div class="run-header">
-    <h1>Eval Dashboard \u2014 ${esc3(meta.testSetName)}</h1>
-    <div class="run-meta">
-      <span>Run #${meta.runNumber}</span>
-      <span>${esc3(meta.summaryConfigName ?? "")}</span>
-      <span>${meta.useExistingSummaries ? "Mode: Existing summaries" : "Mode: Prompt test"}</span>
-      ${meta.promptVersionNumber !== void 0 ? `<span class="version-badge version-${esc3(meta.promptVersionStatus ?? "deployed")}">Version ${meta.promptVersionNumber}${meta.promptVersionStatus ? ` \xB7 ${esc3(meta.promptVersionStatus)}` : ""}</span>` : `<span class="version-badge version-unknown">Version: unversioned</span>`}
-      <span>${runDate}</span>
-      <span>${meta.transcriptIds?.length ?? testCaseFiles[0]?.totalTranscripts ?? "?"} transcripts</span>
-      ${meta.skippedTranscripts?.length ? `<span title="${esc3(meta.skippedTranscripts.map((s) => s.transcriptLabel).join(", "))}">${meta.skippedTranscripts.length} skipped \xB7 too short to summarise</span>` : ""}
-    </div>
-    ${meta.promptText ? `
-    <details class="prompt-block">
-      <summary class="prompt-summary">View prompt tested in this run \u25BE</summary>
-      <pre class="prompt-text">${esc3(meta.promptText)}</pre>
-    </details>` : ""}
-  </div>
-
-  <div class="overall-score">
-    <div>
-      <div class="big" style="color:${overallColor}">${overallPct}</div>
-      <div class="label">Overall pass rate</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Test Case Results</h2>
-    <table class="summary-table">
-      <thead><tr><th>Test Case</th><th>Pass Rate</th><th>Avg Score</th><th>Result</th><th></th></tr></thead>
-      <tbody>${summaryRows}</tbody>
-    </table>
-  </div>
-
-  <div class="section">
-    <h2>Failure Themes</h2>
-    ${themeItems}
-  </div>
-
-  <div class="section">
-    <h2>Recommendations</h2>
-    ${recItems}
-  </div>
-</div>
-
-<!-- \u2500\u2500 DETAIL VIEWS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 -->
-${detailViews}
-
-</div>
-<script>
-  const DATA = ${JSON.stringify(testCaseFiles)};
-
-  function showMain() {
-    document.getElementById('main-view').style.display = '';
-    document.querySelectorAll('.detail-view').forEach(el => el.style.display = 'none');
-    window.scrollTo(0, 0);
-  }
-
-  function showDetail(name) {
-    document.getElementById('main-view').style.display = 'none';
-    document.querySelectorAll('.detail-view').forEach(el => el.style.display = 'none');
-    const el = document.getElementById('detail-' + name);
-    if (el) { el.style.display = ''; window.scrollTo(0, 0); }
-  }
-
-  function toggleDims(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const isHidden = el.style.display === 'none';
-    el.style.display = isHidden ? '' : 'none';
-    // rotate chevron on the trigger row
-    const row = el.previousElementSibling;
-    if (row) {
-      const ch = row.querySelector('.chevron.small');
-      if (ch) ch.textContent = isHidden ? '\u2304' : '\u203A';
+  const { meta, testCaseFiles } = finalized;
+  const testCases = buildTestCases(configName, testCaseFiles, { includeTranscriptText: true });
+  const { requirements, coverage } = buildRequirementsPivot(configName, testCases);
+  const transcriptOutcomes = /* @__PURE__ */ new Map();
+  for (const tc of testCases) {
+    for (const t of tc.transcripts) {
+      transcriptOutcomes.set(t.id, (transcriptOutcomes.get(t.id) ?? true) && t.passed);
     }
   }
-</script>
-</body>
-</html>`;
+  const transcriptsEvaluated = transcriptOutcomes.size;
+  const transcriptsPassed = [...transcriptOutcomes.values()].filter(Boolean).length;
+  const allScores = testCases.flatMap(
+    (tc) => tc.transcripts.flatMap(
+      (t) => t.scores.map((s) => ({
+        ...s,
+        weight: tc.dimensions.find((d) => d.name === s.dimension)?.weight ?? 1
+      }))
+    )
+  );
+  let comparison = null;
+  let regressions = [];
+  const previousMeta = previousFinalizedRun(configName, testSetName, runNumber);
+  if (previousMeta) {
+    const previousFinalized = readFinalizedEvalRun(
+      configName,
+      testSetName,
+      previousMeta.runNumber
+    );
+    if (previousFinalized) {
+      const previousTestCases = buildTestCases(configName, previousFinalized.testCaseFiles, {
+        includeTranscriptText: false
+      });
+      const previousPivot = buildRequirementsPivot(configName, previousTestCases);
+      const previousStats = computeStats(
+        previousTestCases.flatMap(
+          (tc) => tc.transcripts.flatMap(
+            (t) => t.scores.map((s) => ({
+              ...s,
+              weight: tc.dimensions.find((d) => d.name === s.dimension)?.weight ?? 1
+            }))
+          )
+        )
+      );
+      const currentWeighted = computeStats(allScores).weightedScore;
+      comparison = {
+        previousRunNumber: previousMeta.runNumber,
+        passRateDelta: previousMeta.aggregatePassRate === void 0 ? null : (transcriptsEvaluated > 0 ? transcriptsPassed / transcriptsEvaluated : 0) - previousMeta.aggregatePassRate,
+        weightedScoreDelta: currentWeighted === null || previousStats.weightedScore === null ? null : currentWeighted - previousStats.weightedScore,
+        testCaseDeltas: deltasByName(
+          previousTestCases.map((tc) => ({ name: tc.name, value: tc.passRate })),
+          testCases.map((tc) => ({ name: tc.name, value: tc.passRate }))
+        ),
+        requirementDeltas: deltasByName(
+          previousPivot.requirements.filter((r) => r.coveredBy.length > 0).map((r) => ({ name: r.id, value: r.stats.passRate })),
+          requirements.filter((r) => r.coveredBy.length > 0).map((r) => ({ name: r.id, value: r.stats.passRate }))
+        ),
+        testSetChanged: signatureOf(previousMeta) !== signatureOf(meta)
+      };
+      if (!comparison.testSetChanged) {
+        regressions = findDimensionRegressions(
+          previousTestCases,
+          testCases,
+          previousMeta.runNumber
+        );
+      }
+    }
+  }
+  return {
+    kind: "run",
+    generator: generator(),
+    config: { name: configName },
+    testSet: {
+      name: testSetName,
+      testCaseNames: meta.testCaseNames,
+      transcriptIds: meta.transcriptIds,
+      signature: signatureOf(meta)
+    },
+    run: {
+      number: runNumber,
+      mode: modeOf(meta),
+      startedAt: meta.startedAt,
+      finalizedAt: meta.finalizedAt ?? null,
+      promptVersion: {
+        number: meta.promptVersionNumber ?? null,
+        status: meta.promptVersionStatus ?? null
+      },
+      prompt: meta.promptText ?? null,
+      previewStructure: meta.previewStructure ?? null,
+      transcriptsEvaluated,
+      skipped: (meta.skippedTranscripts ?? []).map((s) => ({
+        id: s.transcriptId,
+        label: s.transcriptLabel,
+        summary: s.summary,
+        reason: s.reason
+      }))
+    },
+    headline: {
+      passRate: transcriptsEvaluated > 0 ? transcriptsPassed / transcriptsEvaluated : 0,
+      stats: computeStats(allScores),
+      transcriptsPassed,
+      transcriptsEvaluated
+    },
+    testCases,
+    requirements,
+    coverage,
+    findings: deriveRunFindings({ testCases, requirements, coverage, comparison, regressions }),
+    comparison
+  };
 }
-function generateImprovementsDashboardHtml(testSetName, summaryConfigName, metas) {
+function buildImprovementsReport(configName, testSetName) {
+  const metas = readAllFinalizedRunMetas(configName, testSetName).sort((a, b) => a.runNumber - b.runNumber);
   if (metas.length === 0) {
-    return `<!DOCTYPE html><html><body><p>No finalized runs found.</p></body></html>`;
+    throw new Error(
+      `No finalized runs found for test set "${testSetName}". Finalize at least one run first.`
+    );
   }
-  const tcNames = [];
-  for (const m of [...metas].reverse()) {
-    for (const name of m.testCaseNames ?? []) {
-      if (!tcNames.includes(name)) tcNames.push(name);
-    }
+  const snapshots = [];
+  for (const meta of metas) {
+    const finalized = readFinalizedEvalRun(configName, testSetName, meta.runNumber);
+    if (!finalized) continue;
+    const testCases = buildTestCases(configName, finalized.testCaseFiles, {
+      includeTranscriptText: false
+    });
+    const { requirements } = buildRequirementsPivot(configName, testCases);
+    const stats = computeStats(
+      testCases.flatMap(
+        (tc) => tc.transcripts.flatMap(
+          (t) => t.scores.map((s) => ({
+            ...s,
+            weight: tc.dimensions.find((d) => d.name === s.dimension)?.weight ?? 1
+          }))
+        )
+      )
+    );
+    snapshots.push({
+      meta,
+      testCases,
+      requirements,
+      entry: {
+        runNumber: meta.runNumber,
+        finalizedAt: meta.finalizedAt ?? null,
+        mode: modeOf(meta),
+        promptVersion: {
+          number: meta.promptVersionNumber ?? null,
+          status: meta.promptVersionStatus ?? null
+        },
+        passRate: meta.aggregatePassRate ?? null,
+        weightedScore: stats.weightedScore,
+        averageScore: stats.averageScore,
+        transcriptsEvaluated: meta.transcriptIds.length,
+        skippedCount: meta.skippedTranscripts?.length ?? 0,
+        testSetSignature: signatureOf(meta),
+        dashboardHref: `${String(meta.runNumber).padStart(4, "0")}/dashboard.html`
+      }
+    });
   }
-  const runHeaders = metas.map((m) => `<th class="run-col">Run ${String(m.runNumber).padStart(4, "0")}<br><span class="run-date">${new Date(m.finalizedAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</span><br><span class="run-mode">${m.useExistingSummaries ? "existing" : "prompt"}</span></th>`).join("");
-  const overallCells = metas.map((m, i) => {
-    const rate = m.aggregatePassRate ?? 0;
-    const prev = i > 0 ? metas[i - 1].aggregatePassRate ?? 0 : null;
-    const delta = prev !== null ? rate - prev : null;
-    const arrow = delta === null ? "" : delta > 0.01 ? `<span class="up"> \u2191${pct(delta)}</span>` : delta < -0.01 ? `<span class="dn"> \u2193${pct(Math.abs(delta))}</span>` : `<span class="eq"> \u2192</span>`;
-    return `<td class="rate-cell" style="background:${cellBg(rate)}"><span class="rate-val">${pct(rate)}</span>${arrow}</td>`;
-  }).join("");
-  const tcRows = tcNames.map((name) => {
-    const shortName = name.replace(/-/g, " ").replace(/^[A-Za-z]+-/, "");
-    const cells = metas.map((m, i) => {
-      const rate = m.testCasePassRates?.[name];
-      if (rate === void 0) return `<td class="rate-cell na">\u2014</td>`;
-      const prev = i > 0 ? metas[i - 1].testCasePassRates?.[name] : null;
-      const delta = prev !== null && prev !== void 0 ? rate - prev : null;
-      const arrow = delta === null ? "" : delta > 0.01 ? `<span class="up"> \u2191</span>` : delta < -0.01 ? `<span class="dn"> \u2193</span>` : `<span class="eq"> \u2192</span>`;
-      return `<td class="rate-cell" style="background:${cellBg(rate)}">${pct(rate)}${arrow}</td>`;
-    }).join("");
-    return `<tr><td class="tc-label" title="${esc3(name)}">${esc3(shortName)}</td>${cells}</tr>`;
-  }).join("");
-  const sparkPoints = metas.map((m) => m.aggregatePassRate ?? 0);
-  const sparkMax = Math.max(...sparkPoints, 1);
-  const svgW = Math.max(metas.length * 40, 80);
-  const svgH = 48;
-  const sparkCoords = sparkPoints.map((v, i) => {
-    const x = metas.length === 1 ? svgW / 2 : i / (metas.length - 1) * (svgW - 8) + 4;
-    const y = svgH - 4 - v / sparkMax * (svgH - 8);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const sparkDots = sparkPoints.map((v, i) => {
-    const x = metas.length === 1 ? svgW / 2 : i / (metas.length - 1) * (svgW - 8) + 4;
-    const y = svgH - 4 - v / sparkMax * (svgH - 8);
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${scoreColor(v)}" />`;
-  }).join("");
-  const runLinks = metas.map((m) => {
-    const folder = String(m.runNumber).padStart(4, "0");
-    return `<a class="run-link" href="./${folder}/dashboard.html">Run ${folder} \u2014 ${pct(m.aggregatePassRate ?? 0)} overall</a>`;
-  }).join("");
-  return `<!DOCTYPE html>
+  const versions = listVersionSnapshots(configName);
+  const notesFor = (version2) => version2 === null ? null : versions.find((v) => v.version === version2)?.notes ?? null;
+  const changelog = snapshots.map((snap, idx) => {
+    const previous = idx > 0 ? snapshots[idx - 1] : null;
+    const testSetChanged = previous !== null && previous.entry.testSetSignature !== snap.entry.testSetSignature;
+    return {
+      runNumber: snap.meta.runNumber,
+      finalizedAt: snap.entry.finalizedAt,
+      versionNumber: snap.entry.promptVersion.number,
+      versionStatus: snap.entry.promptVersion.status,
+      notes: notesFor(snap.entry.promptVersion.number),
+      promptDiff: previous ? diffPrompts(previous.meta.promptText ?? null, snap.meta.promptText ?? null) : { added: 0, removed: 0, lines: [], isFirst: true, unavailable: false },
+      passRateDelta: previous === null || snap.entry.passRate === null || previous.entry.passRate === null ? null : snap.entry.passRate - previous.entry.passRate,
+      weightedScoreDelta: previous === null || snap.entry.weightedScore === null || previous.entry.weightedScore === null ? null : snap.entry.weightedScore - previous.entry.weightedScore,
+      testCaseDeltas: previous ? deltasByName(
+        previous.testCases.map((tc) => ({ name: tc.name, value: tc.passRate })),
+        snap.testCases.map((tc) => ({ name: tc.name, value: tc.passRate }))
+      ) : [],
+      requirementDeltas: previous ? deltasByName(
+        previous.requirements.filter((r) => r.coveredBy.length > 0).map((r) => ({ name: r.id, value: r.stats.passRate })),
+        snap.requirements.filter((r) => r.coveredBy.length > 0).map((r) => ({ name: r.id, value: r.stats.passRate }))
+      ) : [],
+      testSetChanged
+    };
+  }).reverse();
+  const testCaseNames = [
+    ...new Set(snapshots.flatMap((s) => s.testCases.map((tc) => tc.name)))
+  ].sort();
+  const testCaseSeries = testCaseNames.map((name) => ({
+    key: name,
+    label: name,
+    series: snapshots.map((s) => {
+      const tc = s.testCases.find((x) => x.name === name);
+      return tc ? tc.passRate : null;
+    })
+  }));
+  const requirementIds = [
+    ...new Set(
+      snapshots.flatMap(
+        (s) => s.requirements.filter((r) => r.coveredBy.length > 0).map((r) => r.id)
+      )
+    )
+  ].sort();
+  const requirementSeries = requirementIds.map((id) => {
+    const anywhere = snapshots.flatMap((s) => s.requirements).find((r) => r.id === id);
+    return {
+      key: id,
+      label: id,
+      category: anywhere?.category,
+      series: snapshots.map((s) => s.requirements.find((r) => r.id === id)?.stats.passRate ?? null)
+    };
+  });
+  const latest = snapshots[snapshots.length - 1];
+  const latestReport = buildRunReport(configName, testSetName, latest.meta.runNumber);
+  const watchlist = latestReport.findings.filter(
+    (f) => f.severity !== "low" || f.kind === "scoring-anomaly"
+  );
+  return {
+    kind: "improvements",
+    generator: generator(),
+    config: { name: configName },
+    testSet: { name: testSetName },
+    runs: snapshots.map((s) => s.entry),
+    changelog,
+    testCaseSeries,
+    requirementSeries,
+    watchlist
+  };
+}
+
+// report-template:run.html
+var run_default = `<!DOCTYPE html>
+<!--
+  Eval run report.
+
+  Static chrome lives here so it can be edited as HTML; the views are rendered from the
+  embedded model by run.js. Everything is inlined \u2014 no network requests, no build step \u2014
+  so this file can be copied or emailed and still work.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Improvements \u2014 ${esc3(testSetName)}</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
-  .page { max-width: 960px; margin: 0 auto; padding: 32px 20px 80px; }
-
-  .page-header { margin-bottom: 28px; }
-  .page-header h1 { font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
-  .page-header .sub { font-size: 0.85rem; color: #64748b; }
-
-  .spark-row { display: flex; align-items: center; gap: 20px; background: #1e293b; border-radius: 12px; padding: 16px 20px; margin-bottom: 28px; }
-  .spark-label { font-size: 0.8rem; color: #64748b; white-space: nowrap; }
-  .spark-svg { flex: 1; min-width: 60px; }
-
-  .section { margin-bottom: 36px; }
-  .section h2 { font-size: 1rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
-
-  .imp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  .imp-table th { padding: 8px 10px; text-align: center; color: #64748b; font-size: 0.75rem; font-weight: 600; border-bottom: 1px solid #1e293b; vertical-align: bottom; line-height: 1.3; }
-  .imp-table th:first-child { text-align: left; }
-  .imp-table td { padding: 7px 10px; border-bottom: 1px solid #1e293b; text-align: center; }
-  .tc-label { text-align: left !important; color: #cbd5e1; font-size: 0.82rem; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .overall-row td { font-weight: 700; font-size: 0.9rem; }
-  .overall-row .tc-label { color: #f1f5f9; }
-  .rate-cell { font-size: 0.82rem; font-weight: 600; color: #f1f5f9; border-radius: 4px; }
-  .rate-cell.na { color: #334155; }
-  .rate-val { display: block; }
-  .run-col { min-width: 80px; }
-  .run-date { font-weight: 400; color: #64748b; display: block; }
-  .run-mode { font-weight: 400; font-size: 0.7rem; color: #475569; display: block; text-transform: uppercase; letter-spacing: .04em; }
-  .up { color: #4ade80; font-weight: 700; font-size: 0.75rem; }
-  .dn { color: #f87171; font-weight: 700; font-size: 0.75rem; }
-  .eq { color: #475569; font-size: 0.75rem; }
-
-  .links-section { margin-top: 36px; }
-  .links-section h2 { font-size: 1rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
-  .run-link { display: block; color: #60a5fa; text-decoration: none; font-size: 0.85rem; padding: 6px 0; border-bottom: 1px solid #1e293b; }
-  .run-link:hover { color: #93c5fd; }
-
-  .legend { display: flex; gap: 16px; font-size: 0.75rem; color: #64748b; margin-bottom: 14px; flex-wrap: wrap; }
-  .legend span { display: flex; align-items: center; gap: 6px; }
-  .swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
-</style>
+<title>{{PAGE_TITLE}}</title>
+<style>{{STYLES}}</style>
 </head>
 <body>
 <div class="page">
 
-  <div class="page-header">
-    <h1>Improvements \u2014 ${esc3(testSetName)}</h1>
-    <div class="sub">${esc3(summaryConfigName)} \xB7 ${metas.length} run${metas.length !== 1 ? "s" : ""}</div>
-  </div>
+  <section class="hero">
+    <div class="hero-top">
+      <div class="eyebrow" id="eyebrow">Eval run</div>
+      <div class="hero-stamp"><i class="live-dot" id="stampdot"></i><span id="stamptext"></span></div>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <h1 id="title"></h1>
+        <p class="sub" id="subtitle"></p>
+        <div class="hero-tags" id="chips"></div>
+      </div>
+      <div class="dial" id="dial">
+        <div class="dial-face">
+          <span class="dial-num" id="dialnum"></span>
+          <span class="dial-lab" id="diallab">Passed every test case</span>
+          <span class="dial-sub" id="dialsub"></span>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <div class="spark-row">
-    <div class="spark-label">Overall pass rate<br>across runs</div>
-    <svg class="spark-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
-      <polyline points="${sparkCoords}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round" />
-      ${sparkDots}
-    </svg>
-  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview" onclick="go('/')">Overview</button>
+    <button class="tab" data-tab="testcases" onclick="go('/testcases')">Test cases <span class="count" id="tab-counts-testcases"></span></button>
+    <button class="tab" data-tab="requirements" onclick="go('/requirements')">Requirements <span class="count" id="tab-counts-requirements"></span></button>
+    <button class="tab" data-tab="transcripts" onclick="go('/transcripts')">Interactions <span class="count" id="tab-counts-transcripts"></span></button>
+  </nav>
 
-  <div class="legend">
-    <span><span class="swatch" style="background:#14532d"></span>\u2265 80% pass</span>
-    <span><span class="swatch" style="background:#78350f"></span>50\u201379%</span>
-    <span><span class="swatch" style="background:#450a0a"></span>&lt; 50%</span>
-    <span class="up">\u2191 improvement</span>
-    <span class="dn">\u2193 regression</span>
-  </div>
+  <main id="body"></main>
 
-  <div class="section">
-    <h2>Pass Rates by Run</h2>
-    <table class="imp-table">
-      <thead>
-        <tr>
-          <th>Test Case</th>
-          ${runHeaders}
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="overall-row">
-          <td class="tc-label">Overall</td>
-          ${overallCells}
-        </tr>
-        ${tcRows}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="links-section">
-    <h2>Run Dashboards</h2>
-    ${runLinks}
-  </div>
-
+  <div class="foot" id="foot"></div>
 </div>
+
+<script type="application/json" id="report-model">{{MODEL}}</script>
+<script>{{SHARED}}</script>
+<script>{{VIEWER}}</script>
 </body>
-</html>`;
+</html>
+`;
+
+// report-template:improvements.html
+var improvements_default = `<!DOCTYPE html>
+<!--
+  Improvements report \u2014 run-over-run performance for one test set.
+
+  Static chrome lives here so it can be edited as HTML; the views are rendered from the
+  embedded model by improvements.js. Run dashboards are linked relatively, so the whole
+  eval-runs folder can be copied and the links still resolve.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{PAGE_TITLE}}</title>
+<style>{{STYLES}}</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="hero">
+    <div class="hero-top">
+      <div class="eyebrow" id="eyebrow">Improvements &middot; run over run</div>
+      <div class="hero-stamp"><i class="live-dot" id="stampdot"></i><span id="stamptext"></span></div>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <h1 id="title"></h1>
+        <p class="sub" id="subtitle"></p>
+        <div class="hero-tags" id="chips"></div>
+      </div>
+      <div class="dial" id="dial">
+        <div class="dial-face">
+          <span class="dial-num" id="dialnum"></span>
+          <span class="dial-lab" id="diallab">Latest pass rate</span>
+          <span class="dial-sub" id="dialsub"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview" onclick="go('/')">Overview</button>
+    <button class="tab" data-tab="changelog" onclick="go('/changelog')">Changelog <span class="count" id="tab-counts-changelog"></span></button>
+    <button class="tab" data-tab="testcases" onclick="go('/testcases')">Test cases <span class="count" id="tab-counts-testcases"></span></button>
+    <button class="tab" data-tab="requirements" onclick="go('/requirements')">Requirements <span class="count" id="tab-counts-requirements"></span></button>
+  </nav>
+
+  <main id="body"></main>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script type="application/json" id="report-model">{{MODEL}}</script>
+<script>{{SHARED}}</script>
+<script>{{VIEWER}}</script>
+</body>
+</html>
+`;
+
+// report-template:report.css
+var report_default = '/* Shared styling for every generated report.\n   Inlined into each page at build time, so reports work offline and stand alone.\n\n   The visual language follows the run artifact: nimbus off-white field, navy type,\n   orange accent, mono numerals, a navy hero carrying the headline dial, and eyebrow-led\n   sections on white cards.\n\n   Fonts are requested by name with a system fallback rather than loaded from Google Fonts.\n   A report has to render identically offline and when emailed as a single file, so it\n   cannot depend on a CDN \u2014 where Roboto is installed it is used, and where it is not the\n   metrics stay close enough that layout does not shift. */\n\n:root {\n  --orange: #ff451a;\n  --navy: #152550;\n  --navy-deep: #101d43;\n  --azure: #2243a2;\n  --arctic: #b1cada;\n  --nimbus: #f9f8f5;\n  --nimbus-shade: #f1efea;\n  --patina: #18caa8;\n  --patina-deep: #0f7d63;\n  --amber: #f7ad00;\n  --white: #ffffff;\n  --muted: #4b5978;\n  --faint: #8a92a6;\n  --line: rgba(21, 37, 80, 0.12);\n  --shadow: 0 18px 48px rgba(21, 37, 80, 0.1);\n  --shadow-soft: 0 8px 24px rgba(21, 37, 80, 0.07);\n  --r-xl: 28px;\n  --r-lg: 20px;\n  --r-md: 14px;\n  --font: "Roboto", "Helvetica Neue", Arial, Helvetica, sans-serif;\n  --mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;\n\n  /* Semantic aliases used by the viewers when colouring scores. */\n  --pass: var(--patina-deep);\n  --warn: #a8730a;\n  --fail: var(--orange);\n  --na: var(--faint);\n  --text: var(--navy);\n  --dim: var(--faint);\n}\n\n*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\nhtml { scroll-behavior: smooth; }\n\nbody {\n  font-family: var(--font);\n  color: var(--navy);\n  background: radial-gradient(circle at 88% 6%, rgba(177, 202, 218, 0.36), transparent 24rem), var(--nimbus);\n  font-size: 14px;\n  line-height: 1.5;\n  -webkit-font-smoothing: antialiased;\n  -webkit-print-color-adjust: exact;\n  print-color-adjust: exact;\n}\n\nbutton, input { font: inherit; color: inherit; }\n.page { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 22px 0 64px; }\n\n/* \u2500\u2500 Hero \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.hero {\n  position: relative;\n  overflow: hidden;\n  isolation: isolate;\n  color: var(--white);\n  border-radius: var(--r-xl);\n  background: radial-gradient(circle at 78% 22%, rgba(34, 67, 162, 0.9), transparent 38%),\n    linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 58%, #1a347d 100%);\n  box-shadow: 0 24px 64px rgba(21, 37, 80, 0.2);\n}\n.hero::before, .hero::after {\n  content: "";\n  position: absolute;\n  z-index: -1;\n  border: 1px solid rgba(177, 202, 218, 0.22);\n  border-radius: 50%;\n  transform: rotate(-18deg);\n}\n.hero::before { width: 680px; height: 170px; right: -200px; top: 110px; }\n.hero::after { width: 520px; height: 120px; right: -50px; bottom: -54px; border-color: rgba(255, 69, 26, 0.28); }\n\n.hero-top {\n  display: flex; align-items: center; justify-content: space-between; gap: 22px;\n  padding: 26px 38px 0;\n}\n.hero-stamp { display: flex; align-items: center; gap: 9px; color: rgba(255, 255, 255, 0.78); font-size: 12px; letter-spacing: .02em; }\n.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--patina); box-shadow: 0 0 0 5px rgba(24, 202, 168, .14); }\n.live-dot.warn { background: var(--amber); box-shadow: 0 0 0 5px rgba(247, 173, 0, .16); }\n.live-dot.fail { background: var(--orange); box-shadow: 0 0 0 5px rgba(255, 69, 26, .16); }\n\n.hero-grid {\n  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(230px, 0.6fr);\n  gap: 40px; align-items: center; padding: 32px 42px 40px;\n}\n\n.eyebrow {\n  display: inline-flex; align-items: center; gap: 9px; color: var(--arctic);\n  font-weight: 700; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;\n}\n.eyebrow::before { content: ""; width: 26px; height: 3px; border-radius: 999px; background: var(--orange); }\n\n.hero h1 { margin-top: 14px; font-size: clamp(28px, 3.2vw, 40px); line-height: 1.03; letter-spacing: -.04em; font-weight: 900; }\n.hero h1 span { color: var(--orange); }\n.hero .sub { max-width: 640px; margin-top: 14px; color: rgba(255, 255, 255, .74); font-size: 14.5px; line-height: 1.55; }\n\n.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }\n.chip {\n  padding: 7px 12px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 999px;\n  background: rgba(255, 255, 255, .07); color: rgba(255, 255, 255, .86);\n  font-size: 11.5px; font-weight: 600; white-space: nowrap;\n}\n.chip b, .chip strong { color: var(--white); font-weight: 700; }\n.chip.candidate { border-color: rgba(177, 202, 218, .5); color: var(--arctic); }\n.chip.deployed { border-color: rgba(24, 202, 168, .45); color: #7ee8cf; }\n.chip.warn { border-color: rgba(247, 173, 0, .5); color: #ffd97a; }\n.chip.danger { border-color: rgba(255, 69, 26, .5); color: #ffb4a0; }\n\n/* Chips also appear on the light field, inside tables and timelines. */\n.on-light .chip, table.data .chip, .tl-head .chip, .movers .chip {\n  border-color: var(--line); background: var(--nimbus-shade); color: var(--muted);\n}\n.on-light .chip strong, table.data .chip strong, .tl-head .chip strong { color: var(--navy); }\ntable.data .chip.candidate, .tl-head .chip.candidate { background: #e7edf2; color: var(--azure); border-color: rgba(34, 67, 162, .2); }\ntable.data .chip.deployed, .tl-head .chip.deployed { background: #dff6ef; color: var(--patina-deep); border-color: rgba(24, 202, 168, .28); }\ntable.data .chip.warn, .tl-head .chip.warn { background: #fff1c2; color: #8a6200; border-color: rgba(247, 173, 0, .3); }\n\n/* Headline dial \u2014 conic arc, matching the run artifact. */\n.dial { position: relative; width: min(100%, 230px); aspect-ratio: 1; margin-left: auto; display: grid; place-items: center; }\n.dial::before {\n  content: ""; position: absolute; inset: 0; border-radius: 50%;\n  background: conic-gradient(var(--dial-color, var(--orange)) 0 var(--arc, 0%), rgba(255, 255, 255, .12) var(--arc, 0%) 100%);\n}\n.dial::after {\n  content: ""; position: absolute; inset: 13px; border-radius: 50%;\n  background: linear-gradient(145deg, rgba(16, 29, 67, .96), rgba(34, 67, 162, .8));\n  border: 1px solid rgba(255, 255, 255, .12);\n}\n.dial-face { position: relative; z-index: 1; text-align: center; max-width: 78%; margin: 0 auto; }\n.dial-num { display: block; font-size: clamp(38px, 4.6vw, 58px); line-height: .92; font-weight: 900; letter-spacing: -.06em; }\n.dial-num small { font-size: .36em; color: var(--orange); letter-spacing: -.02em; }\n.dial-lab { display: block; margin-top: 7px; color: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }\n.dial-sub { display: block; margin-top: 4px; color: rgba(255, 255, 255, .6); font-size: 10px; font-family: var(--mono); }\n\n/* \u2500\u2500 Tabs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.tabs {\n  display: flex; gap: 7px; margin: 18px 0 26px; overflow-x: auto; padding-bottom: 2px;\n}\n.tab {\n  border: 1px solid var(--line); border-radius: 999px; background: var(--white); cursor: pointer;\n  color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;\n  padding: 9px 15px; white-space: nowrap; transition: all .14s ease; box-shadow: var(--shadow-soft);\n}\n.tab:hover { border-color: var(--arctic); color: var(--navy); }\n.tab.active { background: var(--navy); border-color: var(--navy); color: var(--white); }\n.tab .count { font-family: var(--mono); opacity: .7; margin-left: 6px; font-weight: 600; }\n\n/* \u2500\u2500 Metric strip \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.metrics {\n  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px;\n  overflow: hidden; margin-bottom: 30px; border: 1px solid var(--line);\n  border-radius: var(--r-lg); background: var(--line); box-shadow: var(--shadow-soft);\n}\n.metric { padding: 20px 22px; background: rgba(255, 255, 255, .9); }\n.metric .val { display: block; font-size: 30px; line-height: 1; letter-spacing: -.04em; font-family: var(--mono); font-weight: 700; }\n.metric .lbl { display: block; margin-top: 8px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }\n.metric .note { display: block; margin-top: 6px; color: var(--faint); font-size: 11.5px; line-height: 1.4; }\n.metric.primary { background: var(--white); }\n\n.delta { font-family: var(--mono); font-size: 11px; font-weight: 700; white-space: nowrap; }\n.delta.up { color: var(--patina-deep); }\n.delta.dn { color: var(--orange); }\n.delta.eq { color: var(--faint); }\n\n/* \u2500\u2500 Sections \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.section { margin-bottom: 40px; }\n.section > h2 {\n  display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;\n  font-size: 22px; font-weight: 700; letter-spacing: -.03em; color: var(--navy);\n}\n.section > h2::before {\n  content: ""; flex: 0 0 auto; width: 22px; height: 3px; border-radius: 999px;\n  background: var(--orange); align-self: center;\n}\n.section > h2 .hint { font-size: 12.5px; font-weight: 400; letter-spacing: 0; color: var(--muted); }\n\n.panel { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--white); box-shadow: var(--shadow-soft); padding: 20px 22px; }\n.empty { color: var(--faint); font-size: 12.5px; }\n\n/* \u2500\u2500 Tables \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\ntable.data {\n  width: 100%; border-collapse: separate; border-spacing: 0; background: var(--white);\n  border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-soft);\n}\ntable.data th {\n  text-align: left; font-size: 9.5px; font-weight: 800; text-transform: uppercase;\n  letter-spacing: .08em; color: var(--faint); padding: 13px 16px;\n  border-bottom: 1px solid var(--line); white-space: nowrap;\n  background: linear-gradient(135deg, rgba(177, 202, 218, .18), rgba(249, 248, 245, .6));\n}\ntable.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }\ntable.data th.mid, table.data td.mid { text-align: center; }\ntable.data td { padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }\ntable.data tbody tr:last-child td { border-bottom: 0; }\ntable.data tbody tr.clickable { cursor: pointer; }\ntable.data tbody tr.clickable:hover { background: rgba(241, 239, 234, .7); }\ntable.data td strong { font-weight: 700; }\ntable.data td .sub { color: var(--faint); font-size: 11.5px; margin-top: 5px; line-height: 1.4; }\ntable.data td.num { font-family: var(--mono); font-weight: 700; }\n.mono { font-family: var(--mono); font-size: 11.5px; }\n\n/* Result pills */\n.badge {\n  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px;\n  font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;\n}\n.badge.pass { color: var(--patina-deep); background: rgba(24, 202, 168, .12); }\n.badge.fail { color: var(--orange); background: rgba(255, 69, 26, .1); }\n.badge.pass::before, .badge.fail::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n.badge.na { color: var(--muted); background: var(--nimbus-shade); }\n.badge.w { font-family: var(--mono); color: var(--azure); background: #e7edf2; font-weight: 700; letter-spacing: 0; }\n\n/* Score bar */\n.bar { position: relative; flex: 1; height: 7px; border-radius: 999px; background: #e6e2da; overflow: hidden; min-width: 54px; }\n.bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--patina); }\n.bar-row { display: flex; align-items: center; gap: 9px; }\n.bar-row .pct { font-family: var(--mono); font-size: 11.5px; font-weight: 700; min-width: 42px; text-align: right; }\n\n/* \u2500\u2500 Heatmap \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.heat-wrap { overflow-x: auto; }\ntable.heat { border-collapse: separate; border-spacing: 4px; }\ntable.heat th { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 700; padding: 2px 6px; }\ntable.heat th.row-h { text-align: left; max-width: 280px; color: var(--navy); font-family: var(--font); font-weight: 600; font-size: 12.5px; }\ntable.heat td.cell {\n  width: 34px; height: 28px; border-radius: 7px; text-align: center; cursor: pointer;\n  font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--navy);\n}\ntable.heat td.cell.na { color: var(--faint); background: var(--nimbus-shade); font-size: 9.5px; }\ntable.heat td.cell:hover { outline: 2px solid var(--azure); outline-offset: 1px; }\n\n/* \u2500\u2500 Findings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.finding {\n  background: var(--white); border: 1px solid var(--line); border-left: 3px solid var(--arctic);\n  border-radius: var(--r-md); padding: 17px 20px; margin-bottom: 11px; box-shadow: var(--shadow-soft);\n}\n.finding.high { border-left-color: var(--orange); }\n.finding.medium { border-left-color: var(--amber); }\n.finding.low { border-left-color: var(--azure); }\n.finding .kind { font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-bottom: 7px; }\n.finding.high .kind { color: var(--orange); }\n.finding h3 { font-size: 15px; font-weight: 700; letter-spacing: -.015em; margin-bottom: 6px; }\n.finding p { color: var(--muted); font-size: 13px; line-height: 1.5; }\n.finding ul { list-style: none; margin: 11px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }\n.finding li {\n  color: var(--muted); font-size: 11.5px; line-height: 1.5; padding: 9px 12px;\n  background: var(--nimbus); border-left: 3px solid var(--arctic); border-radius: 0 8px 8px 0;\n}\n.finding.high li { border-left-color: rgba(255, 69, 26, .5); }\n.finding .links { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }\n\n/* \u2500\u2500 Buttons / links \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.btn {\n  background: var(--white); border: 1px solid var(--line); color: var(--muted); cursor: pointer;\n  font-family: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: .05em;\n  text-transform: uppercase; padding: 8px 13px; border-radius: 10px; transition: all .14s ease;\n  text-decoration: none; display: inline-block;\n}\n.btn:hover { border-color: var(--arctic); color: var(--navy); }\n.btn.active { background: var(--navy); border-color: var(--navy); color: var(--white); }\n\n.crumbs { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); flex-wrap: wrap; }\n.crumbs a { color: var(--azure); text-decoration: none; cursor: pointer; }\n.crumbs a:hover { color: var(--orange); }\n\n.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }\n.toolbar .spacer { flex: 1; }\n.toolbar strong { font-size: 14px; letter-spacing: -.02em; }\n\n/* Detail page heading, reusing hero typography on the light field. */\n.detail-head { margin-bottom: 22px; }\n.detail-head h1 { font-size: clamp(24px, 2.6vw, 32px); font-weight: 900; letter-spacing: -.04em; line-height: 1.06; }\n.detail-head .sub { margin-top: 8px; color: var(--muted); font-size: 13.5px; line-height: 1.5; max-width: 720px; }\n.detail-head .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }\n\n/* \u2500\u2500 Text blocks \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\ndetails.block {\n  background: var(--white); border: 1px solid var(--line); border-radius: var(--r-md);\n  padding: 14px 18px; margin-bottom: 26px; box-shadow: var(--shadow-soft);\n}\ndetails.block > summary {\n  cursor: pointer; color: var(--muted); font-size: 10.5px; font-weight: 800;\n  letter-spacing: .07em; text-transform: uppercase; list-style: none;\n}\ndetails.block > summary::-webkit-details-marker { display: none; }\ndetails.block > summary::before { content: "\u25B8 "; color: var(--orange); }\ndetails.block[open] > summary::before { content: "\u25BE "; }\n\npre.text {\n  white-space: pre-wrap; word-break: break-word; font-family: var(--mono);\n  font-size: 11.5px; line-height: 1.65; color: var(--muted); margin-top: 12px;\n  background: var(--nimbus); border-radius: 10px; padding: 14px 16px;\n  max-height: 460px; overflow-y: auto;\n}\n.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }\n@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }\n.col-head { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }\n\n.criteria { display: grid; grid-template-columns: max-content 1fr; gap: 11px 20px; font-size: 13px; }\n.criteria dt { color: var(--faint); font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding-top: 4px; }\n.criteria dd { color: var(--muted); line-height: 1.5; }\n\n/* \u2500\u2500 Diff \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.diff { font-family: var(--mono); font-size: 11px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }\n.diff div { padding: 3px 12px; white-space: pre-wrap; word-break: break-word; }\n.diff .add { background: rgba(24, 202, 168, .12); color: var(--patina-deep); }\n.diff .remove { background: rgba(255, 69, 26, .09); color: #a8321a; }\n.diff .context { color: var(--muted); background: var(--nimbus); }\n.diff-stat .a { color: var(--patina-deep); }\n.diff-stat .r { color: var(--orange); }\n\n/* \u2500\u2500 Trend chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.chart { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--shadow-soft); }\n.chart svg { display: block; width: 100%; height: auto; }\n.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 14px; }\n.legend span { display: flex; align-items: center; gap: 6px; }\n.legend strong { font-family: var(--mono); }\n.swatch { width: 11px; height: 11px; border-radius: 3px; }\n\n/* \u2500\u2500 Timeline \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.timeline { position: relative; padding-left: 26px; }\n.timeline::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }\n.tl-item { position: relative; margin-bottom: 26px; }\n.tl-item::before {\n  content: ""; position: absolute; left: -25px; top: 6px; width: 12px; height: 12px;\n  border-radius: 50%; background: var(--white); border: 3px solid var(--arctic);\n}\n.tl-item.up::before { border-color: var(--patina); }\n.tl-item.dn::before { border-color: var(--orange); }\n.tl-head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-bottom: 6px; }\n.tl-head .run { font-weight: 900; font-size: 17px; letter-spacing: -.03em; }\n.tl-head .date { color: var(--faint); font-size: 11.5px; font-family: var(--mono); }\n.tl-notes { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 8px 0; max-width: 780px; }\n.movers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }\n/* Movers carry requirement IDs as well as dimension names, so they are not uppercased \u2014\n   BR-Acme_CallSummary-001 has to stay readable exactly as it appears in requirements.md. */\n.mover {\n  font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 5px 10px;\n  border: 1px solid var(--line); background: var(--nimbus); color: var(--muted);\n}\n.mover.up { border-color: rgba(24, 202, 168, .35); background: #dff6ef; color: var(--patina-deep); }\n.mover.dn { border-color: rgba(255, 69, 26, .3); background: rgba(255, 69, 26, .08); color: var(--orange); }\n\n/* \u2500\u2500 Footer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.foot {\n  margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line);\n  color: var(--faint); font-size: 10.5px; font-weight: 600; letter-spacing: .04em;\n  display: flex; gap: 18px; flex-wrap: wrap; text-transform: uppercase;\n}\n.foot .mono { font-family: var(--mono); text-transform: none; letter-spacing: 0; }\n\n/* \u2500\u2500 Print \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n@media print {\n  body { background: var(--white); }\n  .tabs, .btn, .crumbs { display: none !important; }\n  .hero { box-shadow: none; }\n  .finding, table.data, .panel, .chart, details.block { box-shadow: none; break-inside: avoid; }\n  details.block { display: none; }\n}\n';
+
+// report-template:shared.js
+var shared_default = `/* Shared viewer helpers. Loaded before the per-report script.
+   Plain ES5-compatible browser JS: no build step, no dependencies, no network. */
+
+/** The report model, embedded by the generator. */
+var MODEL = JSON.parse(document.getElementById("report-model").textContent);
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
-function cellBg(rate) {
-  if (rate >= 0.8) return "#14532d";
-  if (rate >= 0.5) return "#78350f";
-  return "#450a0a";
+
+/** Percentage for display. Null means "nothing was evaluated", not zero. */
+function pct(n, dash) {
+  if (n === null || n === undefined || isNaN(n)) return dash === undefined ? "\u2014" : dash;
+  return Math.round(n * 100) + "%";
+}
+
+function score2(n) {
+  if (n === null || n === undefined || isNaN(n)) return "\u2014";
+  return n.toFixed(2);
+}
+
+/** Traffic-light colour. Thresholds match the pass/fail language used in the guides. */
+function colour(v) {
+  if (v === null || v === undefined || isNaN(v)) return "var(--na)";
+  if (v >= 0.9) return "var(--pass)";
+  if (v >= 0.7) return "var(--warn)";
+  return "var(--fail)";
+}
+
+function heatColour(v) {
+  if (v === null || v === undefined) return null;
+  // Brand ramp: orange \u2192 amber \u2192 patina, so a grid reads at a glance and still looks
+  // like the rest of the report. Values are tinted rather than saturated so the navy
+  // numerals stay legible on every cell.
+  var stops = [[0, [255, 138, 112]], [0.5, [250, 205, 120]], [0.8, [196, 226, 168]], [1, [126, 232, 207]]];
+  for (var i = 0; i < stops.length - 1; i++) {
+    if (v <= stops[i + 1][0]) {
+      var t = (v - stops[i][0]) / (stops[i + 1][0] - stops[i][0]);
+      var a = stops[i][1], b = stops[i + 1][1];
+      return "rgb(" + Math.round(a[0] + (b[0] - a[0]) * t) + "," +
+        Math.round(a[1] + (b[1] - a[1]) * t) + "," +
+        Math.round(a[2] + (b[2] - a[2]) * t) + ")";
+    }
+  }
+  return "rgb(126,232,207)";
+}
+
+function bar(v) {
+  if (v === null || v === undefined) return '<span class="empty">n/a</span>';
+  return '<div class="bar-row"><span class="pct" style="color:' + colour(v) + '">' + pct(v) +
+    '</span><div class="bar"><i style="width:' + (v * 100) + '%;background:' + colour(v) + '"></i></div></div>';
+}
+
+function deltaTag(d) {
+  if (d === null || d === undefined) return "";
+  if (Math.abs(d) < 0.005) return '<span class="delta eq">no change</span>';
+  var cls = d > 0 ? "up" : "dn";
+  return '<span class="delta ' + cls + '">' + (d > 0 ? "\u25B2" : "\u25BC") + " " + pct(Math.abs(d)) + "</span>";
+}
+
+function date(iso, withTime) {
+  if (!iso) return "\u2014";
+  var d = new Date(iso);
+  var opts = { day: "numeric", month: "short", year: "numeric" };
+  if (withTime) { opts.hour = "2-digit"; opts.minute = "2-digit"; }
+  return d.toLocaleString("en-AU", opts);
+}
+
+/** Truncate for table cells while keeping the full text in a tooltip. */
+function clip(s, n) {
+  s = String(s || "");
+  return s.length > n ? esc(s.slice(0, n)) + "\u2026" : esc(s);
+}
+
+/** Prettify a test case name for display. Requirement IDs are left alone \u2014 their
+    hyphens are part of the identifier. */
+function pretty(s) {
+  s = String(s);
+  return /^TC-/.test(s) ? s.replace(/^TC-/, "").replace(/-/g, " ") : s;
+}
+
+/* \u2500\u2500 Hash routing \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   Deep links work inside a single self-contained file, so a specific rubric or
+   transcript can be shared by URL without a server. */
+
+var ROUTES = [];
+
+function route(pattern, render) {
+  ROUTES.push({ parts: pattern.split("/").filter(Boolean), render: render });
+}
+
+function go(path) {
+  if (location.hash === "#" + path) { renderRoute(); return; }
+  location.hash = path;
+}
+
+function renderRoute() {
+  var path = location.hash.replace(/^#/, "") || "/";
+  var parts = path.split("/").filter(Boolean);
+  for (var i = 0; i < ROUTES.length; i++) {
+    var r = ROUTES[i];
+    if (r.parts.length !== parts.length) continue;
+    var args = [];
+    var ok = true;
+    for (var j = 0; j < r.parts.length; j++) {
+      if (r.parts[j].charAt(0) === ":") args.push(decodeURIComponent(parts[j]));
+      else if (r.parts[j] !== parts[j]) { ok = false; break; }
+    }
+    if (ok) {
+      r.render.apply(null, args);
+      window.scrollTo(0, 0);
+      return;
+    }
+  }
+  ROUTES[0].render();
+}
+
+function mount(html) {
+  document.getElementById("body").innerHTML = html;
+}
+
+function crumbs(items) {
+  var out = [];
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    out.push(it.href
+      ? '<a onclick="go(\\'' + it.href + '\\')">' + esc(it.label) + "</a>"
+      : "<span>" + esc(it.label) + "</span>");
+  }
+  return '<div class="crumbs">' + out.join(' <span>/</span> ') + "</div>";
+}
+
+/**
+ * Paint the hero dial. The arc is the headline metric, coloured by the same thresholds as
+ * every other score in the report so the hero cannot disagree with the tables below it.
+ */
+function setDial(value, label, sub) {
+  var el = document.getElementById("dial");
+  var pctVal = (value === null || value === undefined || isNaN(value)) ? 0 : value;
+  var hue = pctVal >= 0.9 ? "var(--patina)" : pctVal >= 0.7 ? "var(--amber)" : "var(--orange)";
+  el.style.setProperty("--arc", Math.round(pctVal * 100) + "%");
+  el.style.setProperty("--dial-color", hue);
+  document.getElementById("dialnum").innerHTML =
+    (value === null || value === undefined || isNaN(value))
+      ? "\u2014"
+      : Math.round(value * 100) + "<small>%</small>";
+  if (label) document.getElementById("diallab").textContent = label;
+  document.getElementById("dialsub").textContent = sub || "";
+}
+
+/** The status dot in the hero: green when healthy, amber marginal, orange failing. */
+function setStamp(value, text) {
+  var dot = document.getElementById("stampdot");
+  dot.className = "live-dot" + (value >= 0.9 ? "" : value >= 0.7 ? " warn" : " fail");
+  document.getElementById("stamptext").textContent = text;
+}
+
+function setTab(name) {
+  var tabs = document.querySelectorAll(".tab");
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].className = "tab" + (tabs[i].getAttribute("data-tab") === name ? " active" : "");
+  }
+}
+
+window.addEventListener("hashchange", renderRoute);
+`;
+
+// report-template:run.js
+var run_default2 = `/* Run dashboard views.
+   Levels: overview \u2192 test case \u2192 rubric dimension \u2192 transcript, plus a requirements
+   pivot over the same data. Every view is rendered from MODEL, so adding a pivot means
+   adding a render function rather than regenerating HTML server-side. */
+
+/** Weighted is the default headline; the toggle switches every score column at once. */
+var WEIGHTED = true;
+
+function metricOf(stats) {
+  return WEIGHTED ? stats.weightedScore : stats.averageScore;
+}
+
+function scoreLabel() {
+  return WEIGHTED ? "Weighted score" : "Mean score";
+}
+
+function toggleWeighting() {
+  WEIGHTED = !WEIGHTED;
+  setStamp(MODEL.headline.passRate,
+    (WEIGHTED ? "Weighted" : "Mean") + " score " + score2(metricOf(MODEL.headline.stats)));
+  renderRoute();
+}
+
+function weightToggle() {
+  return '<button class="btn' + (WEIGHTED ? " active" : "") + '" onclick="toggleWeighting()">' +
+    (WEIGHTED ? "Weighted scoring" : "Unweighted scoring") + "</button>" +
+    '<span class="empty" style="font-size:0.76rem">' +
+    (WEIGHTED ? "dimension weight 1\u20135 applied" : "every dimension counts equally") + "</span>";
+}
+
+function findTestCase(name) {
+  for (var i = 0; i < MODEL.testCases.length; i++) if (MODEL.testCases[i].name === name) return MODEL.testCases[i];
+  return null;
+}
+
+function findDim(tc, name) {
+  for (var i = 0; i < tc.dimensions.length; i++) if (tc.dimensions[i].name === name) return tc.dimensions[i];
+  return null;
+}
+
+function niceName(s) {
+  return pretty(s);
+}
+
+/* \u2500\u2500 Findings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+var KIND_LABELS = {
+  "dimension-failure": "Rubric dimension",
+  "requirement-risk": "Requirement at risk",
+  "regression": "Regression",
+  "coverage-gap": "Coverage gap",
+  "scoring-anomaly": "Scoring anomaly",
+};
+
+function findingCard(f) {
+  var links = [];
+  if (f.links.testCase && f.links.dimension) {
+    links.push('<button class="btn" onclick="go(\\'/tc/' + encodeURIComponent(f.links.testCase) +
+      "/dim/" + encodeURIComponent(f.links.dimension) + '\\')">Open rubric dimension</button>');
+  } else if (f.links.testCase) {
+    links.push('<button class="btn" onclick="go(\\'/tc/' + encodeURIComponent(f.links.testCase) + '\\')">Open test case</button>');
+  }
+  if (f.links.requirementId) {
+    links.push('<button class="btn" onclick="go(\\'/req/' + encodeURIComponent(f.links.requirementId) + '\\')">Open requirement</button>');
+  }
+  var ev = "";
+  if (f.evidence && f.evidence.length) {
+    ev = "<ul>";
+    for (var i = 0; i < f.evidence.length; i++) ev += "<li>" + esc(f.evidence[i]) + "</li>";
+    ev += "</ul>";
+  }
+  return '<div class="finding ' + f.severity + '">' +
+    '<div class="kind">' + esc(KIND_LABELS[f.kind] || f.kind) + "</div>" +
+    "<h3>" + esc(f.title) + "</h3><p>" + esc(f.detail) + "</p>" + ev +
+    (links.length ? '<div class="links">' + links.join("") + "</div>" : "") +
+    "</div>";
+}
+
+/* \u2500\u2500 Overview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewOverview() {
+  setTab("overview");
+  var h = MODEL.headline;
+  var cmp = MODEL.comparison;
+  var cov = MODEL.coverage;
+
+  var covered = cov.requirementsUnavailable ? null : cov.requirementsCovered / Math.max(cov.requirementsTotal, 1);
+
+  var out = '<div class="metrics">' +
+    '<div class="metric primary"><div class="val" style="color:' + colour(h.passRate) + '">' + pct(h.passRate) + "</div>" +
+    '<div class="lbl">Transcript pass rate</div><div class="note">' + h.transcriptsPassed + " of " +
+    h.transcriptsEvaluated + " passed every test case" + (cmp ? " \xB7 " + deltaTag(cmp.passRateDelta) : "") + "</div></div>" +
+
+    '<div class="metric"><div class="val" style="color:' + colour(metricOf(h.stats)) + '">' + score2(metricOf(h.stats)) + "</div>" +
+    '<div class="lbl">' + scoreLabel() + '</div><div class="note">' +
+    (WEIGHTED ? "unweighted " + score2(h.stats.averageScore) : "weighted " + score2(h.stats.weightedScore)) +
+    (cmp && WEIGHTED ? " \xB7 " + deltaTag(cmp.weightedScoreDelta) : "") + "</div></div>" +
+
+    '<div class="metric"><div class="val">' + h.stats.evaluated + "</div>" +
+    '<div class="lbl">Dimension scores</div><div class="note">' + h.stats.failed + " failed \xB7 " +
+    h.stats.na + " not applicable</div></div>" +
+
+    '<div class="metric"><div class="val" style="color:' + colour(covered) + '">' +
+    (cov.requirementsUnavailable ? "\u2014" : cov.requirementsCovered + "/" + cov.requirementsTotal) + "</div>" +
+    '<div class="lbl">Requirements covered</div><div class="note">' +
+    (cov.requirementsUnavailable ? "requirements.md not found" :
+      cov.uncoveredRequirementIds.length + " untested") + "</div></div>" +
+    "</div>";
+
+  // Prompt and run provenance
+  if (MODEL.run.prompt) {
+    out += '<details class="block"><summary>Prompt tested in this run' +
+      (MODEL.run.promptVersion.number !== null ? " (version " + MODEL.run.promptVersion.number + ")" : "") +
+      '</summary><pre class="text">' + esc(MODEL.run.prompt) + "</pre></details>";
+  }
+
+  if (MODEL.findings.length) {
+    out += '<div class="section"><h2>What this run is telling you <span class="hint">derived from these results, ranked by weighted impact</span></h2>';
+    for (var i = 0; i < MODEL.findings.length; i++) out += findingCard(MODEL.findings[i]);
+    out += "</div>";
+  }
+
+  out += '<div class="section"><h2>Test cases</h2>' + testCaseTable() + "</div>";
+
+  if (cmp) {
+    out += '<div class="section"><h2>Movement since run ' + cmp.previousRunNumber +
+      (cmp.testSetChanged ? ' <span class="hint">test set composition changed \u2014 these compare different populations</span>' : "") +
+      "</h2>" + deltaTable(cmp.testCaseDeltas, "Test case", niceName) + "</div>";
+  }
+
+  if (MODEL.run.skipped.length) {
+    out += '<div class="section"><h2>Skipped transcripts <span class="hint">excluded before scoring, absent from every denominator</span></h2><div class="panel">' +
+      '<table class="data"><thead><tr><th>Transcript</th><th>Returned instead of a summary</th></tr></thead><tbody>';
+    for (var s = 0; s < MODEL.run.skipped.length; s++) {
+      var sk = MODEL.run.skipped[s];
+      out += "<tr><td>" + esc(sk.label) + '<div class="sub mono">' + esc(sk.id) + "</div></td><td>" +
+        esc(sk.summary) + '<div class="sub">' + esc(sk.reason) + "</div></td></tr>";
+    }
+    out += "</tbody></table></div></div>";
+  }
+
+  mount(out);
+}
+
+function testCaseTable() {
+  var out = '<div class="toolbar">' + weightToggle() + "</div>" +
+    '<table class="data"><thead><tr><th>Test case</th><th>Pass rate</th><th class="num">' +
+    scoreLabel() + '</th><th class="mid">Dimensions</th><th class="mid">Failures</th><th></th></tr></thead><tbody>';
+  for (var i = 0; i < MODEL.testCases.length; i++) {
+    var tc = MODEL.testCases[i];
+    out += '<tr class="clickable" onclick="go(\\'/tc/' + encodeURIComponent(tc.name) + '\\')">' +
+      "<td><strong>" + esc(niceName(tc.name)) + '</strong><div class="sub">' + clip(tc.description, 110) + "</div></td>" +
+      "<td>" + bar(tc.passRate) + "</td>" +
+      '<td class="num" style="color:' + colour(metricOf(tc.stats)) + '">' + score2(metricOf(tc.stats)) + "</td>" +
+      '<td class="mid">' + tc.dimensions.length + "</td>" +
+      '<td class="mid">' + (tc.stats.failed ? '<span class="badge fail">' + tc.stats.failed + "</span>" : '<span class="badge pass">0</span>') + "</td>" +
+      '<td class="num" style="color:var(--dim)">\u203A</td></tr>';
+  }
+  return out + "</tbody></table>";
+}
+
+function deltaTable(deltas, label, fmt) {
+  if (!deltas || !deltas.length) return '<div class="panel empty">Nothing comparable.</div>';
+  var sorted = deltas.slice().sort(function (a, b) {
+    return ((a.to || 0) - (a.from || 0)) - ((b.to || 0) - (b.from || 0));
+  });
+  var out = '<table class="data"><thead><tr><th>' + label +
+    '</th><th class="num">Before</th><th class="num">After</th><th class="num">Change</th></tr></thead><tbody>';
+  for (var i = 0; i < sorted.length; i++) {
+    var d = sorted[i];
+    var delta = (d.to === null || d.from === null) ? null : d.to - d.from;
+    out += "<tr><td>" + esc(fmt ? fmt(d.name) : d.name) + '</td><td class="num">' + pct(d.from) +
+      '</td><td class="num">' + pct(d.to) + '</td><td class="num">' + (deltaTag(delta) || "\u2014") + "</td></tr>";
+  }
+  return out + "</tbody></table>";
+}
+
+/* \u2500\u2500 Test case detail \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewTestCase(name) {
+  setTab("testcases");
+  var tc = findTestCase(name);
+  if (!tc) { mount('<div class="panel empty">Unknown test case.</div>'); return; }
+
+  var out = crumbs([{ label: "Overview", href: "/" }, { label: niceName(tc.name) }]) +
+    '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Test case</p><h1>' +
+    esc(niceName(tc.name)) + '</h1><p class="sub">' + esc(tc.description) + "</p></div>";
+
+  out += '<div class="metrics">' +
+    '<div class="metric"><div class="val" style="color:' + colour(tc.passRate) + '">' + pct(tc.passRate) +
+    '</div><div class="lbl">Transcript pass rate</div><div class="note">' +
+    tc.transcripts.filter(function (t) { return t.passed; }).length + " of " + tc.transcripts.length + "</div></div>" +
+    '<div class="metric"><div class="val" style="color:' + colour(metricOf(tc.stats)) + '">' + score2(metricOf(tc.stats)) +
+    '</div><div class="lbl">' + scoreLabel() + "</div></div>" +
+    '<div class="metric"><div class="val">' + tc.stats.failed + '</div><div class="lbl">Failed scores</div>' +
+    '<div class="note">of ' + tc.stats.evaluated + " evaluated \xB7 " + tc.stats.na + " n/a</div></div>" +
+    "</div>";
+
+  out += '<div class="section"><h2>Rubric <span class="hint">click a dimension to see how it scored against every interaction</span></h2>' +
+    '<div class="toolbar">' + weightToggle() + "</div>" +
+    '<table class="data"><thead><tr><th>Dimension</th><th class="mid">Weight</th><th class="mid">Threshold</th>' +
+    '<th>Pass rate</th><th class="num">Mean</th><th class="mid">n/a</th><th>Requirements</th><th></th></tr></thead><tbody>';
+
+  var dims = tc.dimensions.slice().sort(function (a, b) {
+    var ap = a.stats.passRate === null ? 2 : a.stats.passRate;
+    var bp = b.stats.passRate === null ? 2 : b.stats.passRate;
+    if (ap !== bp) return ap - bp;
+    return b.weight - a.weight;
+  });
+
+  for (var i = 0; i < dims.length; i++) {
+    var d = dims[i];
+    var reqs = d.requirementIds.length
+      ? d.requirementIds.map(function (id) {
+          return '<span class="badge w mono" title="' + esc(id) + '">' + esc(id.replace(/^BR-.*-(\\d+)$/, "BR-$1")) + "</span>";
+        }).join(" ")
+      : '<span class="empty">none</span>';
+    out += '<tr class="clickable" onclick="go(\\'/tc/' + encodeURIComponent(tc.name) + "/dim/" + encodeURIComponent(d.name) + '\\')">' +
+      "<td><strong>" + esc(d.name) + "</strong>" +
+      (d.applicabilityCondition && d.applicabilityCondition !== "always"
+        ? '<div class="sub">Conditional: ' + clip(d.applicabilityCondition, 90) + "</div>" : "") +
+      "</td>" +
+      '<td class="mid"><span class="badge w">' + d.weight + "</span></td>" +
+      '<td class="mid" style="color:var(--muted)">' + d.passThreshold.toFixed(2) + "</td>" +
+      "<td>" + bar(d.stats.passRate) + "</td>" +
+      '<td class="num" style="color:' + colour(d.stats.averageScore) + '">' + score2(d.stats.averageScore) + "</td>" +
+      '<td class="mid" style="color:var(--dim)">' + (d.stats.na || "\u2014") + "</td>" +
+      "<td>" + reqs + "</td>" +
+      '<td class="num" style="color:var(--dim)">\u203A</td></tr>';
+  }
+  out += "</tbody></table></div>";
+
+  out += '<div class="section"><h2>Dimension \xD7 interaction <span class="hint">rows fail together = rubric problem \xB7 columns fail together = summary problem</span></h2>' +
+    '<div class="panel heat-wrap">' + heatmap(tc) + "</div></div>";
+
+  out += '<div class="section"><h2>Interactions</h2>' + transcriptTable(tc) + "</div>";
+  mount(out);
+}
+
+function heatmap(tc) {
+  // Columns are numbered rather than labelled: interaction labels are far too long to sit
+  // above a 30px cell, and a key below stays readable at any number of transcripts.
+  var out = '<table class="heat"><thead><tr><th class="row-h"></th>';
+  for (var c = 0; c < tc.transcripts.length; c++) {
+    out += '<th title="' + esc(tc.transcripts[c].label) + '">T' + (c + 1) + "</th>";
+  }
+  out += "</tr></thead><tbody>";
+
+  for (var i = 0; i < tc.dimensions.length; i++) {
+    var d = tc.dimensions[i];
+    out += '<tr><th class="row-h" title="' + esc(d.name) + '">' + esc(clip(d.name, 40)) +
+      ' <span class="badge w">' + d.weight + "</span></th>";
+    for (var j = 0; j < tc.transcripts.length; j++) {
+      var t = tc.transcripts[j];
+      var s = null;
+      for (var k = 0; k < t.scores.length; k++) if (t.scores[k].dimension === d.name) s = t.scores[k];
+      var href = "/tc/" + encodeURIComponent(tc.name) + "/dim/" + encodeURIComponent(d.name);
+      if (!s || s.na) {
+        out += '<td class="cell na" title="Not applicable: ' + esc(s ? s.reasoning : "") +
+          '" onclick="go(\\'' + href + '\\')">n/a</td>';
+      } else {
+        out += '<td class="cell" style="background:' + heatColour(s.score) + '" title="' +
+          esc(t.label) + " \u2014 " + s.score.toFixed(2) + ": " + esc(clip(s.reasoning, 160)) +
+          '" onclick="go(\\'' + href + '\\')">' + s.score.toFixed(1) + "</td>";
+      }
+    }
+    out += "</tr>";
+  }
+  out += "</tbody></table>";
+
+  var key = [];
+  for (var q = 0; q < tc.transcripts.length; q++) {
+    key.push('<span><strong style="color:var(--muted)">T' + (q + 1) + "</strong> " +
+      esc(tc.transcripts[q].label) + "</span>");
+  }
+  return out + '<div class="legend">' + key.join("") + "</div>";
+}
+
+function transcriptTable(tc) {
+  var rows = tc.transcripts.slice().sort(function (a, b) {
+    return (metricOf(a.stats) || 0) - (metricOf(b.stats) || 0);
+  });
+  var out = '<table class="data"><thead><tr><th>Interaction</th><th class="num">' + scoreLabel() +
+    '</th><th class="mid">Result</th><th>Failed dimensions</th><th></th></tr></thead><tbody>';
+  for (var i = 0; i < rows.length; i++) {
+    var t = rows[i];
+    var failed = t.scores.filter(function (s) { return !s.na && !s.passed; })
+      .map(function (s) { return esc(s.dimension); }).join(", ");
+    out += '<tr class="clickable" onclick="go(\\'/tx/' + encodeURIComponent(t.id) + '\\')">' +
+      "<td>" + esc(t.label) + '<div class="sub mono">' + esc(t.id) + "</div></td>" +
+      '<td class="num" style="color:' + colour(metricOf(t.stats)) + '">' + score2(metricOf(t.stats)) + "</td>" +
+      '<td class="mid">' + (t.passed ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>') + "</td>" +
+      '<td style="color:var(--muted);font-size:0.82rem">' + (failed || "\u2014") + "</td>" +
+      '<td class="num" style="color:var(--dim)">\u203A</td></tr>';
+  }
+  return out + "</tbody></table>";
+}
+
+/* \u2500\u2500 Dimension detail \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewDimension(tcName, dimName) {
+  setTab("testcases");
+  var tc = findTestCase(tcName);
+  var d = tc && findDim(tc, dimName);
+  if (!d) { mount('<div class="panel empty">Unknown dimension.</div>'); return; }
+
+  var out = crumbs([
+    { label: "Overview", href: "/" },
+    { label: niceName(tc.name), href: "/tc/" + encodeURIComponent(tc.name) },
+    { label: d.name },
+  ]);
+
+  out += '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Rubric dimension</p><h1>' +
+    esc(d.name) + '</h1><p class="sub">' + esc(d.description) + '</p><div class="meta-row on-light">' +
+    '<span class="chip">Weight <strong>' + d.weight + " of 5</strong></span>" +
+    '<span class="chip">Pass threshold <strong>' + d.passThreshold.toFixed(2) + "</strong></span>" +
+    '<span class="chip">Pass rate <strong style="color:' + colour(d.stats.passRate) + '">' + pct(d.stats.passRate) + "</strong></span>" +
+    '<span class="chip">Mean <strong>' + score2(d.stats.averageScore) + "</strong></span>" +
+    (d.stats.na ? '<span class="chip warn">' + d.stats.na + " not applicable</span>" : "") +
+    "</div></div>";
+
+  out += '<div class="section"><h2>Scoring criteria <span class="hint">what the evaluator was told to apply</span></h2><div class="panel"><dl class="criteria">' +
+    "<dt>Applies</dt><dd>" + esc(d.applicabilityCondition === "always" ? "Every interaction (always)" : d.applicabilityCondition) + "</dd>" +
+    "<dt>Pass</dt><dd>" + esc(d.passCriteria) + "</dd>" +
+    "<dt>Fail</dt><dd>" + esc(d.failCriteria) + "</dd>" +
+    "<dt>Requirements</dt><dd>" + (d.requirementIds.length
+      ? d.requirementIds.map(function (id) {
+        return '<a class="mono" style="color:var(--accent);cursor:pointer" onclick="go(\\'/req/' +
+          encodeURIComponent(id) + '\\')">' + esc(id) + "</a>";
+      }).join(", ")
+      : '<span class="empty">This dimension is not mapped to any business requirement.</span>') + "</dd>" +
+    "</dl></div></div>";
+
+  // Every interaction, worst first \u2014 reading the reasoning column top to bottom is how you
+  // tell a genuinely failing dimension from a badly worded one.
+  var rows = [];
+  for (var i = 0; i < tc.transcripts.length; i++) {
+    var t = tc.transcripts[i];
+    for (var j = 0; j < t.scores.length; j++) {
+      if (t.scores[j].dimension === d.name) rows.push({ t: t, s: t.scores[j] });
+    }
+  }
+  rows.sort(function (a, b) {
+    if (a.s.na !== b.s.na) return a.s.na ? 1 : -1;
+    return (a.s.score || 0) - (b.s.score || 0);
+  });
+
+  out += '<div class="section"><h2>Scored against every interaction <span class="hint">worst first</span></h2>' +
+    '<table class="data"><thead><tr><th>Interaction</th><th class="num">Score</th><th class="mid">Result</th>' +
+    "<th>Evaluator reasoning</th><th></th></tr></thead><tbody>";
+  for (var r = 0; r < rows.length; r++) {
+    var s = rows[r].s, tx = rows[r].t;
+    out += '<tr class="clickable" onclick="go(\\'/tx/' + encodeURIComponent(tx.id) + '\\')">' +
+      "<td>" + esc(tx.label) + '<div class="sub mono">' + esc(tx.id) + "</div></td>" +
+      '<td class="num" style="color:' + colour(s.score) + '">' + (s.na ? "\u2014" : s.score.toFixed(2)) + "</td>" +
+      '<td class="mid">' + (s.na ? '<span class="badge na">N/A</span>'
+        : s.passed ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>') + "</td>" +
+      '<td style="color:var(--muted);font-size:12.5px">' + esc(s.reasoning) + "</td>" +
+      '<td class="num" style="color:var(--dim)">\u203A</td></tr>';
+  }
+  out += "</tbody></table></div>";
+  mount(out);
+}
+
+/* \u2500\u2500 Transcript detail \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewTranscript(id) {
+  setTab("transcripts");
+  var found = null;
+  for (var i = 0; i < MODEL.testCases.length && !found; i++) {
+    for (var j = 0; j < MODEL.testCases[i].transcripts.length; j++) {
+      if (MODEL.testCases[i].transcripts[j].id === id) found = MODEL.testCases[i].transcripts[j];
+    }
+  }
+  if (!found) { mount('<div class="panel empty">Unknown interaction.</div>'); return; }
+
+  var out = crumbs([{ label: "Overview", href: "/" }, { label: "Interactions", href: "/transcripts" }, { label: found.label }]);
+  out += '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Interaction</p><h1>' +
+    esc(found.label) + '</h1><p class="sub mono">' + esc(found.id) + "</p></div>";
+
+  out += '<div class="two-col"><div class="panel"><div class="col-head">Generated summary</div><pre class="text">' +
+    esc(found.summary) + "</pre></div>";
+  out += '<div class="panel"><div class="col-head">Source interaction</div>' +
+    (found.transcriptText
+      ? '<pre class="text">' + esc(found.transcriptText) + "</pre>"
+      : '<p class="empty">Not included in this report.</p>') + "</div></div>";
+
+  out += '<div class="section" style="margin-top:26px"><h2>Scored against every test case</h2>';
+  for (var t = 0; t < MODEL.testCases.length; t++) {
+    var tc = MODEL.testCases[t];
+    var row = null;
+    for (var k = 0; k < tc.transcripts.length; k++) if (tc.transcripts[k].id === id) row = tc.transcripts[k];
+    if (!row) continue;
+    out += '<div style="margin-bottom:18px"><div class="toolbar"><strong>' + esc(niceName(tc.name)) + "</strong>" +
+      (row.passed ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>') +
+      '<span class="empty">' + scoreLabel().toLowerCase() + " " + score2(metricOf(row.stats)) + "</span>" +
+      '<div class="spacer"></div><button class="btn" onclick="go(\\'/tc/' + encodeURIComponent(tc.name) + '\\')">Open test case</button></div>' +
+      '<table class="data"><thead><tr><th>Dimension</th><th class="mid">Weight</th><th class="num">Score</th>' +
+      "<th class=\\"mid\\">Result</th><th>Reasoning</th></tr></thead><tbody>";
+    for (var s = 0; s < row.scores.length; s++) {
+      var sc = row.scores[s];
+      var dim = findDim(tc, sc.dimension);
+      out += '<tr class="clickable" onclick="go(\\'/tc/' + encodeURIComponent(tc.name) + "/dim/" +
+        encodeURIComponent(sc.dimension) + '\\')"><td>' + esc(sc.dimension) + "</td>" +
+        '<td class="mid"><span class="badge w">' + (dim ? dim.weight : "\u2014") + "</span></td>" +
+        '<td class="num" style="color:' + colour(sc.score) + '">' + (sc.na ? "\u2014" : sc.score.toFixed(2)) + "</td>" +
+        '<td class="mid">' + (sc.na ? '<span class="badge na">N/A</span>'
+          : sc.passed ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>') + "</td>" +
+        '<td style="color:var(--muted);font-size:12.5px">' + esc(sc.reasoning) + "</td></tr>";
+    }
+    out += "</tbody></table></div>";
+  }
+  out += "</div>";
+  mount(out);
+}
+
+function viewTranscripts() {
+  setTab("transcripts");
+  // One row per interaction, aggregated across every test case in the run.
+  var byId = {};
+  for (var i = 0; i < MODEL.testCases.length; i++) {
+    var tc = MODEL.testCases[i];
+    for (var j = 0; j < tc.transcripts.length; j++) {
+      var t = tc.transcripts[j];
+      if (!byId[t.id]) byId[t.id] = { id: t.id, label: t.label, evaluated: 0, failed: 0, na: 0, weighted: [], failedTcs: [] };
+      var agg = byId[t.id];
+      agg.evaluated += t.stats.evaluated;
+      agg.failed += t.stats.failed;
+      agg.na += t.stats.na;
+      if (metricOf(t.stats) !== null) agg.weighted.push(metricOf(t.stats));
+      if (!t.passed) agg.failedTcs.push(niceName(tc.name));
+    }
+  }
+  var rows = Object.keys(byId).map(function (k) {
+    var a = byId[k];
+    a.score = a.weighted.length ? a.weighted.reduce(function (x, y) { return x + y; }, 0) / a.weighted.length : null;
+    return a;
+  }).sort(function (a, b) { return (a.score || 0) - (b.score || 0); });
+
+  var out = '<div class="toolbar">' + weightToggle() + "</div>" +
+    '<table class="data"><thead><tr><th>Interaction</th><th class="num">' + scoreLabel() +
+    '</th><th class="mid">Failed scores</th><th>Failing test cases</th><th></th></tr></thead><tbody>';
+  for (var r = 0; r < rows.length; r++) {
+    var a = rows[r];
+    out += '<tr class="clickable" onclick="go(\\'/tx/' + encodeURIComponent(a.id) + '\\')">' +
+      "<td>" + esc(a.label) + '<div class="sub mono">' + esc(a.id) + "</div></td>" +
+      '<td class="num" style="color:' + colour(a.score) + '">' + score2(a.score) + "</td>" +
+      '<td class="mid">' + (a.failed ? '<span class="badge fail">' + a.failed + "/" + a.evaluated + "</span>"
+        : '<span class="badge pass">0/' + a.evaluated + "</span>") + "</td>" +
+      '<td style="color:var(--muted);font-size:0.82rem">' + (a.failedTcs.join(", ") || "\u2014") + "</td>" +
+      '<td class="num" style="color:var(--dim)">\u203A</td></tr>';
+  }
+  out += "</tbody></table>";
+
+  if (MODEL.run.skipped.length) {
+    out += '<div class="section" style="margin-top:26px"><h2>Skipped \u2014 not scored</h2><div class="panel"><table class="data"><tbody>';
+    for (var s = 0; s < MODEL.run.skipped.length; s++) {
+      out += "<tr><td>" + esc(MODEL.run.skipped[s].label) + '<div class="sub mono">' +
+        esc(MODEL.run.skipped[s].id) + "</div></td><td>" + esc(MODEL.run.skipped[s].summary) + "</td></tr>";
+    }
+    out += "</tbody></table></div></div>";
+  }
+  mount(out);
+}
+
+/* \u2500\u2500 Requirements pivot \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewRequirements() {
+  setTab("requirements");
+  var cov = MODEL.coverage;
+
+  if (cov.requirementsUnavailable) {
+    mount('<div class="panel empty">No requirements.md was found for this configuration, so compliance ' +
+      "cannot be reported. Gather requirements first, then regenerate this report.</div>");
+    return;
+  }
+
+  var out = "";
+
+  if (cov.unknownRequirementIds.length) {
+    out += '<div class="finding high"><div class="kind">Coverage gap</div><h3>' +
+      cov.unknownRequirementIds.length + " dimension" + (cov.unknownRequirementIds.length === 1 ? "" : "s") +
+      " reference a requirement that does not exist</h3><p>These look like coverage but test nothing traceable. " +
+      "Either the ID is a typo or the requirement was removed from requirements.md.</p><ul>";
+    for (var u = 0; u < cov.unknownRequirementIds.length; u++) {
+      var un = cov.unknownRequirementIds[u];
+      out += '<li><span class="mono">' + esc(un.id) + "</span> \u2014 " + esc(niceName(un.testCase)) + " \u203A " + esc(un.dimension) + "</li>";
+    }
+    out += "</ul></div>";
+  }
+
+  if (cov.uncoveredRequirementIds.length) {
+    out += '<div class="finding medium"><div class="kind">Coverage gap</div><h3>' +
+      cov.uncoveredRequirementIds.length + " requirements have no dimension testing them</h3>" +
+      "<p>Nothing in this run tells you whether these hold. An untested requirement is indistinguishable " +
+      "from a passing one on every other view.</p><ul>";
+    for (var g = 0; g < cov.uncoveredRequirementIds.length; g++) {
+      out += '<li><span class="mono">' + esc(cov.uncoveredRequirementIds[g]) + "</span></li>";
+    }
+    out += "</ul></div>";
+  }
+
+  // Group by category \u2014 this is the view a business stakeholder reads.
+  var cats = {};
+  for (var i = 0; i < MODEL.requirements.length; i++) {
+    var r = MODEL.requirements[i];
+    (cats[r.category] = cats[r.category] || []).push(r);
+  }
+
+  out += '<div class="toolbar">' + weightToggle() + "</div>";
+
+  var names = Object.keys(cats).sort();
+  for (var c = 0; c < names.length; c++) {
+    out += '<div class="section"><h2>' + esc(names[c]) + "</h2>" +
+      '<table class="data"><thead><tr><th>ID</th><th>Requirement</th><th>Compliance</th>' +
+      '<th class="num">' + scoreLabel() + '</th><th class="mid">Tested by</th><th></th></tr></thead><tbody>';
+    var list = cats[names[c]].slice().sort(function (a, b) {
+      var ap = a.stats.passRate === null ? 2 : a.stats.passRate;
+      var bp = b.stats.passRate === null ? 2 : b.stats.passRate;
+      return ap - bp;
+    });
+    for (var j = 0; j < list.length; j++) {
+      var req = list[j];
+      var untested = req.coveredBy.length === 0;
+      out += '<tr class="clickable" onclick="go(\\'/req/' + encodeURIComponent(req.id) + '\\')">' +
+        '<td class="mono" style="white-space:nowrap">' + esc(req.id) + "</td>" +
+        "<td>" + esc(req.text) + "</td>" +
+        "<td>" + (untested ? '<span class="badge na">UNTESTED</span>' : bar(req.stats.passRate)) + "</td>" +
+        '<td class="num" style="color:' + colour(metricOf(req.stats)) + '">' + score2(metricOf(req.stats)) + "</td>" +
+        '<td class="mid" style="color:var(--muted)">' + (req.coveredBy.length || "\u2014") + "</td>" +
+        '<td class="num" style="color:var(--dim)">\u203A</td></tr>';
+    }
+    out += "</tbody></table></div>";
+  }
+  mount(out);
+}
+
+function viewRequirement(id) {
+  setTab("requirements");
+  var req = null;
+  for (var i = 0; i < MODEL.requirements.length; i++) if (MODEL.requirements[i].id === id) req = MODEL.requirements[i];
+  if (!req) { mount('<div class="panel empty">Unknown requirement.</div>'); return; }
+
+  var out = crumbs([{ label: "Overview", href: "/" }, { label: "Requirements", href: "/requirements" }, { label: req.id }]);
+  out += '<div class="detail-head"><p class="eyebrow" style="color:var(--azure)">Business requirement</p>' +
+    '<h1 class="mono" style="font-size:26px">' + esc(req.id) + '</h1><p class="sub">' + esc(req.text) +
+    '</p><div class="meta-row on-light">' +
+    '<span class="chip">Category <strong>' + esc(req.category) + "</strong></span>" +
+    '<span class="chip">Source <strong>' + esc(req.source) + "</strong></span>" +
+    '<span class="chip">Compliance <strong style="color:' + colour(req.stats.passRate) + '">' + pct(req.stats.passRate) + "</strong></span>" +
+    "</div></div>";
+
+  if (!req.coveredBy.length) {
+    out += '<div class="finding medium"><div class="kind">Coverage gap</div><h3>No dimension tests this requirement</h3>' +
+      "<p>Add a dimension referencing " + esc(req.id) + " to a test case, or retire the requirement.</p></div>";
+    mount(out);
+    return;
+  }
+
+  out += '<div class="section"><h2>Tested by</h2><table class="data"><thead><tr><th>Test case</th><th>Dimension</th>' +
+    '<th class="mid">Weight</th><th>Pass rate</th><th></th></tr></thead><tbody>';
+  for (var c = 0; c < req.coveredBy.length; c++) {
+    var cv = req.coveredBy[c];
+    var tc = findTestCase(cv.testCase);
+    var d = tc && findDim(tc, cv.dimension);
+    out += '<tr class="clickable" onclick="go(\\'/tc/' + encodeURIComponent(cv.testCase) + "/dim/" +
+      encodeURIComponent(cv.dimension) + '\\')"><td>' + esc(niceName(cv.testCase)) + "</td><td>" + esc(cv.dimension) + "</td>" +
+      '<td class="mid"><span class="badge w">' + cv.weight + "</span></td>" +
+      "<td>" + (d ? bar(d.stats.passRate) : "\u2014") + "</td>" +
+      '<td class="num" style="color:var(--dim)">\u203A</td></tr>';
+  }
+  out += "</tbody></table></div>";
+
+  // Every failure attributable to this requirement, with the scorer's reasoning.
+  var fails = [];
+  for (var k = 0; k < req.coveredBy.length; k++) {
+    var cov2 = req.coveredBy[k];
+    var tcase = findTestCase(cov2.testCase);
+    if (!tcase) continue;
+    for (var t = 0; t < tcase.transcripts.length; t++) {
+      var tx = tcase.transcripts[t];
+      for (var s = 0; s < tx.scores.length; s++) {
+        var sc = tx.scores[s];
+        if (sc.dimension === cov2.dimension && !sc.na && !sc.passed) {
+          fails.push({ tx: tx, sc: sc, dim: cov2.dimension, tc: cov2.testCase });
+        }
+      }
+    }
+  }
+
+  out += '<div class="section"><h2>Failures attributed to this requirement</h2>';
+  if (!fails.length) {
+    out += '<div class="panel empty">No failures \u2014 every dimension mapped to this requirement passed on every interaction.</div>';
+  } else {
+    out += '<table class="data"><thead><tr><th>Interaction</th><th>Dimension</th><th class="num">Score</th><th>Reasoning</th></tr></thead><tbody>';
+    for (var f = 0; f < fails.length; f++) {
+      out += '<tr class="clickable" onclick="go(\\'/tx/' + encodeURIComponent(fails[f].tx.id) + '\\')">' +
+        "<td>" + esc(fails[f].tx.label) + "</td><td>" + esc(fails[f].dim) + "</td>" +
+        '<td class="num" style="color:' + colour(fails[f].sc.score) + '">' + fails[f].sc.score.toFixed(2) + "</td>" +
+        '<td style="color:var(--muted);font-size:12.5px">' + esc(fails[f].sc.reasoning) + "</td></tr>";
+    }
+    out += "</tbody></table>";
+  }
+  out += "</div>";
+  mount(out);
+}
+
+/* \u2500\u2500 Test case list tab \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewTestCases() {
+  setTab("testcases");
+  mount('<div class="section"><h2>Test cases <span class="hint">click through to the rubric</span></h2>' +
+    testCaseTable() + "</div>");
+}
+
+/* \u2500\u2500 Chrome + routes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function renderChrome() {
+  var r = MODEL.run;
+  var h = MODEL.headline;
+
+  document.getElementById("eyebrow").textContent =
+    "Eval run \\u00b7 " + (r.mode === "existing" ? "Existing production summaries" : "Prompt test");
+  // The set name is hyphenated and long; letting it break on spaces keeps the headline on
+  // one or two tidy lines instead of splitting a word mid-hyphen.
+  document.getElementById("title").innerHTML =
+    '<span>Run ' + r.number + "</span> " + esc(MODEL.testSet.name.replace(/-/g, " "));
+  document.getElementById("subtitle").textContent =
+    MODEL.config.name + " \\u00b7 " + MODEL.testCases.length + " test case" +
+    (MODEL.testCases.length === 1 ? "" : "s") + " across " + h.transcriptsEvaluated +
+    " interaction" + (h.transcriptsEvaluated === 1 ? "" : "s") +
+    " \\u00b7 finalised " + date(r.finalizedAt, true);
+
+  setDial(h.passRate, "Passed every test case",
+    h.transcriptsPassed + " of " + h.transcriptsEvaluated + " interactions");
+  setStamp(h.passRate, (WEIGHTED ? "Weighted" : "Mean") + " score " + score2(metricOf(h.stats)));
+
+  var chips = [
+    '<span class="chip">Run <strong>' + r.number + "</strong></span>",
+    r.promptVersion.number !== null
+      ? '<span class="chip ' + (r.promptVersion.status || "") + '"><b>Version</b> <strong>' +
+        r.promptVersion.number + "</strong>" + (r.promptVersion.status ? " \\u00b7 " + r.promptVersion.status : "") + "</span>"
+      : '<span class="chip warn">Unversioned prompt</span>',
+    '<span class="chip"><b>Interactions</b> <strong>' + r.transcriptsEvaluated + "</strong></span>",
+    '<span class="chip"><b>Dimension scores</b> <strong>' + h.stats.evaluated + "</strong></span>",
+  ];
+  if (r.skipped.length) {
+    chips.push('<span class="chip warn"><b>Skipped</b> <strong>' + r.skipped.length + "</strong> \\u00b7 too short to summarise</span>");
+  }
+  if (!MODEL.coverage.requirementsUnavailable && MODEL.coverage.uncoveredRequirementIds.length) {
+    chips.push('<span class="chip danger"><b>Untested requirements</b> <strong>' +
+      MODEL.coverage.uncoveredRequirementIds.length + "</strong></span>");
+  }
+  if (r.previewStructure && r.previewStructure.indexOf("fallback") === 0) {
+    chips.push('<span class="chip danger">Preview structure: fallback defaults</span>');
+  }
+  document.getElementById("chips").innerHTML = chips.join("");
+
+  document.getElementById("tab-counts-testcases").textContent = MODEL.testCases.length;
+  document.getElementById("tab-counts-requirements").textContent =
+    MODEL.coverage.requirementsUnavailable ? "\\u2014" : MODEL.requirements.length;
+  document.getElementById("tab-counts-transcripts").textContent = MODEL.run.transcriptsEvaluated;
+
+  document.getElementById("foot").innerHTML =
+    "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
+    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
+    "<span>Self-contained \\u2014 safe to copy or share as a single file</span>";
+}
+
+route("/", viewOverview);
+route("/testcases", viewTestCases);
+route("/tc/:name", viewTestCase);
+route("/tc/:name/dim/:dim", viewDimension);
+route("/transcripts", viewTranscripts);
+route("/tx/:id", viewTranscript);
+route("/requirements", viewRequirements);
+route("/req/:id", viewRequirement);
+
+renderChrome();
+renderRoute();
+`;
+
+// report-template:improvements.js
+var improvements_default2 = `/* Improvements dashboard views.
+   Run-over-run performance, a changelog of what changed between runs, and the same
+   requirements pivot as the run dashboard so compliance can be tracked over time. */
+
+var METRIC = "passRate"; // or "weightedScore"
+
+function metricLabel() {
+  return METRIC === "passRate" ? "Pass rate" : "Weighted score";
+}
+
+/** Pass rates read as percentages; weighted scores read as 0\u20131 decimals. */
+function metricValue(v) {
+  return METRIC === "passRate" ? pct(v) : score2(v);
+}
+
+function metricToggle() {
+  return '<button class="btn' + (METRIC === "passRate" ? " active" : "") + '" onclick="setMetric(\\'passRate\\')">Pass rate</button>' +
+    '<button class="btn' + (METRIC === "weightedScore" ? " active" : "") + '" onclick="setMetric(\\'weightedScore\\')">Weighted score</button>';
+}
+
+function setMetric(m) { METRIC = m; renderRoute(); }
+
+function latest() { return MODEL.runs[MODEL.runs.length - 1]; }
+
+function best() {
+  var b = null;
+  for (var i = 0; i < MODEL.runs.length; i++) {
+    var v = MODEL.runs[i][METRIC];
+    if (v !== null && (b === null || v > b[METRIC])) b = MODEL.runs[i];
+  }
+  return b;
+}
+
+/** True when not every run measured the same test set \u2014 deltas across the boundary lie. */
+function signaturesDiffer() {
+  for (var i = 1; i < MODEL.runs.length; i++) {
+    if (MODEL.runs[i].testSetSignature !== MODEL.runs[0].testSetSignature) return true;
+  }
+  return false;
+}
+
+/* \u2500\u2500 Trend chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function trendChart() {
+  var runs = MODEL.runs;
+  var W = 900, H = 240, padL = 42, padR = 16, padT = 16, padB = 46;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var n = runs.length;
+
+  function x(i) { return n === 1 ? padL + innerW / 2 : padL + (i / (n - 1)) * innerW; }
+  function y(v) { return padT + innerH - v * innerH; }
+
+  var grid = "";
+  for (var g = 0; g <= 4; g++) {
+    var v = g / 4;
+    grid += '<line x1="' + padL + '" y1="' + y(v) + '" x2="' + (W - padR) + '" y2="' + y(v) +
+      '" stroke="rgba(21,37,80,0.10)" stroke-width="1"/>' +
+      '<text x="' + (padL - 8) + '" y="' + (y(v) + 4) + '" fill="#8a92a6" font-size="10" font-family="Roboto Mono, monospace" text-anchor="end">' +
+      Math.round(v * 100) + "%</text>";
+  }
+
+  var pts = [], dots = "", labels = "", markers = "";
+  for (var i = 0; i < n; i++) {
+    var val = runs[i][METRIC];
+    if (val === null) continue;
+    pts.push(x(i) + "," + y(val));
+    dots += '<circle cx="' + x(i) + '" cy="' + y(val) + '" r="5" fill="' + colour(val) +
+      '" stroke="#ffffff" stroke-width="2.5"><title>Run ' + runs[i].runNumber + " \u2014 " + pct(val) + "</title></circle>";
+    labels += '<text x="' + x(i) + '" y="' + (H - padB + 17) + '" fill="#152550" font-size="11" font-weight="700" text-anchor="middle">' +
+      runs[i].runNumber + "</text>" +
+      '<text x="' + x(i) + '" y="' + (H - padB + 30) + '" fill="#8a92a6" font-size="9" font-family="Roboto Mono, monospace" text-anchor="middle">v' +
+      (runs[i].promptVersion.number === null ? "?" : runs[i].promptVersion.number) + "</text>";
+    // Mark the run where the test set composition changed.
+    if (i > 0 && runs[i].testSetSignature !== runs[i - 1].testSetSignature) {
+      var mx = (x(i) + x(i - 1)) / 2;
+      markers += '<line x1="' + mx + '" y1="' + padT + '" x2="' + mx + '" y2="' + (padT + innerH) +
+        '" stroke="#f7ad00" stroke-width="1.5" stroke-dasharray="4 3"/>' +
+        '<text x="' + (mx + 5) + '" y="' + (padT + 11) + '" fill="#a8730a" font-size="9" font-weight="700">TEST SET CHANGED</text>';
+    }
+  }
+
+  return '<div class="chart"><svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
+    grid + markers +
+    '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#2243a2" stroke-width="2.5" stroke-linejoin="round"/>' +
+    dots + labels +
+    '<text x="' + padL + '" y="' + (H - 5) + '" fill="#8a92a6" font-size="9" font-weight="700" letter-spacing="1">RUN / PROMPT VERSION</text>' +
+    "</svg>" +
+    '<div class="legend"><span>' + esc(metricLabel()) + " across " + MODEL.runs.length + " runs</span>" +
+    (signaturesDiffer() ? '<span style="color:#a8730a">dashed line = test set composition changed</span>' : "") +
+    "</div></div>";
+}
+
+/* \u2500\u2500 Overview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewOverview() {
+  setTab("overview");
+  var l = latest(), b = best(), first = MODEL.runs[0];
+  var lifetime = (l[METRIC] !== null && first[METRIC] !== null) ? l[METRIC] - first[METRIC] : null;
+
+  var out = '<div class="toolbar">' + metricToggle() + "</div>";
+
+  out += '<div class="metrics">' +
+    '<div class="metric primary"><div class="val" style="color:' + colour(l[METRIC]) + '">' + metricValue(l[METRIC]) +
+    '</div><div class="lbl">Latest \u2014 run ' + l.runNumber + '</div><div class="note">' +
+    date(l.finalizedAt) + " \xB7 version " + (l.promptVersion.number === null ? "?" : l.promptVersion.number) + "</div></div>" +
+
+    '<div class="metric"><div class="val" style="color:' + colour(b ? b[METRIC] : null) + '">' + metricValue(b ? b[METRIC] : null) +
+    '</div><div class="lbl">Best recorded</div><div class="note">run ' + (b ? b.runNumber : "\u2014") + "</div></div>" +
+
+    '<div class="metric"><div class="val">' + (lifetime === null ? "\u2014" : (lifetime >= 0 ? "+" : "") + metricValue(lifetime)) +
+    '</div><div class="lbl">Since run ' + first.runNumber + '</div><div class="note">' +
+    esc(metricLabel().toLowerCase()) + " change over " + MODEL.runs.length + " runs</div></div>" +
+
+    '<div class="metric"><div class="val">' + MODEL.runs.length + '</div><div class="lbl">Runs recorded</div>' +
+    '<div class="note">' + MODEL.changelog.filter(function (c) { return c.promptDiff.added || c.promptDiff.removed; }).length +
+    " with prompt changes</div></div></div>";
+
+  out += '<div class="section"><h2>' + esc(metricLabel()) + " over time</h2>" + trendChart() + "</div>";
+
+  if (MODEL.watchlist.length) {
+    out += '<div class="section"><h2>Watchlist <span class="hint">still unresolved in the latest run</span></h2>';
+    for (var w = 0; w < MODEL.watchlist.length; w++) out += watchCard(MODEL.watchlist[w]);
+    out += "</div>";
+  }
+
+  out += '<div class="section"><h2>Runs</h2>' + runTable() + "</div>";
+  mount(out);
+}
+
+function watchCard(f) {
+  var ev = "";
+  if (f.evidence && f.evidence.length) {
+    ev = "<ul>";
+    for (var i = 0; i < f.evidence.length; i++) ev += "<li>" + esc(f.evidence[i]) + "</li>";
+    ev += "</ul>";
+  }
+  return '<div class="finding ' + f.severity + '"><div class="kind">' + esc(KIND_LABELS[f.kind] || f.kind) +
+    "</div><h3>" + esc(f.title) + "</h3><p>" + esc(f.detail) + "</p>" + ev + "</div>";
+}
+
+var KIND_LABELS = {
+  "dimension-failure": "Rubric dimension",
+  "requirement-risk": "Requirement at risk",
+  "regression": "Regression",
+  "coverage-gap": "Coverage gap",
+  "scoring-anomaly": "Scoring anomaly",
+};
+
+function runTable() {
+  var out = '<table class="data"><thead><tr><th>Run</th><th>Date</th><th>Mode</th><th>Version</th>' +
+    '<th>Pass rate</th><th class="num">Weighted</th><th class="mid">Interactions</th><th></th></tr></thead><tbody>';
+  for (var i = MODEL.runs.length - 1; i >= 0; i--) {
+    var r = MODEL.runs[i];
+    var prev = i > 0 ? MODEL.runs[i - 1] : null;
+    var delta = (prev && r.passRate !== null && prev.passRate !== null) ? r.passRate - prev.passRate : null;
+    out += "<tr><td><strong>" + r.runNumber + "</strong></td>" +
+      "<td>" + date(r.finalizedAt) + "</td>" +
+      '<td style="color:var(--muted)">' + (r.mode === "existing" ? "existing" : "prompt test") + "</td>" +
+      '<td><span class="chip ' + (r.promptVersion.status || "") + '">v' +
+      (r.promptVersion.number === null ? "?" : r.promptVersion.number) +
+      (r.promptVersion.status ? " \xB7 " + r.promptVersion.status : "") + "</span></td>" +
+      "<td>" + bar(r.passRate) + " " + (deltaTag(delta) || "") + "</td>" +
+      '<td class="num" style="color:' + colour(r.weightedScore) + '">' + score2(r.weightedScore) + "</td>" +
+      '<td class="mid">' + r.transcriptsEvaluated +
+      (r.skippedCount ? ' <span class="chip warn">' + r.skippedCount + " skipped</span>" : "") + "</td>" +
+      '<td class="num"><a class="btn" href="' + esc(r.dashboardHref) + '">Open run \u2192</a></td></tr>';
+  }
+  return out + "</tbody></table>";
+}
+
+/* \u2500\u2500 Changelog \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewChangelog() {
+  setTab("changelog");
+  var out = '<div class="section"><h2>Changelog <span class="hint">what changed between runs, and what it moved</span></h2><div class="timeline">';
+
+  for (var i = 0; i < MODEL.changelog.length; i++) {
+    var c = MODEL.changelog[i];
+    var dir = c.passRateDelta === null ? "" : c.passRateDelta > 0.005 ? "up" : c.passRateDelta < -0.005 ? "dn" : "";
+
+    out += '<div class="tl-item ' + dir + '"><div class="tl-head">' +
+      '<span class="run">Run ' + c.runNumber + "</span>" +
+      '<span class="chip ' + (c.versionStatus || "") + '">v' + (c.versionNumber === null ? "?" : c.versionNumber) +
+      (c.versionStatus ? " \xB7 " + c.versionStatus : "") + "</span>" +
+      '<span class="date">' + date(c.finalizedAt) + "</span>" +
+      (c.passRateDelta !== null ? deltaTag(c.passRateDelta) + ' <span class="empty">pass rate</span>' : '<span class="empty">baseline</span>') +
+      "</div>";
+
+    if (c.testSetChanged) {
+      out += '<div class="chip warn" style="margin:6px 0">Test set composition changed \u2014 deltas below compare different populations</div>';
+    }
+
+    if (c.notes) out += '<div class="tl-notes">' + esc(c.notes) + "</div>";
+
+    // Prompt diff
+    if (c.promptDiff.isFirst) {
+      out += '<div class="empty" style="font-size:0.8rem">First recorded run \u2014 no earlier prompt to compare.</div>';
+    } else if (c.promptDiff.unavailable) {
+      out += '<div class="empty" style="font-size:0.8rem">Prompt text was not recorded for one of these runs, so no diff is available.</div>';
+    } else if (!c.promptDiff.added && !c.promptDiff.removed) {
+      out += '<div class="empty" style="font-size:0.8rem">Prompt unchanged \u2014 this run re-measured the same prompt.</div>';
+    } else {
+      var lines = "";
+      for (var d = 0; d < c.promptDiff.lines.length; d++) {
+        var ln = c.promptDiff.lines[d];
+        var mark = ln.type === "add" ? "+ " : ln.type === "remove" ? "\u2212 " : "  ";
+        lines += '<div class="' + ln.type + '">' + mark + esc(ln.text) + "</div>";
+      }
+      out += '<details class="block" ' + (i === 0 ? "open" : "") + '><summary>Prompt changes \u2014 ' +
+        '<span class="a">+' + c.promptDiff.added + "</span> / <span class=\\"r\\">\u2212" + c.promptDiff.removed + "</span>" +
+        '</summary><div class="diff" style="margin-top:10px">' + lines + "</div></details>";
+    }
+
+    // Movers
+    var movers = [];
+    var all = c.testCaseDeltas.concat(c.requirementDeltas);
+    for (var m = 0; m < all.length; m++) {
+      var dl = all[m];
+      if (dl.from === null || dl.to === null) continue;
+      var diff = dl.to - dl.from;
+      if (Math.abs(diff) < 0.005) continue;
+      movers.push('<span class="mover ' + (diff > 0 ? "up" : "dn") + '">' +
+        esc(pretty(dl.name)) + " " +
+        (diff > 0 ? "\u25B2" : "\u25BC") + " " + pct(Math.abs(diff)) + "</span>");
+    }
+    if (movers.length) out += '<div class="movers">' + movers.join("") + "</div>";
+    else if (!c.promptDiff.isFirst) out += '<div class="empty" style="font-size:0.8rem;margin-top:6px">Nothing moved measurably.</div>';
+
+    out += "</div>";
+  }
+
+  mount(out + "</div></div>");
+}
+
+/* \u2500\u2500 Matrix pivots \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function seriesTable(rows, label, withCategory) {
+  if (!rows.length) return '<div class="panel empty">No data recorded.</div>';
+
+  var out = '<div class="heat-wrap"><table class="data"><thead><tr><th>' + label + "</th>";
+  for (var r = 0; r < MODEL.runs.length; r++) {
+    out += '<th class="mid">' + MODEL.runs[r].runNumber + '<div class="sub" style="font-weight:400">v' +
+      (MODEL.runs[r].promptVersion.number === null ? "?" : MODEL.runs[r].promptVersion.number) + "</div></th>";
+  }
+  out += '<th class="mid">Trend</th></tr></thead><tbody>';
+
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    out += "<tr><td>" + esc(row.label) +
+      (withCategory && row.category ? '<div class="sub">' + esc(row.category) + " \xB7 " + esc(row.key) + "</div>"
+        : '<div class="sub mono">' + esc(row.key) + "</div>") + "</td>";
+    for (var j = 0; j < row.series.length; j++) {
+      var v = row.series[j];
+      if (v === null || v === undefined) {
+        out += '<td class="mid" style="color:var(--dim)">\u2014</td>';
+      } else {
+        out += '<td class="mid cell" style="background:' + heatColour(v) + '">' +
+          Math.round(v * 100) + "</td>";
+      }
+    }
+    // First \u2192 last movement
+    var firstVal = null, lastVal = null;
+    for (var k = 0; k < row.series.length; k++) {
+      if (row.series[k] !== null && row.series[k] !== undefined) {
+        if (firstVal === null) firstVal = row.series[k];
+        lastVal = row.series[k];
+      }
+    }
+    var move = (firstVal === null || lastVal === null) ? null : lastVal - firstVal;
+    out += '<td class="mid">' + (deltaTag(move) || "\u2014") + "</td></tr>";
+  }
+  return out + "</tbody></table></div>";
+}
+
+function viewTestCases() {
+  setTab("testcases");
+  mount('<div class="section"><h2>Pass rate by test case <span class="hint">values are percentages</span></h2>' +
+    seriesTable(MODEL.testCaseSeries, "Test case", false) + "</div>");
+}
+
+function viewRequirements() {
+  setTab("requirements");
+  if (!MODEL.requirementSeries.length) {
+    mount('<div class="panel empty">No requirement history is available \u2014 requirements.md was not found, or no run ' +
+      "recorded requirement mappings. Regenerate reports after gathering requirements.</div>");
+    return;
+  }
+  mount('<div class="section"><h2>Requirement compliance over time ' +
+    '<span class="hint">the same runs viewed through the business requirements they validate</span></h2>' +
+    seriesTable(MODEL.requirementSeries, "Requirement", true) + "</div>");
+}
+
+/* \u2500\u2500 Chrome + routes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function renderChrome() {
+  var l = latest();
+  document.getElementById("eyebrow").textContent = "Improvements \\u00b7 run over run";
+  // Hyphens are swapped for spaces so a long set name breaks between words in the headline.
+  document.getElementById("title").innerHTML =
+    esc(MODEL.testSet.name.replace(/-/g, " ")) + ' <span>\\u00b7</span> run ' + l.runNumber;
+  document.getElementById("subtitle").textContent =
+    MODEL.config.name + " \\u00b7 latest run " + l.runNumber + " on " + date(l.finalizedAt) +
+    " \\u00b7 " + MODEL.changelog.filter(function (c) { return c.promptDiff.added || c.promptDiff.removed; }).length +
+    " prompt changes recorded";
+
+  var first = MODEL.runs[0];
+  var lifetime = (l.passRate !== null && first.passRate !== null) ? l.passRate - first.passRate : null;
+  setDial(l.passRate, "Latest pass rate",
+    lifetime === null ? "" : (lifetime >= 0 ? "+" : "") + pct(lifetime) + " since run " + first.runNumber);
+  setStamp(l.passRate, "Run " + l.runNumber + " \\u00b7 version " +
+    (l.promptVersion.number === null ? "?" : l.promptVersion.number));
+
+  var b = best();
+  var chips = [
+    '<span class="chip"><b>Latest</b> <strong>' + pct(l.passRate) + "</strong></span>",
+    '<span class="chip"><b>Best</b> <strong>' + pct(b ? b.passRate : null) + "</strong> \\u00b7 run " + (b ? b.runNumber : "\\u2014") + "</span>",
+    '<span class="chip ' + (l.promptVersion.status || "") + '"><b>Version</b> <strong>' +
+      (l.promptVersion.number === null ? "?" : l.promptVersion.number) + "</strong>" +
+      (l.promptVersion.status ? " \\u00b7 " + l.promptVersion.status : "") + "</span>",
+  ];
+  if (MODEL.watchlist.length) {
+    chips.push('<span class="chip danger"><b>Watchlist</b> <strong>' + MODEL.watchlist.length + "</strong></span>");
+  }
+  if (signaturesDiffer()) chips.push('<span class="chip warn">Test set changed mid-history</span>');
+  document.getElementById("chips").innerHTML = chips.join("");
+
+  document.getElementById("tab-counts-changelog").textContent = MODEL.changelog.length;
+  document.getElementById("tab-counts-testcases").textContent = MODEL.testCaseSeries.length;
+  document.getElementById("tab-counts-requirements").textContent = MODEL.requirementSeries.length;
+
+  document.getElementById("foot").innerHTML =
+    "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
+    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
+    "<span>Self-contained \\u2014 safe to copy or share as a single file</span>";
+}
+
+route("/", viewOverview);
+route("/changelog", viewChangelog);
+route("/testcases", viewTestCases);
+route("/requirements", viewRequirements);
+
+renderChrome();
+renderRoute();
+`;
+
+// src/reports/render.ts
+function embedJson(value) {
+  return JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+}
+function fill(template, token, value) {
+  return template.split(`{{${token}}}`).join(value);
+}
+function render(template, viewer, pageTitle, model) {
+  let html = template;
+  html = fill(html, "PAGE_TITLE", pageTitle.replace(/[<>&"]/g, ""));
+  html = fill(html, "STYLES", report_default);
+  html = fill(html, "SHARED", shared_default);
+  html = fill(html, "VIEWER", viewer);
+  html = fill(html, "MODEL", embedJson(model));
+  return html;
+}
+function renderRunReport(model) {
+  return render(
+    run_default,
+    run_default2,
+    `Run ${model.run.number} \u2014 ${model.testSet.name}`,
+    model
+  );
+}
+function renderImprovementsReport(model) {
+  return render(
+    improvements_default,
+    improvements_default2,
+    `Improvements \u2014 ${model.testSet.name}`,
+    model
+  );
 }
 
 // src/tools/handlers.ts
@@ -18960,43 +20230,6 @@ async function list_versions(args) {
     }))
   );
 }
-async function generate_dashboard(args) {
-  const configName = str(args, "summary_config_name");
-  const testSetName = optStr(args, "test_set_name");
-  const title = optStr(args, "title") ?? `SDD Summary Dashboard \u2014 ${configName}`;
-  const evalRunMetas = listEvalRuns(configName, testSetName);
-  if (evalRunMetas.length === 0) {
-    throw new Error(
-      `No eval runs found for config "${configName}"${testSetName ? ` / test set "${testSetName}"` : ""}. Run a test suite first.`
-    );
-  }
-  const runs = evalRunMetas.map((meta) => {
-    const results = getEvalRunResults(configName, meta.testSetName, meta.runNumber);
-    const transcriptResults = results.map((r) => ({
-      transcriptId: r.transcriptId,
-      transcriptLabel: r.transcriptLabel,
-      summary: r.summary,
-      dimensionScores: r.dimensionScores,
-      overallPassed: r.overallPassed,
-      overallScore: r.overallScore
-    }));
-    return {
-      id: `${meta.testSetName}-${String(meta.runNumber).padStart(4, "0")}`,
-      label: `${meta.testSetName} / Run ${meta.runNumber}`,
-      summarySettingId: void 0,
-      summarySetting: meta.summarySetting,
-      rubricId: meta.testCaseNames.join(","),
-      transcriptIds: meta.transcriptIds,
-      results: transcriptResults,
-      aggregatePassRate: meta.aggregatePassRate,
-      promptVersion: meta.runNumber,
-      suggestedImprovements: meta.suggestedImprovements,
-      createdAt: meta.createdAt
-    };
-  });
-  const outputPath = await generateDashboard(runs, title);
-  return json({ success: true, path: outputPath, runs_included: runs.length });
-}
 async function list_assistants(_args) {
   return withTokenRefresh(async () => {
     const assistants = await listAssistants();
@@ -19384,6 +20617,7 @@ These interactions are too brief for the summary engine to act on. Add longer in
       );
     }
     transcriptPayloads = scorablePayloads;
+    const previewStructure = mode === "existing" ? "n/a \u2014 evaluating existing production summaries" : previewBase ? `inherited from the live Genesys setting (format: ${previewBase.format}, insights: ${previewBase.predefinedInsights?.length ?? 0}, participant labels: ${previewBase.participantLabels ? "yes" : "no"})` : "fallback defaults \u2014 the live setting could not be read, so previews may be structured differently from production output";
     const pendingMeta = createPendingEvalRun(configName, testSetName, {
       summaryConfigName: configName,
       testSetName,
@@ -19394,7 +20628,8 @@ These interactions are too brief for the summary engine to act on. Add longer in
       startedAt: (/* @__PURE__ */ new Date()).toISOString(),
       promptText: prompt,
       promptVersionNumber,
-      promptVersionStatus
+      promptVersionStatus,
+      previewStructure
     });
     const batches = [];
     for (let i = 0; i < transcriptPayloads.length; i += batchSize) {
@@ -19428,7 +20663,7 @@ These interactions are too brief for the summary engine to act on. Add longer in
       prompt_version_status: promptVersionStatus ?? null,
       prompt_text: prompt ?? null,
       total_transcripts: transcriptPayloads.length,
-      preview_structure: mode === "existing" ? "n/a \u2014 evaluating existing production summaries" : previewBase ? `inherited from the live Genesys setting (format: ${previewBase.format}, insights: ${previewBase.predefinedInsights?.length ?? 0}, participant labels: ${previewBase.participantLabels ? "yes" : "no"})` : "fallback defaults \u2014 the live setting could not be read, so previews may be structured differently from production output",
+      preview_structure: previewStructure,
       skipped_transcripts: skippedTranscripts.length,
       skipped_detail: skippedTranscripts.map((s) => ({
         transcript_id: s.transcriptId,
@@ -19514,6 +20749,30 @@ async function submit_eval_scores(args) {
     dimensions_scored: dimensionScores.length
   });
 }
+function writeReportsForRun(configName, testSetName, runNumber) {
+  try {
+    const runModel = buildRunReport(configName, testSetName, runNumber);
+    const dashboardPath = saveEvalRunDashboard(
+      configName,
+      testSetName,
+      runNumber,
+      renderRunReport(runModel)
+    );
+    const improvementsModel = buildImprovementsReport(configName, testSetName);
+    const improvementsPath = saveImprovementsDashboard(
+      configName,
+      testSetName,
+      renderImprovementsReport(improvementsModel)
+    );
+    return { dashboardPath, improvementsPath, error: null };
+  } catch (err) {
+    return {
+      dashboardPath: null,
+      improvementsPath: null,
+      error: err instanceof Error ? err.message : String(err)
+    };
+  }
+}
 async function finalize_eval_run(args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
@@ -19534,12 +20793,7 @@ async function finalize_eval_run(args) {
   }
   const finalizedMeta = getPendingEvalRun(configName, testSetName, runNumber);
   finalizePendingEvalRun(configName, testSetName, runNumber, overallPassRate, testCasePassRates);
-  const finalMeta = getPendingEvalRun(configName, testSetName, runNumber);
-  const html = generateEvalRunDashboardHtml(finalMeta, merged);
-  const dashboardPath = saveEvalRunDashboard(configName, testSetName, runNumber, html);
-  const allMetas = readAllFinalizedRunMetas(configName, testSetName);
-  const improvementsHtml = generateImprovementsDashboardHtml(testSetName, configName, allMetas);
-  saveImprovementsDashboard(configName, testSetName, improvementsHtml);
+  const reports = writeReportsForRun(configName, testSetName, runNumber);
   const breakdown = merged.map((f) => `  \u2022 ${f.testCaseName}: avg ${f.averageScore.toFixed(2)} \xB7 ${(f.passRate * 100).toFixed(0)}% pass`).join("\n");
   const dimFailureLines = [];
   for (const file of merged) {
@@ -19585,9 +20839,9 @@ By test case:
 ${breakdown}
 
 Output: eval-runs/${testSetName}/${String(runNumber).padStart(4, "0")}/
-` + merged.map((f) => `  ${f.testCaseName}.json  (${f.totalTranscripts} transcripts)`).join("\n") + `
-
-Dashboard: ${dashboardPath}` + promptSection + `
+` + merged.map((f) => `  ${f.testCaseName}.json  (${f.totalTranscripts} transcripts)`).join("\n") + "\n\n" + (reports.error ? `Reports: FAILED to generate \u2014 ${reports.error}
+         The run itself is saved. Fix the cause and call regenerate_reports.` : `Dashboard:   ${reports.dashboardPath}
+Improvements: ${reports.improvementsPath}`) + promptSection + `
 
 FAILING DIMENSION ANALYSIS:
 ${failureAnalysis}
@@ -19649,28 +20903,101 @@ async function generate_eval_run_dashboard(args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
   const runNumber = Number(args.run_number);
-  const result = readFinalizedEvalRun(configName, testSetName, runNumber);
-  if (!result) {
-    throw new Error(
-      `Eval run ${runNumber} for "${testSetName}" not found or not yet finalized. Run finalize_eval_run first.`
-    );
-  }
-  const html = generateEvalRunDashboardHtml(result.meta, result.testCaseFiles);
-  const dashboardPath = saveEvalRunDashboard(configName, testSetName, runNumber, html);
-  return ok(`Dashboard generated: ${dashboardPath}`);
+  const model = buildRunReport(configName, testSetName, runNumber);
+  const dashboardPath = saveEvalRunDashboard(
+    configName,
+    testSetName,
+    runNumber,
+    renderRunReport(model)
+  );
+  return ok(
+    `Run dashboard generated: ${dashboardPath}
+
+Run ${runNumber} \u2014 ${Math.round(model.headline.passRate * 100)}% of interactions passed every test case
+Weighted score: ${model.headline.stats.weightedScore?.toFixed(2) ?? "\u2014"} (unweighted ${model.headline.stats.averageScore?.toFixed(2) ?? "\u2014"})
+${model.testCases.length} test cases \xB7 ${model.headline.transcriptsEvaluated} interactions \xB7 ${model.findings.length} findings
+` + (model.coverage.requirementsUnavailable ? `Requirements pivot unavailable \u2014 requirements/final/requirements.md was not found.
+` : `Requirement coverage: ${model.coverage.requirementsCovered}/${model.coverage.requirementsTotal}` + (model.coverage.uncoveredRequirementIds.length ? ` (untested: ${model.coverage.uncoveredRequirementIds.join(", ")})` : "") + "\n") + `
+Open the file in a browser. Every view is self-contained \u2014 no server needed.`
+  );
 }
 async function generate_improvements_dashboard(args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
-  const allMetas = readAllFinalizedRunMetas(configName, testSetName);
-  if (allMetas.length === 0) {
-    throw new Error(`No finalized runs found for test set "${testSetName}". Finalize at least one run first.`);
-  }
-  const html = generateImprovementsDashboardHtml(testSetName, configName, allMetas);
-  const filePath = saveImprovementsDashboard(configName, testSetName, html);
+  const model = buildImprovementsReport(configName, testSetName);
+  const filePath = saveImprovementsDashboard(
+    configName,
+    testSetName,
+    renderImprovementsReport(model)
+  );
+  const trend = model.runs.map((r) => `Run ${r.runNumber} (${r.passRate === null ? "\u2014" : Math.round(r.passRate * 100) + "%"})`).join(" \u2192 ");
   return ok(
-    `Improvements dashboard generated: ${filePath}
-Covers ${allMetas.length} run${allMetas.length !== 1 ? "s" : ""}: ` + allMetas.map((m) => `Run ${String(m.runNumber).padStart(4, "0")} (${Math.round((m.aggregatePassRate ?? 0) * 100)}%)`).join(" \u2192 ")
+    `Improvements report generated: ${filePath}
+
+Covers ${model.runs.length} run${model.runs.length !== 1 ? "s" : ""}: ${trend}
+Watchlist: ${model.watchlist.length} unresolved item${model.watchlist.length === 1 ? "" : "s"} in the latest run
+Changelog: ${model.changelog.filter((c) => c.promptDiff.added || c.promptDiff.removed).length} runs with prompt changes`
+  );
+}
+async function regenerate_reports(args) {
+  const configName = str(args, "summary_config_name");
+  const only = args.test_set_name ? str(args, "test_set_name") : null;
+  const testSetNames = [
+    ...new Set(
+      listEvalRuns(configName).map((r) => r.testSetName).filter((name) => only === null || name === only)
+    )
+  ].sort();
+  if (testSetNames.length === 0) {
+    throw new Error(
+      only ? `No finalized runs found for test set "${only}" in "${configName}".` : `No finalized runs found for "${configName}". Nothing to regenerate.`
+    );
+  }
+  const lines = [];
+  let runsRebuilt = 0;
+  let failures = 0;
+  for (const testSetName of testSetNames) {
+    const metas = readAllFinalizedRunMetas(configName, testSetName);
+    for (const meta of metas) {
+      try {
+        saveEvalRunDashboard(
+          configName,
+          testSetName,
+          meta.runNumber,
+          renderRunReport(buildRunReport(configName, testSetName, meta.runNumber))
+        );
+        runsRebuilt++;
+      } catch (err) {
+        failures++;
+        lines.push(
+          `  \u2717 ${testSetName} run ${meta.runNumber}: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+    try {
+      const path4 = saveImprovementsDashboard(
+        configName,
+        testSetName,
+        renderImprovementsReport(buildImprovementsReport(configName, testSetName))
+      );
+      lines.push(`  \u2713 ${testSetName}: ${metas.length} run report${metas.length === 1 ? "" : "s"} + ${path4}`);
+    } catch (err) {
+      failures++;
+      lines.push(
+        `  \u2717 ${testSetName} improvements: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+  return ok(
+    `\u2500\u2500\u2500 Reports Regenerated \u2500\u2500\u2500
+
+Config:     ${configName}
+Test sets:  ${testSetNames.length}
+Run reports: ${runsRebuilt}
+` + (failures > 0 ? `Failures:   ${failures}
+` : "") + `
+${lines.join("\n")}
+
+Reports are rebuilt from the results on disk, so nothing was re-scored and no Genesys calls were made.`
   );
 }
 async function get_pipeline_guide(_args) {
@@ -19679,7 +21006,7 @@ async function get_pipeline_guide(_args) {
 
 // src/index.ts
 var server = new Server(
-  { name: "sdd-summary-mcp", version: "2.0.0" },
+  { name: "sdd-summary-mcp", version: SERVER_VERSION },
   { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS }
 );
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -19735,7 +21062,7 @@ var toolHandlers = {
   // Reporting
   generate_improvements_dashboard,
   generate_eval_run_dashboard,
-  generate_dashboard,
+  regenerate_reports,
   // Copilot
   list_assistants,
   get_copilot_config,

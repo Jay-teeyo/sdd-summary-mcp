@@ -10,15 +10,20 @@
  * Render them with `npm run preview:reports`.
  */
 
+import { SERVER_VERSION } from "../version.js";
+import { diffPrompts } from "./diff.js";
+import { deriveRunFindings } from "./findings.js";
 import {
   REPORT_SCHEMA_VERSION,
   computeStats,
   testSetSignature,
+  type CoverageReport,
   type Delta,
   type Finding,
   type ImprovementsReport,
   type ReportRequirement,
   type ReportTestCase,
+  type RunComparison,
   type RunReport,
   type ScoreStats,
 } from "./model.js";
@@ -27,7 +32,7 @@ const CONFIG = "Acme_CallSummary";
 const TEST_SET = "Acme_CallSummary-Full-Test-Suite";
 
 const generator = {
-  serverVersion: "2.0.0",
+  serverVersion: SERVER_VERSION,
   schemaVersion: REPORT_SCHEMA_VERSION,
   generatedAt: "2026-09-11T09:40:00.000Z",
 };
@@ -449,92 +454,33 @@ function headlineStats(testCases: ReportTestCase[]): ScoreStats {
   return computeStats(all);
 }
 
-function buildFindings(testCases: ReportTestCase[], requirements: ReportRequirement[]): Finding[] {
-  const findings: Finding[] = [];
-
-  // Dimensions ranked by weighted impact — a weight-5 rule failing a third of the time
-  // matters more than a weight-1 rule failing most of the time.
-  const dims = testCases
-    .flatMap((tc) => tc.dimensions.map((d) => ({ tc: tc.name, d })))
-    .filter((x) => (x.d.stats.passRate ?? 1) < 0.8)
-    .sort(
-      (a, b) =>
-        b.d.weight * (1 - (b.d.stats.passRate ?? 1)) - a.d.weight * (1 - (a.d.stats.passRate ?? 1)),
-    );
-
-  const shownDimensions = dims.slice(0, 3);
-  for (const { tc, d } of shownDimensions) {
-    const failing = testCases
-      .find((x) => x.name === tc)!
-      .transcripts.flatMap((t) => t.scores.filter((s) => s.dimension === d.name && !s.na && !s.passed))
-      .map((s) => s.reasoning);
-    findings.push({
-      severity: d.weight >= 4 ? "high" : "medium",
-      kind: "dimension-failure",
-      title: `${d.name} fails ${Math.round((1 - (d.stats.passRate ?? 1)) * 100)}% of interactions`,
-      detail:
-        `Weight ${d.weight} of 5, pass threshold ${d.passThreshold.toFixed(2)}. ` +
-        `${d.stats.failed} of ${d.stats.evaluated} evaluated interactions scored below it.`,
-      evidence: [...new Set(failing)].slice(0, 3),
-      links: { testCase: tc, dimension: d.name },
-    });
-  }
-  if (dims.length > shownDimensions.length) {
-    findings.push({
-      severity: "low",
-      kind: "dimension-failure",
-      title: `${dims.length - shownDimensions.length} further dimensions are below 80% pass`,
-      detail: "Lower weighted impact than those above. Open each test case to review them in full.",
-      evidence: dims.slice(3).map((x) => `${x.d.name} — ${Math.round((x.d.stats.passRate ?? 0) * 100)}% pass (weight ${x.d.weight})`),
-      links: {},
-    });
-  }
-
-  // Requirements at risk, skipping any whose failures are already explained by a dimension
-  // listed above — otherwise the same PII failure is reported three times over.
-  const explained = new Set(shownDimensions.flatMap(({ tc, d }) => d.requirementIds.map((id) => `${id}`)));
-  const atRisk = requirements.filter(
-    (r) => r.coveredBy.length > 0 && (r.stats.passRate ?? 1) < 0.7 && !explained.has(r.id),
-  );
-  for (const req of atRisk.slice(0, 2)) {
-    findings.push({
-      severity: "high",
-      kind: "requirement-risk",
-      title: `${req.id} is failing`,
-      detail:
-        `${req.text} Compliance is ${Math.round((req.stats.passRate ?? 0) * 100)}% across ` +
-        `${req.coveredBy.length} dimension${req.coveredBy.length === 1 ? "" : "s"}.`,
-      evidence: [],
-      links: { requirementId: req.id },
-    });
-  }
-
-  const uncovered = requirements.filter((r) => r.coveredBy.length === 0);
-  if (uncovered.length > 0) {
-    findings.push({
-      severity: "medium",
-      kind: "coverage-gap",
-      title: `${uncovered.length} requirement${uncovered.length === 1 ? " has" : "s have"} no test coverage`,
-      detail:
-        "No dimension maps to these requirement IDs, so nothing in this run tells you whether they hold. " +
-        "An untested requirement is indistinguishable from a passing one on every other view.",
-      evidence: uncovered.map((r) => `${r.id} — ${r.text}`),
-      links: {},
-    });
-  }
-
-  findings.push({
-    severity: "medium",
-    kind: "regression",
-    title: "Outcomes not overstated as complete regressed since run 4",
-    detail:
-      "This weight-5 dimension moved from 80% to 60% pass while the overall pass rate improved, " +
-      "so the run's headline number hides a compliance regression.",
-    evidence: [],
-    links: { testCase: "TC-Content-Accuracy", dimension: "Outcomes not overstated as complete", runNumber: 4 },
+/**
+ * Findings come from the same module the real reports use, so the previewed views exercise
+ * the shipped derivation rather than a fixture-only copy of it. Only the regression input
+ * is hand-made, since it is the one thing that needs a second run to exist.
+ */
+function buildFindings(
+  testCases: ReportTestCase[],
+  requirements: ReportRequirement[],
+  coverage: CoverageReport,
+  comparison: RunComparison,
+): Finding[] {
+  return deriveRunFindings({
+    testCases,
+    requirements,
+    coverage,
+    comparison,
+    regressions: [
+      {
+        testCase: "TC-Content-Accuracy",
+        dimension: "Outcomes not overstated as complete",
+        weight: 5,
+        from: 0.8,
+        to: 0.6,
+        previousRunNumber: 4,
+      },
+    ],
   });
-
-  return findings;
 }
 
 // ─── Run report ───────────────────────────────────────────────────────────────
@@ -556,6 +502,32 @@ export function runReportFixture(): RunReport {
   const transcriptsPassed = TRANSCRIPTS.filter((t) =>
     testCases.every((tc) => tc.transcripts.find((x) => x.id === t.id)?.passed),
   ).length;
+
+  const coverage: CoverageReport = {
+    requirementsTotal: REQUIREMENTS.length,
+    requirementsCovered: requirements.filter((r) => r.coveredBy.length > 0).length,
+    uncoveredRequirementIds: requirements.filter((r) => r.coveredBy.length === 0).map((r) => r.id),
+    unknownRequirementIds,
+    requirementsUnavailable: false,
+  };
+
+  const comparison: RunComparison = {
+    previousRunNumber: 4,
+    passRateDelta: 0.2,
+    weightedScoreDelta: 0.08,
+    testCaseDeltas: [
+      { name: "TC-Structure-And-Sections", from: 0.8, to: 1.0 },
+      { name: "TC-Content-Accuracy", from: 0.6, to: 0.6 },
+      { name: "TC-Compliance-And-Style", from: 0.4, to: 0.6 },
+    ],
+    requirementDeltas: [
+      { name: "BR-Acme_CallSummary-001", from: 0.8, to: 1.0 },
+      { name: "BR-Acme_CallSummary-008", from: 0.8, to: 0.6 },
+      { name: "BR-Acme_CallSummary-019", from: 0.4, to: 0.6 },
+      { name: "BR-Acme_CallSummary-041", from: 0.6, to: 0.6 },
+    ],
+    testSetChanged: false,
+  };
 
   return {
     kind: "run",
@@ -597,31 +569,9 @@ export function runReportFixture(): RunReport {
     },
     testCases,
     requirements,
-    coverage: {
-      requirementsTotal: REQUIREMENTS.length,
-      requirementsCovered: requirements.filter((r) => r.coveredBy.length > 0).length,
-      uncoveredRequirementIds: requirements.filter((r) => r.coveredBy.length === 0).map((r) => r.id),
-      unknownRequirementIds,
-      requirementsUnavailable: false,
-    },
-    findings: buildFindings(testCases, requirements),
-    comparison: {
-      previousRunNumber: 4,
-      passRateDelta: 0.2,
-      weightedScoreDelta: 0.08,
-      testCaseDeltas: [
-        { name: "TC-Structure-And-Sections", from: 0.8, to: 1.0 },
-        { name: "TC-Content-Accuracy", from: 0.6, to: 0.6 },
-        { name: "TC-Compliance-And-Style", from: 0.4, to: 0.6 },
-      ],
-      requirementDeltas: [
-        { name: "BR-Acme_CallSummary-001", from: 0.8, to: 1.0 },
-        { name: "BR-Acme_CallSummary-008", from: 0.8, to: 0.6 },
-        { name: "BR-Acme_CallSummary-019", from: 0.4, to: 0.6 },
-        { name: "BR-Acme_CallSummary-041", from: 0.6, to: 0.6 },
-      ],
-      testSetChanged: false,
-    },
+    coverage,
+    findings: buildFindings(testCases, requirements, coverage, comparison),
+    comparison,
   };
 }
 
@@ -634,28 +584,6 @@ const PROMPT_V1 =
 
 const PROMPT_V4 = runReportFixture().run.prompt!;
 
-function diffPrompts(before: string, after: string) {
-  const a = before.split("\n");
-  const b = after.split("\n");
-  const lines: Array<{ type: "add" | "remove" | "context"; text: string }> = [];
-  let added = 0;
-  let removed = 0;
-  const bSet = new Set(b);
-  const aSet = new Set(a);
-  for (const line of a) {
-    if (!bSet.has(line)) {
-      lines.push({ type: "remove", text: line });
-      removed++;
-    }
-  }
-  for (const line of b) {
-    if (!aSet.has(line)) {
-      lines.push({ type: "add", text: line });
-      added++;
-    }
-  }
-  return { added, removed, lines: lines.slice(0, 24), isFirst: false, unavailable: false };
-}
 
 export function improvementsReportFixture(): ImprovementsReport {
   const runs = [

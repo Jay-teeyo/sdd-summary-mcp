@@ -339,6 +339,13 @@ export interface EvalRunPendingMeta {
    * Omitted when the prompt was provided inline without a version_number.
    */
   promptVersionStatus?: "candidate" | "deployed";
+  /**
+   * Where the non-prompt structure of the preview setting came from — the live Genesys
+   * setting, or fallback defaults. Recorded because a run previewed with the wrong format
+   * or missing participant labels can fail formatting dimensions for reasons no prompt
+   * change could fix, and the report has to be able to say so.
+   */
+  previewStructure?: string;
 }
 
 // ─── Lifecycle: version history ───────────────────────────────────────────────

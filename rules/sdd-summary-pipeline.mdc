@@ -248,37 +248,40 @@ The Genesys Cloud AI Studio model is **Claude Haiku 4.5**. All prompt improvemen
   - Merges all intermediate per-transcript files → one `{TestCaseName}.json` per test case (all transcripts inside)
   - Computes overall and per-test-case pass rates and average scores
   - Writes final stats to `_pending.json`
-  - **Auto-generates `dashboard.html`** via the standard dashboard template
+  - **Auto-generates `dashboard.html` and refreshes `improvements.html`** from the templates shipped in the plugin
   - Returns a human-readable breakdown
 
-### Dashboard output — MANDATORY RULES
+### Report output — MANDATORY RULES
 
-`finalize_eval_run` **automatically generates both dashboards**. Never write dashboard HTML manually.
+`finalize_eval_run` **automatically writes both reports**. Never write report HTML manually.
 
-| Dashboard | Tool | Location | When updated |
+| Report | Tool | Location | When updated |
 |---|---|---|---|
-| Run dashboard | `generate_eval_run_dashboard` | `eval-runs/{testSet}/{NNNN}/dashboard.html` | Auto on every `finalize_eval_run` |
-| Improvements dashboard | `generate_improvements_dashboard` | `eval-runs/{testSet}/improvements.html` | Auto on every `finalize_eval_run` |
+| Run report | `generate_eval_run_dashboard` | `eval-runs/{testSet}/{NNNN}/dashboard.html` | Auto on every `finalize_eval_run` |
+| Improvements report | `generate_improvements_dashboard` | `eval-runs/{testSet}/improvements.html` | Auto on every `finalize_eval_run` |
+| Every report for a config | `regenerate_reports` | as above | On demand — nothing is re-scored |
 
-**Run dashboard** (`dashboard.html`) shows:
-- Overall pass rate for this run
-- Per-test-case pass rates + avg scores (click to drill into transcript-level results)
-- Dimension-by-dimension scores and reasoning per transcript (expandable rows)
-- Failure themes auto-derived from scoring data
-- Prioritised prompt improvement recommendations
+**Run report** (`dashboard.html`) — the run, then the evidence behind it:
+- Headline: interactions that passed every test case, weighted score (dimension weight 1–5), unweighted mean alongside
+- Findings derived from this run's own data, ranked by weighted impact, quoting the evaluator's reasoning as evidence
+- Drill-down: test case → rubric dimension → that dimension against every interaction → the interaction's summary beside its source transcript
+- Requirements pivot: which business requirements are covered, passing, failing, or **untested**
+- Skipped interactions and the preview structure used, so a run measured against the wrong setting structure is visible
 
-**Improvements dashboard** (`improvements.html`) shows:
-- Overall pass rate sparkline across all runs for this test set
-- Colour-coded table: test cases as rows, runs as columns — green ≥80%, amber 50–79%, red <50%
-- Delta indicators (↑↓→) between consecutive runs to show direction of change
-- Links to each individual run dashboard
+**Improvements report** (`improvements.html`) — run over run:
+- Pass rate and weighted score trend across every finalized run
+- Changelog: prompt diff between runs, version notes, and which test cases and requirements moved
+- Heat matrices per test case and per requirement across all runs
+- Watchlist of what is still unresolved in the latest run
+- Runs whose test set composition changed are flagged — a delta across that boundary compares different populations
 
 **Rules for coding agents:**
-- NEVER generate dashboard HTML manually or via any other method
-- ALWAYS use `generate_eval_run_dashboard` to regenerate a run dashboard
-- ALWAYS use `generate_improvements_dashboard` to regenerate the improvements dashboard
-- Both are called automatically by `finalize_eval_run` — only call them explicitly to force a regeneration
-- The dashboard template lives inside the plugin. Do NOT hand-write or patch dashboard HTML to change its design — regenerate via the tools above
+- NEVER generate report HTML manually or via any other method
+- ALWAYS use `generate_eval_run_dashboard` / `generate_improvements_dashboard` to re-render
+- Both are called automatically by `finalize_eval_run` — call them explicitly only to re-render without re-scoring
+- The templates live inside the plugin. Do NOT hand-write or patch report HTML to change its design
+- Reports are **derived artefacts** — the JSON in `eval-runs/` is the record. Run `regenerate_reports` after pulling a newer plugin version (to pick up template changes) or after editing `requirements.md` (to refresh coverage)
+- **Read the reports before writing `improvements.md`.** The findings and changelog already name the failing dimensions and quote the evidence — do not re-derive that analysis by hand
 
 ---
 

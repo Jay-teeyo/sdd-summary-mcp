@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "bundle": "node build.mjs",
     "prepublishOnly": "npm run build",
-    "preview:reports": "node scripts/preview-reports.mjs"
+    "preview:reports": "node scripts/preview-reports.mjs",
+    "verify:reports": "node scripts/verify-reports.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

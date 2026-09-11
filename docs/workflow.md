@@ -278,7 +278,7 @@ start_eval_run(
 
 `start_eval_run` returns a `run_number` plus `batches` and `test_cases`. Scoring is then delegated to one subagent per batch, each calling `submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)` once per transcript × test case. Scores are decimals from 0 to 1; a dimension whose `applicabilityCondition` is not met for a given transcript is submitted as `score: null` and excluded from aggregation.
 
-Transcripts whose summary reads "The interaction is too short to create a summary." are removed before batching — no prompt can change that output, so they are never scored, never reach a subagent, and never appear in a pass-rate denominator. This overrides `applicabilityCondition`, `"always"` included. The count is reported by `start_eval_run` and `finalize_eval_run` and shown on the run dashboard.
+Transcripts whose summary reads "The interaction is too short to create a summary." are removed before batching — no prompt can change that output, so they are never scored, never reach a subagent, and never appear in a pass-rate denominator. This overrides `applicabilityCondition`, `"always"` included. The count is reported by `start_eval_run` and `finalize_eval_run` and shown on the run report.
 
 Once every batch has reported, close the run:
 
@@ -290,7 +290,9 @@ finalize_eval_run(
 )
 ```
 
-Results are saved to `eval-runs/Sprint 1/0001/`, and both dashboards are generated automatically — the run dashboard at `eval-runs/Sprint 1/0001/dashboard.html` and the rolling improvements dashboard at `eval-runs/Sprint 1/improvements.html`. Call `generate_eval_run_dashboard` or `generate_improvements_dashboard` only to force a regeneration; never write dashboard HTML by hand.
+Results are saved to `eval-runs/Sprint 1/0001/`, and both reports are written automatically — the run report at `eval-runs/Sprint 1/0001/dashboard.html` and the rolling improvements report at `eval-runs/Sprint 1/improvements.html`. Each is a single self-contained file: open it in a browser, or send it to someone who has neither the project nor Genesys access.
+
+Read the run report before writing `improvements.md`. Its findings already rank the failing dimensions by weighted impact and quote the evaluator's reasoning, and the requirements pivot shows which business requirements are failing or untested. Call `generate_eval_run_dashboard` or `generate_improvements_dashboard` only to re-render; never write report HTML by hand. After pulling a newer version of the plugin, `regenerate_reports` brings historical runs into the current templates without re-scoring anything.
 
 Always follow `finalize_eval_run` with `save_improvement_recommendations(...)`. Its response carries the prompt under test and a per-dimension failure analysis, which is the raw material for the recommendations write-up.
 
@@ -397,11 +399,12 @@ Never call `update_summary_setting` without prompt_test evidence and explicit ap
 | `prepare_prompt_test(...)` | Build the preview cache before a prompt_test run (batch_size 8) |
 | `start_eval_run(...)` | Begin an eval run; returns run_number, batches, test cases |
 | `submit_eval_scores(...)` | Submit scores for one transcript × test case (called per batch) |
-| `finalize_eval_run(...)` | Close the run, aggregate results, auto-generate both dashboards |
+| `finalize_eval_run(...)` | Close the run, aggregate results, write both reports |
 | `save_improvement_recommendations(...)` | Persist the post-run improvements write-up |
 | `list_eval_runs(...)` | View historical evaluation run results |
-| `generate_eval_run_dashboard(...)` | Force-regenerate a single run's dashboard |
-| `generate_improvements_dashboard(...)` | Force-regenerate the rolling improvements dashboard |
+| `generate_eval_run_dashboard(...)` | Re-render a single run's report |
+| `generate_improvements_dashboard(...)` | Re-render the rolling improvements report |
+| `regenerate_reports(...)` | Rebuild every report for a config from the results on disk |
 | `save_version(...)` | Snapshot a prompt to version history, as `candidate` or `deployed` |
 | `list_versions(...)` | View prompt version history |
 | `update_summary_setting(...)` | Update the prompt in Genesys |
