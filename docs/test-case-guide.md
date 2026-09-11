@@ -278,20 +278,21 @@ test-sets/{TestSetName}.json
 
 ---
 
-## 9. Worked Example — Acme_CallSummary
+## 9. Illustrative Example
 
-The Acme_CallSummary configuration produced 6 test cases from 6 requirement categories (24 requirements total) and one full test set.
+A configuration with 24 requirements across 6 categories would decompose into 6 test cases
+and one full test set. Category names, dimension counts and requirement IDs all come from
+the configuration's own `requirements.md` — the shape below is only to show how the naming
+convention and the BR mapping line up.
 
 | Test case file | Category | Dimensions | BR IDs covered |
 |----------------|----------|------------|----------------|
-| `Global-Rules-Tone.json` | Global Rules | 7 | BR-001–007 |
-| `Structure-Required-Sections.json` | Section Structure | 3 | BR-008 |
-| `Reason-for-Contact-Intent.json` | Reason for Call | 4 | BR-009–012 |
+| `Global-Rules-Tone.json` | Global Rules | 5 | BR-001–005 |
+| `Structure-Required-Sections.json` | Section Structure | 3 | BR-006–008 |
+| `Reason-for-Contact-Intent-Capture.json` | Reason for Contact | 4 | BR-009–012 |
 | `Identity-Verification-Completeness.json` | Identity Verification | 4 | BR-013–016 |
-| `Order-Status-Accuracy.json` | Order Status | 4 | BR-017–020 |
-| `Key-Information-Material-Facts.json` | Key Information Obtained | 6 | BR-021–026 |
-| `Actions-Completed-Only.json` | Actions Completed | 4 | BR-027–030 |
-| `Resolution-Outcome.json` | Resolution | 3 | BR-031–033 |
-| `Format-And-Layout.json` | Formatting | 6 | BR-034–039 |
+| `Key-Information-Material-Information.json` | Key Information | 4 | BR-017–020 |
+| `Format-And-Layout.json` | Formatting | 4 | BR-021–024 |
 
-Test set: `Acme_CallSummary-Full-Test-Suite.json` — all test cases against every transcript.
+Test set: `{SummaryConfigName}-Full-Test-Suite.json` — all 6 test cases against every
+transcript in the corpus.

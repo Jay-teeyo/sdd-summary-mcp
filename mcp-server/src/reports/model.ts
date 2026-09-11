@@ -304,9 +304,9 @@ export interface ImprovementsReport {
  * One theme of the improvement effort: what was wrong, what was done, what it bought.
  *
  * This is the one part of any report that cannot be derived from the data. Numbers show
- * that Resolution moved from 40% to 85%; only the agent that made the change can say it
- * was because pending callbacks were being written up as completed outcomes. So the
- * narrative is authored and stored, and everything around it is rebuilt from disk.
+ * that a dimension's pass rate doubled; only the agent that made the change can say it was
+ * because pending callbacks were being written up as completed outcomes. So the narrative
+ * is authored and stored, and everything around it is rebuilt from disk.
  */
 export interface RollupTheme {
   title: string;

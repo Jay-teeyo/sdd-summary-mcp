@@ -23,9 +23,6 @@ mcp-server/.sdd-summary/
 mcp-server/dist/
 mcp-server/node_modules/
 
-# ─── One-off scripts (not part of the package) ────────────────────────────────
-mcp-server/scripts/
-
 # ─── Summary config lifecycle data ───────────────────────────────────────────
 # Contains customer transcripts (PII), eval runs, test data, and credentials.
 # Nothing under this directory should ever be committed.

@@ -107,7 +107,7 @@ The requirements file must follow this exact structure. Do not add extra section
 - All requirements in a single flat table — no sub-tables, no section headings within the table
 - Rows ordered by ID number ascending
 - Each requirement cell ends with a full stop
-- Use backticks for literal output strings (e.g. `` `Status not confirmed.` ``)
+- Use backticks for literal output strings (e.g. `` `Order status not confirmed.` ``)
 - Use *italics* for prohibited words
 
 ---

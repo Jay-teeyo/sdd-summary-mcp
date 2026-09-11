@@ -20,13 +20,17 @@ const templatesDir = join(dirname(fileURLToPath(import.meta.url)), "src", "repor
 export const templateTextPlugin = {
   name: "report-template-text",
   setup(build) {
+    // The resolved path stays a bare filename and the directory is applied at load time.
+    // esbuild writes each resolved path into the output as a module comment, so resolving to
+    // an absolute path here would stamp the build machine's home directory into the
+    // committed bundle.
     build.onResolve({ filter: /^template:/ }, (args) => ({
-      path: join(templatesDir, args.path.slice("template:".length)),
+      path: args.path.slice("template:".length),
       namespace: "report-template",
     }));
 
     build.onLoad({ filter: /.*/, namespace: "report-template" }, async (args) => ({
-      contents: await readFile(args.path, "utf8"),
+      contents: await readFile(join(templatesDir, args.path), "utf8"),
       loader: "text",
     }));
   },

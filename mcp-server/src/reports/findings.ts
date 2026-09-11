@@ -2,10 +2,10 @@
  * Findings — "what this run is telling you", derived entirely from the run's own numbers.
  *
  * Deliberately no domain advice. The dashboard this replaces carried hardcoded
- * domain-specific recommendations, which were wrong for every configuration that was not
- * a orders line and unfalsifiable for the one that was. Everything here is either a
- * measured fact about this run or a comparison against the previous one, and the evidence
- * is the scorer's own reasoning so a reader can disagree with it.
+ * recommendations naming one business domain, which were wrong for every configuration
+ * outside it and unfalsifiable within it. Everything here is either a measured fact about
+ * this run or a comparison against the previous one, and the evidence is the scorer's own
+ * reasoning so a reader can disagree with it.
  */
 
 import type {
@@ -23,10 +23,9 @@ const REQUIREMENT_RISK = 0.7;
 /** A drop smaller than this is noise from a handful of interactions, not a regression. */
 const REGRESSION_THRESHOLD = 0.05;
 /**
- * Five covers every mature run measured across the real workspaces — the worst was five
- * dimensions below the attention threshold. Only a first baseline run of a brand-new
- * configuration exceeds it, and those produce 13 to 19, which is a summary line rather than
- * nineteen cards.
+ * Enough to name every failing dimension in a configuration that has been through a few
+ * iterations. The first baseline run of a new configuration usually exceeds it by a wide
+ * margin, and that case wants a summary line rather than a card per dimension.
  */
 const MAX_DIMENSION_FINDINGS = 5;
 /**

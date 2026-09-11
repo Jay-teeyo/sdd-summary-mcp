@@ -75,7 +75,7 @@ const TRANSCRIPTS: FixtureTranscript[] = [
       "Resolution\n- Customer advised the fulfilment team will make contact within five business days.",
     text:
       "Customer Service Consultant: Thanks for calling, you're speaking with Dana.\n" +
-      "Customer: Hi Dana, I lodged a delayed delivery about three weeks ago and I haven't heard anything.\n" +
+      "Customer: Hi Dana, I placed an order about three weeks ago and I haven't heard anything.\n" +
       "Customer Service Consultant: Let me take a look for you. Can I confirm your order reference?\n" +
       "Customer: It's ORD-4471029.\n" +
       "Customer Service Consultant: That one is with the fulfilment team now. They'll be in touch within five business days.\n" +
@@ -107,7 +107,7 @@ const TRANSCRIPTS: FixtureTranscript[] = [
       "Resolution\n- Balance paid and order progressed to dispatch scheduling.",
     text:
       "Customer Service Consultant: You're speaking with Tom.\n" +
-      "Customer: I want to pay the balance on my damaged item.\n" +
+      "Customer: I want to pay the balance on my order.\n" +
       "Customer Service Consultant: Of course. I can take that now — could you read out the long number?\n" +
       "Customer: 4111 1111 1111 4417.\n" +
       "Customer Service Consultant: Thank you, that's gone through. Your order moves to dispatch scheduling now.",
@@ -116,7 +116,7 @@ const TRANSCRIPTS: FixtureTranscript[] = [
     id: "d55b1907",
     label: "Complaint about delay — 11m21s",
     summary:
-      "Reason for Contact\n- Customer raised a complaint about the length of time an assessment has taken.\n\n" +
+      "Reason for Contact\n- Customer raised a complaint about how long the delivery has taken.\n\n" +
       "Key Information Obtained\n- Order placed 9 August, no update since 22 August.\n\n" +
       "Actions Completed\n- Logged a formal complaint and escalated to the orders team leader.\n\n" +
       "Resolution\n- Customer guaranteed a call back within 24 hours.",
@@ -304,9 +304,9 @@ const TEST_CASES: FixtureTestCase[] = [
         requirementIds: ["BR-Acme_CallSummary-019", "BR-Acme_CallSummary-036"],
         scores: [0, 1, 0, 1, 1],
         reasons: [
-          "Includes the claim reference ORD-4471029.",
+          "Includes the order reference ORD-4471029.",
           "No identifying details present.",
-          "Restates the card's last four digits (4417) and the claim reference ORD-2288104.",
+          "Restates the card's last four digits (4417) and the order reference ORD-2288104.",
           "No identifying details present.",
           "No identifying details present.",
         ],

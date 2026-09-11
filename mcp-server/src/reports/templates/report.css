@@ -1,7 +1,7 @@
 /* Shared styling for every generated report.
    Inlined into each page at build time, so reports work offline and stand alone.
 
-   The visual language follows the run artifact: nimbus off-white field, navy type,
+   The visual language: nimbus off-white field, navy type,
    orange accent, mono numerals, a navy hero carrying the headline dial, and eyebrow-led
    sections on white cards.
 
@@ -127,7 +127,7 @@ table.data .chip.candidate, .tl-head .chip.candidate { background: #e7edf2; colo
 table.data .chip.deployed, .tl-head .chip.deployed, .panel .chip.deployed { background: #dff6ef; color: var(--patina-deep); border-color: rgba(24, 202, 168, .28); }
 table.data .chip.warn, .tl-head .chip.warn, .panel .chip.warn { background: #fff1c2; color: #8a6200; border-color: rgba(247, 173, 0, .3); }
 
-/* Headline dial — conic arc, matching the run artifact. */
+/* Headline dial — conic arc. */
 .dial { position: relative; width: min(100%, 230px); aspect-ratio: 1; margin-left: auto; display: grid; place-items: center; }
 .dial::before {
   content: ""; position: absolute; inset: 0; border-radius: 50%;
