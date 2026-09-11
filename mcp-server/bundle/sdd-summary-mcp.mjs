@@ -11288,7 +11288,7 @@ var JSONRPCErrorResponseSchema = object2({
      */
     message: string2(),
     /**
-     * Additional information about the error. The value of this customer is defined by the sender (e.g. detailed error information, nested errors etc.).
+     * Additional information about the error. The value of this member is defined by the sender (e.g. detailed error information, nested errors etc.).
      */
     data: unknown().optional()
   })

@@ -44,7 +44,8 @@ export interface CopilotConfig {
 }
 
 /**
- * GET /api/v2/assistants returned 500 when queried unfiltered in an org with a large assistant inventory. Filtering to the Copilot tier fixes it, and is what
+ * GET /api/v2/assistants returned 500 when queried unfiltered in an org with a
+ * large assistant inventory. Filtering to the Copilot tier fixes it, and is what
  * this server wants regardless — every assistant it deals with is an Agent
  * Copilot — so `tier` is sent on every request.
  *
