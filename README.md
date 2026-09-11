@@ -42,6 +42,14 @@ It opens in the workspace root, so there is no need to change directory.
 git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp && node sdd-summary-mcp/deploy.js
 ```
 
+On **Windows PowerShell**, `&&` is a syntax error — it only exists in PowerShell 7, and Windows
+ships 5.1. Run the two commands on separate lines instead:
+
+```powershell
+git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
+node sdd-summary-mcp/deploy.js
+```
+
 Run it from the project root. `deploy.js` deploys into the current directory by default, which is exactly where you want it.
 
 **4. Reload Cursor**
@@ -81,6 +89,12 @@ To update later, from the project root:
 
 ```bash
 cd sdd-summary-mcp && git pull && cd .. && node sdd-summary-mcp/deploy.js
+```
+
+In Windows PowerShell:
+
+```powershell
+cd sdd-summary-mcp; git pull; cd ..; node sdd-summary-mcp/deploy.js
 ```
 
 The vendored bundle is a snapshot, so re-running `deploy.js` is what actually applies a server change. Reload the window afterwards.

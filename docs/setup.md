@@ -68,13 +68,33 @@ One command, run from the project root:
 git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp && node sdd-summary-mcp/deploy.js
 ```
 
+**Windows PowerShell** rejects `&&` with *"The token '&&' is not a valid statement separator in
+this version"*. The operator was only added in PowerShell 7, and Windows ships 5.1. Run the two
+commands on separate lines:
+
+```powershell
+git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
+node sdd-summary-mcp/deploy.js
+```
+
+If you want it as a single line, gate the second command on the exit code rather than on `$?` —
+`git clone` writes its progress to stderr, which can make `$?` report failure after a clone that
+actually succeeded:
+
+```powershell
+git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp; if ($LASTEXITCODE -eq 0) { node sdd-summary-mcp/deploy.js }
+```
+
+`;` on its own is not a substitute for `&&`: it runs the second command even if the clone failed,
+which would leave `deploy.js` looking for a directory that isn't there.
+
 `deploy.js` deploys into the current working directory when given no argument, which is why this works from the project root with no path to pass and no `cd`.
 
 Cloning *inside* the project keeps everything in one place: the deployed tooling and the server it came from travel together, and re-deploying later doesn't require hunting for wherever the repo was put.
 
 > If you prefer to run it from inside the clone, pass the target explicitly:
-> `cd sdd-summary-mcp && node deploy.js ..` — the `..` is what points it at the
-> project rather than at the clone itself.
+> `cd sdd-summary-mcp && node deploy.js ..` (PowerShell: `cd sdd-summary-mcp; node deploy.js ..`)
+> — the `..` is what points it at the project rather than at the clone itself.
 
 ### 4. Reload Cursor
 
