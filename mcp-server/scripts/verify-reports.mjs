@@ -93,7 +93,7 @@ write(
 );
 
 const TRANSCRIPTS = [
-  { id: "tx-alpha", label: "Order status enquiry — 4m12s", text: "Consultant: Thanks for calling.\nCustomer: I lodged a claim." },
+  { id: "tx-alpha", label: "Order status enquiry — 4m12s", text: "Consultant: Thanks for calling.\nCustomer: I placed an order." },
   { id: "tx-beta", label: "Complaint about delay — 11m21s", text: "Consultant: How can I help?\nCustomer: Nobody called back." },
   { id: "tx-gamma", label: "Third party on call — 7m48s", text: "Consultant: Who am I speaking with?\nCustomer: I'm calling for my father." },
 ];

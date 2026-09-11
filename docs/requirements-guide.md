@@ -97,7 +97,7 @@ The requirements file must follow this exact structure. Do not add extra section
 
 **Context section**
 - One or two sentences only
-- Describe: what type of interactions (e.g. order support calls), who handles them (e.g. Customer Service Consultants), and what the summary output is used for (e.g. claim documentation)
+- Describe: what type of interactions (e.g. order support calls), who handles them (e.g. Customer Service Consultants), and what the summary output is used for (e.g. case notes on the customer record)
 - Do not list configuration values here
 
 **Requirements table**
@@ -194,7 +194,7 @@ The following are out of scope no matter how prominently or firmly they appear:
 
 **The relevance test:** could this requirement ever be evaluated by reading a generated summary? If it cannot, no test case can validate it, so it does not belong in `requirements.md`. That single question resolves most judgement calls.
 
-**The conduct exception.** Rules about what an agent must *do* often imply something the summary must *record*. "The agent must verify the customer's identity before discussing the claim" is a conduct rule and out of scope as written — but the summary requirement it implies, "the summary must record whether identity verification occurred", is in scope and testable. Capture the recording obligation, never the conduct itself.
+**The conduct exception.** Rules about what an agent must *do* often imply something the summary must *record*. "The agent must verify the customer's identity before discussing the account" is a conduct rule and out of scope as written — but the summary requirement it implies, "the summary must record whether identity verification occurred", is in scope and testable. Capture the recording obligation, never the conduct itself.
 
 **Record your exclusions in `ignored.md`.** Silent over-filtering is as damaging as silent over-inclusion, and it is harder to notice: an excluded requirement leaves no trace anywhere in the output. Rather than listing exclusions in chat, where they add noise and are lost as soon as the conversation moves on, write them to `requirements/final/ignored.md` alongside `requirements.md`.
 
