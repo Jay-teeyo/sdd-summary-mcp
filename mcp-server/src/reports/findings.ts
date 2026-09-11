@@ -22,7 +22,21 @@ const DIMENSION_ATTENTION = 0.8;
 const REQUIREMENT_RISK = 0.7;
 /** A drop smaller than this is noise from a handful of interactions, not a regression. */
 const REGRESSION_THRESHOLD = 0.05;
-const MAX_DIMENSION_FINDINGS = 3;
+/**
+ * Five covers every mature run measured across the real workspaces — the worst was five
+ * dimensions below the attention threshold. Only a first baseline run of a brand-new
+ * configuration exceeds it, and those produce 13 to 19, which is a summary line rather than
+ * nineteen cards.
+ */
+const MAX_DIMENSION_FINDINGS = 5;
+/**
+ * A dimension this far below its threshold is broken rather than weak, so it is named even
+ * when heavier dimensions outrank it. Without this, weight-first ordering buries a weight-3
+ * rule passing 4% of the time beneath weight-5 rules passing 70%.
+ */
+const CRITICAL_PASS_RATE = 0.25;
+/** Enough to surface a buried failure or two without the promotions becoming the report. */
+const MAX_PROMOTED_FINDINGS = 2;
 const MAX_REQUIREMENT_FINDINGS = 2;
 const MAX_EVIDENCE = 3;
 
@@ -65,15 +79,28 @@ export function deriveRunFindings(input: FindingInputs): Finding[] {
         failureRate(b.d.stats.passRate) - failureRate(a.d.stats.passRate),
     );
 
-  const shown = failing.slice(0, MAX_DIMENSION_FINDINGS);
+  // Anything failing outright that the weight ordering pushed below the cut, and that is worse
+  // than everything above it, is pulled back up. Where the whole run is broken the top of the
+  // list already says so, so there is nothing to promote.
+  const byRank = failing.slice(0, MAX_DIMENSION_FINDINGS);
+  const worstShown = Math.min(...byRank.map((x) => x.d.stats.passRate ?? 1));
+  const promoted = failing
+    .slice(MAX_DIMENSION_FINDINGS)
+    .filter((x) => (x.d.stats.passRate ?? 1) <= CRITICAL_PASS_RATE)
+    .filter((x) => (x.d.stats.passRate ?? 1) < worstShown)
+    .sort((a, b) => (a.d.stats.passRate ?? 1) - (b.d.stats.passRate ?? 1))
+    .slice(0, MAX_PROMOTED_FINDINGS);
+
+  const shown = [...byRank, ...promoted];
   for (const { testCase, d } of shown) {
+    const critical = (d.stats.passRate ?? 1) <= CRITICAL_PASS_RATE;
     const reasons = (testCases.find((t) => t.name === testCase)?.transcripts ?? [])
       .flatMap((t) => t.scores.filter((s) => s.dimension === d.name && !s.na && !s.passed))
       .map((s) => s.reasoning)
       .filter((r) => r.trim().length > 0);
 
     findings.push({
-      severity: d.weight >= 4 ? "high" : "medium",
+      severity: d.weight >= 4 || critical ? "high" : "medium",
       kind: "dimension-failure",
       title: `${d.name} fails ${pctOf(1 - (d.stats.passRate ?? 1))}% of interactions`,
       detail:
@@ -84,14 +111,14 @@ export function deriveRunFindings(input: FindingInputs): Finding[] {
     });
   }
 
-  const remaining = failing.length - shown.length;
-  if (remaining > 0) {
+  const rest = failing.filter((x) => !shown.includes(x));
+  if (rest.length > 0) {
     findings.push({
       severity: "low",
       kind: "dimension-failure",
-      title: `${remaining} further dimension${remaining === 1 ? " is" : "s are"} below ${Math.round(DIMENSION_ATTENTION * 100)}% pass`,
+      title: `${rest.length} further dimension${rest.length === 1 ? " is" : "s are"} below ${Math.round(DIMENSION_ATTENTION * 100)}% pass`,
       detail: "Lower weighted than those above. Open each test case to review them in full.",
-      evidence: failing.slice(MAX_DIMENSION_FINDINGS).map(
+      evidence: rest.map(
         (x) => `${x.d.name} — ${pctOf(x.d.stats.passRate)}% pass (weight ${x.d.weight})`,
       ),
       links: {},

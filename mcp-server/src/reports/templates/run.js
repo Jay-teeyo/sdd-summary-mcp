@@ -115,7 +115,7 @@ function viewOverview() {
   }
 
   if (MODEL.findings.length) {
-    out += '<div class="section"><h2>What this run is telling you <span class="hint">derived from these results, heaviest weight first</span></h2>';
+    out += '<div class="section"><h2>What this run is telling you <span class="hint">derived from these results, heaviest weight first, outright failures always named</span></h2>';
     for (var i = 0; i < MODEL.findings.length; i++) out += findingCard(MODEL.findings[i]);
     out += "</div>";
   }

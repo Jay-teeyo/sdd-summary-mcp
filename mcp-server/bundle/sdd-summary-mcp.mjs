@@ -17101,7 +17101,9 @@ function diffPrompts(before, after) {
 var DIMENSION_ATTENTION = 0.8;
 var REQUIREMENT_RISK = 0.7;
 var REGRESSION_THRESHOLD = 0.05;
-var MAX_DIMENSION_FINDINGS = 3;
+var MAX_DIMENSION_FINDINGS = 5;
+var CRITICAL_PASS_RATE = 0.25;
+var MAX_PROMOTED_FINDINGS = 2;
 var MAX_REQUIREMENT_FINDINGS = 2;
 var MAX_EVIDENCE = 3;
 function pctOf(v) {
@@ -17114,11 +17116,15 @@ function deriveRunFindings(input) {
   const failing = testCases.flatMap((tc) => tc.dimensions.map((d) => ({ testCase: tc.name, d }))).filter((x) => x.d.stats.evaluated > 0 && (x.d.stats.passRate ?? 1) < DIMENSION_ATTENTION).sort(
     (a, b) => b.d.weight - a.d.weight || failureRate(b.d.stats.passRate) - failureRate(a.d.stats.passRate)
   );
-  const shown = failing.slice(0, MAX_DIMENSION_FINDINGS);
+  const byRank = failing.slice(0, MAX_DIMENSION_FINDINGS);
+  const worstShown = Math.min(...byRank.map((x) => x.d.stats.passRate ?? 1));
+  const promoted = failing.slice(MAX_DIMENSION_FINDINGS).filter((x) => (x.d.stats.passRate ?? 1) <= CRITICAL_PASS_RATE).filter((x) => (x.d.stats.passRate ?? 1) < worstShown).sort((a, b) => (a.d.stats.passRate ?? 1) - (b.d.stats.passRate ?? 1)).slice(0, MAX_PROMOTED_FINDINGS);
+  const shown = [...byRank, ...promoted];
   for (const { testCase, d } of shown) {
+    const critical = (d.stats.passRate ?? 1) <= CRITICAL_PASS_RATE;
     const reasons = (testCases.find((t) => t.name === testCase)?.transcripts ?? []).flatMap((t) => t.scores.filter((s) => s.dimension === d.name && !s.na && !s.passed)).map((s) => s.reasoning).filter((r) => r.trim().length > 0);
     findings.push({
-      severity: d.weight >= 4 ? "high" : "medium",
+      severity: d.weight >= 4 || critical ? "high" : "medium",
       kind: "dimension-failure",
       title: `${d.name} fails ${pctOf(1 - (d.stats.passRate ?? 1))}% of interactions`,
       detail: `Weight ${d.weight} of 5, pass threshold ${d.passThreshold.toFixed(2)}. ${d.stats.failed} of ${d.stats.evaluated} evaluated interactions scored below it.`,
@@ -17126,14 +17132,14 @@ function deriveRunFindings(input) {
       links: { testCase, dimension: d.name }
     });
   }
-  const remaining = failing.length - shown.length;
-  if (remaining > 0) {
+  const rest = failing.filter((x) => !shown.includes(x));
+  if (rest.length > 0) {
     findings.push({
       severity: "low",
       kind: "dimension-failure",
-      title: `${remaining} further dimension${remaining === 1 ? " is" : "s are"} below ${Math.round(DIMENSION_ATTENTION * 100)}% pass`,
+      title: `${rest.length} further dimension${rest.length === 1 ? " is" : "s are"} below ${Math.round(DIMENSION_ATTENTION * 100)}% pass`,
       detail: "Lower weighted than those above. Open each test case to review them in full.",
-      evidence: failing.slice(MAX_DIMENSION_FINDINGS).map(
+      evidence: rest.map(
         (x) => `${x.d.name} \u2014 ${pctOf(x.d.stats.passRate)}% pass (weight ${x.d.weight})`
       ),
       links: {}
@@ -18221,7 +18227,7 @@ function viewOverview() {
   }
 
   if (MODEL.findings.length) {
-    out += '<div class="section"><h2>What this run is telling you <span class="hint">derived from these results, heaviest weight first</span></h2>';
+    out += '<div class="section"><h2>What this run is telling you <span class="hint">derived from these results, heaviest weight first, outright failures always named</span></h2>';
     for (var i = 0; i < MODEL.findings.length; i++) out += findingCard(MODEL.findings[i]);
     out += "</div>";
   }
