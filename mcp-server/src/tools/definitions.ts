@@ -994,6 +994,74 @@ export const TOOL_DEFINITIONS: Tool[] = [
     },
   },
   {
+    name: "generate_rollup_report",
+    description:
+      "The closing report for an improvement cycle, written once the user has accepted a version " +
+      "and it has been pushed to Genesys. Call this after update_summary_setting and the " +
+      "save_version(status=\"deployed\") that records it.\n\n" +
+      "Writes rollup.html at the test-set level, alongside improvements.html. It reports where the " +
+      "config started, every run in order, the per-test-case matrix with THE IMPLEMENTED VERSION'S " +
+      "COLUMN OUTLINED, the baseline-to-implemented movement, what is still unresolved, and the " +
+      "narrative you supply. Which version is live is worked out by matching the deployed prompt " +
+      "text against the candidate snapshots, so the report names the candidate that shipped even " +
+      "when it is not the newest or the highest scoring one — and says so explicitly when the best " +
+      "run was not the one implemented.\n\n" +
+      "The narrative is the part no tool can derive. Write it from the runs' improvements.md files " +
+      "and the reports, not from general prompt-engineering advice:\n" +
+      "- executive_summary: what was wrong at the start, what was done, where it ended up. Plain " +
+      "prose, a few paragraphs, with the numbers that matter.\n" +
+      "- themes: one per problem class you actually fixed, each with issue (what was going wrong, " +
+      "concretely), approach (what you changed in the prompt), benefit (what it bought, and the " +
+      "honest limit if it did not fully close), and optionally metric (e.g. \"40% → 85%\").\n" +
+      "- methodology_notes: findings about the evaluation rather than the prompt — a test case that " +
+      "contradicted a requirement, a transcript that should not have been in the set, an API limit. " +
+      "These matter because they explain score movements no prompt change caused.\n" +
+      "- next_steps: what the user should do now, including anything a prompt cannot fix.\n\n" +
+      "Everything else is rebuilt from disk. Calling it again without narrative arguments re-renders " +
+      "the page and keeps the narrative already saved.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string", description: "Summary configuration name" },
+        test_set_name: { type: "string", description: "Test set whose runs the rollup covers" },
+        executive_summary: {
+          type: "string",
+          description:
+            "Prose account of the cycle: the starting state and its material failures, the approach " +
+            "taken, and the outcome. Blank lines separate paragraphs.",
+        },
+        themes: {
+          type: "array",
+          description: "One entry per problem class addressed, in the order they matter to the reader.",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Short name, e.g. \"Resolution — pending work logged as outcomes\"" },
+              issue: { type: "string", description: "What was going wrong, concretely" },
+              approach: { type: "string", description: "What was changed in the prompt to address it" },
+              benefit: { type: "string", description: "What it bought, including the honest limit if it did not fully close" },
+              metric: { type: "string", description: "Optional measured movement, e.g. \"40% → 85%\"" },
+            },
+            required: ["title", "issue", "approach", "benefit"],
+          },
+        },
+        methodology_notes: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Findings about the evaluation itself rather than the prompt — corrected test cases, " +
+            "transcripts removed from the set, platform limits hit.",
+        },
+        next_steps: {
+          type: "array",
+          items: { type: "string" },
+          description: "What the user should do now, including anything a prompt change cannot fix.",
+        },
+      },
+      required: ["summary_config_name", "test_set_name"],
+    },
+  },
+  {
     name: "regenerate_reports",
     description:
       "Rebuild every HTML report for a summary configuration from the results already on disk.\n\n" +

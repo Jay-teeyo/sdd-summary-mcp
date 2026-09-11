@@ -15243,6 +15243,57 @@ Call once per (transcript_id \xD7 test_case_name) combination.`,
     }
   },
   {
+    name: "generate_rollup_report",
+    description: `The closing report for an improvement cycle, written once the user has accepted a version and it has been pushed to Genesys. Call this after update_summary_setting and the save_version(status="deployed") that records it.
+
+Writes rollup.html at the test-set level, alongside improvements.html. It reports where the config started, every run in order, the per-test-case matrix with THE IMPLEMENTED VERSION'S COLUMN OUTLINED, the baseline-to-implemented movement, what is still unresolved, and the narrative you supply. Which version is live is worked out by matching the deployed prompt text against the candidate snapshots, so the report names the candidate that shipped even when it is not the newest or the highest scoring one \u2014 and says so explicitly when the best run was not the one implemented.
+
+The narrative is the part no tool can derive. Write it from the runs' improvements.md files and the reports, not from general prompt-engineering advice:
+- executive_summary: what was wrong at the start, what was done, where it ended up. Plain prose, a few paragraphs, with the numbers that matter.
+- themes: one per problem class you actually fixed, each with issue (what was going wrong, concretely), approach (what you changed in the prompt), benefit (what it bought, and the honest limit if it did not fully close), and optionally metric (e.g. "22% \u2192 76%").
+- methodology_notes: findings about the evaluation rather than the prompt \u2014 a test case that contradicted a requirement, a transcript that should not have been in the set, an API limit. These matter because they explain score movements no prompt change caused.
+- next_steps: what the user should do now, including anything a prompt cannot fix.
+
+Everything else is rebuilt from disk. Calling it again without narrative arguments re-renders the page and keeps the narrative already saved.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string", description: "Summary configuration name" },
+        test_set_name: { type: "string", description: "Test set whose runs the rollup covers" },
+        executive_summary: {
+          type: "string",
+          description: "Prose account of the cycle: the starting state and its material failures, the approach taken, and the outcome. Blank lines separate paragraphs."
+        },
+        themes: {
+          type: "array",
+          description: "One entry per problem class addressed, in the order they matter to the reader.",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: 'Short name, e.g. "Resolution \u2014 pending work logged as outcomes"' },
+              issue: { type: "string", description: "What was going wrong, concretely" },
+              approach: { type: "string", description: "What was changed in the prompt to address it" },
+              benefit: { type: "string", description: "What it bought, including the honest limit if it did not fully close" },
+              metric: { type: "string", description: 'Optional measured movement, e.g. "22% \u2192 76%"' }
+            },
+            required: ["title", "issue", "approach", "benefit"]
+          }
+        },
+        methodology_notes: {
+          type: "array",
+          items: { type: "string" },
+          description: "Findings about the evaluation itself rather than the prompt \u2014 corrected test cases, transcripts removed from the set, platform limits hit."
+        },
+        next_steps: {
+          type: "array",
+          items: { type: "string" },
+          description: "What the user should do now, including anything a prompt change cannot fix."
+        }
+      },
+      required: ["summary_config_name", "test_set_name"]
+    }
+  },
+  {
     name: "regenerate_reports",
     description: "Rebuild every HTML report for a summary configuration from the results already on disk.\n\nReports are derived artefacts, never the record \u2014 the JSON in eval-runs/ is. So after pulling a newer version of this plugin, run this once to bring historical runs into the current report templates. Nothing is re-scored and no Genesys calls are made.\n\nAlso use it after editing requirements.md (to refresh requirement coverage and the untested-requirement warnings) or after a report failed to generate during finalization.",
     inputSchema: {
@@ -15463,6 +15514,8 @@ ALWAYS call save_improvement_recommendations after finalize_eval_run \u2014 do n
 - finalize_eval_run auto-generates both reports (run report + improvements report).
 - To re-render one: generate_eval_run_dashboard or generate_improvements_dashboard.
 - After pulling a newer plugin version, or after editing requirements.md: regenerate_reports.
+- Once the user accepts a version and it is live: generate_rollup_report \u2014 the closing account of
+  the cycle, with the narrative (executive summary, themes, next steps) you supply. Never hand-write it.
 
 ## Test Case Authoring \u2014 applicabilityCondition (REQUIRED on every dimension)
 Every dimension must have applicabilityCondition set:
@@ -15973,8 +16026,30 @@ start_eval_run(
 3. \`save_version(summary_config_name=..., summary_setting_id=...)\` \u2014 snapshots the still-live prompt as the rollback point
 4. \`update_summary_setting(summary_config_name=..., prompt=...)\` \u2014 pushes to Genesys (resolves the setting ID from the interaction filter)
 5. \`save_version(summary_config_name=..., prompt=..., status="deployed")\` \u2014 records the newly live state
+6. \`generate_rollup_report(summary_config_name=..., test_set_name=..., executive_summary=..., themes=[...], next_steps=[...])\` \u2014 the closing report
 
 **NEVER call \`update_summary_setting\` without prior prompt_test eval evidence and user approval.**
+
+### The rollup \u2014 the last step of a cycle (MANDATORY)
+
+Acceptance is not the end of the work: the effort still needs an account of itself. Once a version is
+live, call \`generate_rollup_report\`. It rebuilds every measurement from the runs and outlines the
+implemented version's column in the pass-rate matrix, so a reader can see which version is production
+rather than assuming it was the highest-scoring one.
+
+What you must supply is the part no tool can derive:
+
+| Argument | What goes in it |
+|---|---|
+| \`executive_summary\` | Where the config started and its material failures, what was done, where it ended up |
+| \`themes\` | One per problem class fixed: \`issue\` (what was going wrong), \`approach\` (what changed in the prompt), \`benefit\` (what it bought, and the honest limit if it did not close), optional \`metric\` |
+| \`methodology_notes\` | Findings about the evaluation rather than the prompt \u2014 a test case that contradicted a requirement, a transcript that should not have been in the set, a platform limit |
+| \`next_steps\` | What the user should do now, including anything a prompt change cannot fix |
+
+Write it from the runs' own \`improvements.md\` files and reports. Do not pad it with general
+prompt-engineering advice: a rollup that could have been written before the work started is worthless.
+Be honest about what did not close \u2014 a theme whose benefit is "partly fixed, and here is the ceiling"
+is more useful than one that claims success.
 
 ---
 
@@ -16436,6 +16511,20 @@ function saveImprovementsDashboard(configName, testSetName, html) {
   const filePath = path2.join(tsDir, "improvements.html");
   fs2.writeFileSync(filePath, html, "utf-8");
   return filePath;
+}
+function saveRollupReport(configName, testSetName, html) {
+  const filePath = path2.join(evalRunsTestSetDir(configName, testSetName), "rollup.html");
+  fs2.writeFileSync(filePath, html, "utf-8");
+  return filePath;
+}
+function saveRollupNarrative(configName, testSetName, narrative) {
+  const filePath = path2.join(evalRunsTestSetDir(configName, testSetName), "rollup.json");
+  writeJson(filePath, narrative);
+  return filePath;
+}
+function loadRollupNarrative(configName, testSetName) {
+  const filePath = path2.join(evalRunsTestSetDir(configName, testSetName), "rollup.json");
+  return fs2.existsSync(filePath) ? readJson(filePath) : null;
 }
 function saveImprovementRecommendations(configName, testSetName, runNumber, markdown) {
   const dir = evalRunDir(configName, testSetName, runNumber);
@@ -17459,6 +17548,91 @@ function buildRunReport(configName, testSetName, runNumber) {
     comparison
   };
 }
+function buildRollupReport(configName, testSetName) {
+  const improvements = buildImprovementsReport(configName, testSetName);
+  const implemented = linkDeployedVersion(configName, improvements.runs);
+  const best = improvements.runs.reduce(
+    (acc, r) => r.passRate !== null && (acc === null || r.passRate > (acc.passRate ?? -1)) ? r : acc,
+    null
+  ) ?? null;
+  const baselineEntry = improvements.runs[0];
+  const implementedEntry = implemented?.runNumber != null ? improvements.runs.find((r) => r.runNumber === implemented.runNumber) ?? null : null;
+  const closingEntry = implementedEntry ?? improvements.runs[improvements.runs.length - 1];
+  const baselineIdx = 0;
+  const closingIdx = improvements.runs.indexOf(closingEntry);
+  const baselineToImplemented = improvements.testCaseSeries.map((row) => ({
+    name: row.label,
+    from: row.series[baselineIdx] ?? null,
+    to: row.series[closingIdx] ?? null
+  }));
+  const moved = (d, dir) => d.from !== null && d.to !== null && (d.to - d.from) * dir > 5e-3;
+  const runs = improvements.runs.map((r) => ({
+    ...r,
+    implemented: implemented?.runNumber === r.runNumber,
+    best: best !== null && best.runNumber === r.runNumber
+  }));
+  const outstanding = implementedEntry !== null && implementedEntry.runNumber !== improvements.runs[improvements.runs.length - 1].runNumber ? buildRunReport(configName, testSetName, implementedEntry.runNumber).findings.filter(
+    (f) => f.severity !== "low" || f.kind === "scoring-anomaly"
+  ) : improvements.watchlist;
+  return {
+    kind: "rollup",
+    generator: generator(),
+    config: { name: configName },
+    testSet: { name: testSetName },
+    period: {
+      from: baselineEntry.finalizedAt,
+      to: implemented?.deployedAt ?? improvements.runs[improvements.runs.length - 1].finalizedAt
+    },
+    runs,
+    baseline: {
+      runNumber: baselineEntry.runNumber,
+      passRate: baselineEntry.passRate,
+      weightedScore: baselineEntry.weightedScore,
+      versionNumber: baselineEntry.promptVersion.number
+    },
+    implemented,
+    best: best === null ? null : { runNumber: best.runNumber, versionNumber: best.promptVersion.number, passRate: best.passRate },
+    headline: {
+      baselinePassRate: baselineEntry.passRate,
+      implementedPassRate: closingEntry.passRate,
+      delta: baselineEntry.passRate === null || closingEntry.passRate === null ? null : closingEntry.passRate - baselineEntry.passRate,
+      testCasesImproved: baselineToImplemented.filter((d) => moved(d, 1)).length,
+      testCasesRegressed: baselineToImplemented.filter((d) => moved(d, -1)).length,
+      testCasesHeld: baselineToImplemented.filter((d) => !moved(d, 1) && !moved(d, -1)).length
+    },
+    testCaseSeries: improvements.testCaseSeries,
+    requirementSeries: improvements.requirementSeries,
+    baselineToImplemented,
+    outstanding,
+    narrative: loadRollupNarrative(configName, testSetName)
+  };
+}
+function linkDeployedVersion(configName, runs) {
+  const versions = listVersionSnapshots(configName);
+  const deployed = versions.filter((v) => (v.status ?? "deployed") === "deployed");
+  const live = deployed.length > 0 ? deployed[deployed.length - 1] : null;
+  if (live === null) return null;
+  const candidate = versions.find(
+    (v) => v.version !== live.version && v.status === "candidate" && v.setting.prompt === live.setting.prompt
+  ) ?? null;
+  if (candidate === null) {
+    const newestCandidate = versions.filter((v) => v.status === "candidate").pop() ?? null;
+    const nothingShipped = newestCandidate === null ? live.version === 0 : live.version < newestCandidate.version;
+    if (nothingShipped) return null;
+  }
+  const rollback = [...deployed].reverse().find((v) => v.version < live.version && v.setting.prompt !== live.setting.prompt) ?? null;
+  const measuring = candidate === null ? null : [...runs].reverse().find((r) => r.promptVersion.number === candidate.version) ?? null;
+  return {
+    versionNumber: candidate?.version ?? null,
+    deployedSnapshotVersion: live.version,
+    deployedAt: live.snapshotAt,
+    notes: live.notes ?? null,
+    runNumber: measuring?.runNumber ?? null,
+    passRate: measuring?.passRate ?? null,
+    rollbackVersion: rollback?.version ?? null,
+    matchedBy: candidate === null ? "unmatched" : "prompt-identical"
+  };
+}
 function buildImprovementsReport(configName, testSetName) {
   const metas = readAllFinalizedRunMetas(configName, testSetName).sort((a, b) => a.runNumber - b.runNumber);
   if (metas.length === 0) {
@@ -17694,8 +17868,68 @@ var improvements_default = `<!DOCTYPE html>
 </html>
 `;
 
+// report-template:rollup.html
+var rollup_default = `<!DOCTYPE html>
+<!--
+  Rollup report \u2014 the closing account of one improvement cycle for a test set.
+
+  Written once a version has been accepted and pushed live. Unlike the run and improvements
+  reports it carries an authored narrative alongside the measurements, because "why did this
+  change" is the one thing the data cannot answer. Run dashboards and the improvements
+  report are linked relatively, so the eval-runs folder can be copied whole.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{PAGE_TITLE}}</title>
+<style>{{STYLES}}</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="hero">
+    <div class="hero-top">
+      <div class="eyebrow" id="eyebrow">Rollup &middot; cycle complete</div>
+      <div class="hero-stamp"><i class="live-dot" id="stampdot"></i><span id="stamptext"></span></div>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <h1 id="title"></h1>
+        <p class="sub" id="subtitle"></p>
+        <div class="hero-tags" id="chips"></div>
+      </div>
+      <div class="dial" id="dial">
+        <div class="dial-face">
+          <span class="dial-num" id="dialnum"></span>
+          <span class="dial-lab" id="diallab">Implemented</span>
+          <span class="dial-sub" id="dialsub"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview" onclick="go('/')">Overview</button>
+    <button class="tab" data-tab="commentary" onclick="go('/commentary')">Commentary <span class="count" id="tab-counts-commentary"></span></button>
+    <button class="tab" data-tab="testcases" onclick="go('/testcases')">Pass rates by run <span class="count" id="tab-counts-testcases"></span></button>
+    <button class="tab" data-tab="requirements" onclick="go('/requirements')">Requirements <span class="count" id="tab-counts-requirements"></span></button>
+  </nav>
+
+  <main id="body"></main>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script type="application/json" id="report-model">{{MODEL}}</script>
+<script>{{SHARED}}</script>
+<script>{{VIEWER}}</script>
+</body>
+</html>
+`;
+
 // report-template:report.css
-var report_default = '/* Shared styling for every generated report.\n   Inlined into each page at build time, so reports work offline and stand alone.\n\n   The visual language follows the run artifact: nimbus off-white field, navy type,\n   orange accent, mono numerals, a navy hero carrying the headline dial, and eyebrow-led\n   sections on white cards.\n\n   Fonts are requested by name with a system fallback rather than loaded from Google Fonts.\n   A report has to render identically offline and when emailed as a single file, so it\n   cannot depend on a CDN \u2014 where Roboto is installed it is used, and where it is not the\n   metrics stay close enough that layout does not shift. */\n\n:root {\n  --orange: #ff451a;\n  --navy: #152550;\n  --navy-deep: #101d43;\n  --azure: #2243a2;\n  --arctic: #b1cada;\n  --nimbus: #f9f8f5;\n  --nimbus-shade: #f1efea;\n  --patina: #18caa8;\n  --patina-deep: #0f7d63;\n  --amber: #f7ad00;\n  --white: #ffffff;\n  --muted: #4b5978;\n  --faint: #8a92a6;\n  --line: rgba(21, 37, 80, 0.12);\n  --shadow: 0 18px 48px rgba(21, 37, 80, 0.1);\n  --shadow-soft: 0 8px 24px rgba(21, 37, 80, 0.07);\n  --r-xl: 28px;\n  --r-lg: 20px;\n  --r-md: 14px;\n  --font: "Roboto", "Helvetica Neue", Arial, Helvetica, sans-serif;\n  --mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;\n\n  /* Semantic aliases used by the viewers when colouring scores. */\n  --pass: var(--patina-deep);\n  --warn: #a8730a;\n  --fail: var(--orange);\n  --na: var(--faint);\n  --text: var(--navy);\n  --dim: var(--faint);\n}\n\n*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\nhtml { scroll-behavior: smooth; }\n\nbody {\n  font-family: var(--font);\n  color: var(--navy);\n  background: radial-gradient(circle at 88% 6%, rgba(177, 202, 218, 0.36), transparent 24rem), var(--nimbus);\n  font-size: 14px;\n  line-height: 1.5;\n  -webkit-font-smoothing: antialiased;\n  -webkit-print-color-adjust: exact;\n  print-color-adjust: exact;\n}\n\nbutton, input { font: inherit; color: inherit; }\n.page { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 22px 0 64px; }\n\n/* \u2500\u2500 Hero \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.hero {\n  position: relative;\n  overflow: hidden;\n  isolation: isolate;\n  color: var(--white);\n  border-radius: var(--r-xl);\n  background: radial-gradient(circle at 78% 22%, rgba(34, 67, 162, 0.9), transparent 38%),\n    linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 58%, #1a347d 100%);\n  box-shadow: 0 24px 64px rgba(21, 37, 80, 0.2);\n}\n.hero::before, .hero::after {\n  content: "";\n  position: absolute;\n  z-index: -1;\n  border: 1px solid rgba(177, 202, 218, 0.22);\n  border-radius: 50%;\n  transform: rotate(-18deg);\n}\n.hero::before { width: 680px; height: 170px; right: -200px; top: 110px; }\n.hero::after { width: 520px; height: 120px; right: -50px; bottom: -54px; border-color: rgba(255, 69, 26, 0.28); }\n\n.hero-top {\n  display: flex; align-items: center; justify-content: space-between; gap: 22px;\n  padding: 26px 38px 0;\n}\n.hero-stamp { display: flex; align-items: center; gap: 9px; color: rgba(255, 255, 255, 0.78); font-size: 12px; letter-spacing: .02em; }\n.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--patina); box-shadow: 0 0 0 5px rgba(24, 202, 168, .14); }\n.live-dot.warn { background: var(--amber); box-shadow: 0 0 0 5px rgba(247, 173, 0, .16); }\n.live-dot.fail { background: var(--orange); box-shadow: 0 0 0 5px rgba(255, 69, 26, .16); }\n\n.hero-grid {\n  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(230px, 0.6fr);\n  gap: 40px; align-items: center; padding: 32px 42px 40px;\n}\n\n.eyebrow {\n  display: inline-flex; align-items: center; gap: 9px; color: var(--arctic);\n  font-weight: 700; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;\n}\n.eyebrow::before { content: ""; width: 26px; height: 3px; border-radius: 999px; background: var(--orange); }\n\n.hero h1 { margin-top: 14px; font-size: clamp(28px, 3.2vw, 40px); line-height: 1.03; letter-spacing: -.04em; font-weight: 900; }\n.hero h1 span { color: var(--orange); }\n.hero .sub { max-width: 640px; margin-top: 14px; color: rgba(255, 255, 255, .74); font-size: 14.5px; line-height: 1.55; }\n\n.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }\n.chip {\n  padding: 7px 12px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 999px;\n  background: rgba(255, 255, 255, .07); color: rgba(255, 255, 255, .86);\n  font-size: 11.5px; font-weight: 600; white-space: nowrap;\n}\n.chip b, .chip strong { color: var(--white); font-weight: 700; }\n.chip.candidate { border-color: rgba(177, 202, 218, .5); color: var(--arctic); }\n.chip.deployed { border-color: rgba(24, 202, 168, .45); color: #7ee8cf; }\n.chip.warn { border-color: rgba(247, 173, 0, .5); color: #ffd97a; }\n.chip.danger { border-color: rgba(255, 69, 26, .5); color: #ffb4a0; }\n\n/* Chips also appear on the light field, inside tables and timelines. */\n.on-light .chip, table.data .chip, .tl-head .chip, .movers .chip {\n  border-color: var(--line); background: var(--nimbus-shade); color: var(--muted);\n}\n.on-light .chip strong, table.data .chip strong, .tl-head .chip strong { color: var(--navy); }\ntable.data .chip.candidate, .tl-head .chip.candidate { background: #e7edf2; color: var(--azure); border-color: rgba(34, 67, 162, .2); }\ntable.data .chip.deployed, .tl-head .chip.deployed { background: #dff6ef; color: var(--patina-deep); border-color: rgba(24, 202, 168, .28); }\ntable.data .chip.warn, .tl-head .chip.warn { background: #fff1c2; color: #8a6200; border-color: rgba(247, 173, 0, .3); }\n\n/* Headline dial \u2014 conic arc, matching the run artifact. */\n.dial { position: relative; width: min(100%, 230px); aspect-ratio: 1; margin-left: auto; display: grid; place-items: center; }\n.dial::before {\n  content: ""; position: absolute; inset: 0; border-radius: 50%;\n  background: conic-gradient(var(--dial-color, var(--orange)) 0 var(--arc, 0%), rgba(255, 255, 255, .12) var(--arc, 0%) 100%);\n}\n.dial::after {\n  content: ""; position: absolute; inset: 13px; border-radius: 50%;\n  background: linear-gradient(145deg, rgba(16, 29, 67, .96), rgba(34, 67, 162, .8));\n  border: 1px solid rgba(255, 255, 255, .12);\n}\n.dial-face { position: relative; z-index: 1; text-align: center; max-width: 78%; margin: 0 auto; }\n.dial-num { display: block; font-size: clamp(38px, 4.6vw, 58px); line-height: .92; font-weight: 900; letter-spacing: -.06em; }\n.dial-num small { font-size: .36em; color: var(--orange); letter-spacing: -.02em; }\n.dial-lab { display: block; margin-top: 7px; color: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }\n.dial-sub { display: block; margin-top: 4px; color: rgba(255, 255, 255, .6); font-size: 10px; font-family: var(--mono); }\n\n/* \u2500\u2500 Tabs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.tabs {\n  display: flex; gap: 7px; margin: 18px 0 26px; overflow-x: auto; padding-bottom: 2px;\n}\n.tab {\n  border: 1px solid var(--line); border-radius: 999px; background: var(--white); cursor: pointer;\n  color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;\n  padding: 9px 15px; white-space: nowrap; transition: all .14s ease; box-shadow: var(--shadow-soft);\n}\n.tab:hover { border-color: var(--arctic); color: var(--navy); }\n.tab.active { background: var(--navy); border-color: var(--navy); color: var(--white); }\n.tab .count { font-family: var(--mono); opacity: .7; margin-left: 6px; font-weight: 600; }\n\n/* \u2500\u2500 Metric strip \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.metrics {\n  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px;\n  overflow: hidden; margin-bottom: 30px; border: 1px solid var(--line);\n  border-radius: var(--r-lg); background: var(--line); box-shadow: var(--shadow-soft);\n}\n.metric { padding: 20px 22px; background: rgba(255, 255, 255, .9); }\n.metric .val { display: block; font-size: 30px; line-height: 1; letter-spacing: -.04em; font-family: var(--mono); font-weight: 700; }\n.metric .lbl { display: block; margin-top: 8px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }\n.metric .note { display: block; margin-top: 6px; color: var(--faint); font-size: 11.5px; line-height: 1.4; }\n.metric.primary { background: var(--white); }\n\n.delta { font-family: var(--mono); font-size: 11px; font-weight: 700; white-space: nowrap; }\n.delta.up { color: var(--patina-deep); }\n.delta.dn { color: var(--orange); }\n.delta.eq { color: var(--faint); }\n\n/* \u2500\u2500 Sections \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.section { margin-bottom: 40px; }\n.section > h2 {\n  display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;\n  font-size: 22px; font-weight: 700; letter-spacing: -.03em; color: var(--navy);\n}\n.section > h2::before {\n  content: ""; flex: 0 0 auto; width: 22px; height: 3px; border-radius: 999px;\n  background: var(--orange); align-self: center;\n}\n.section > h2 .hint { font-size: 12.5px; font-weight: 400; letter-spacing: 0; color: var(--muted); }\n\n.panel { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--white); box-shadow: var(--shadow-soft); padding: 20px 22px; }\n.empty { color: var(--faint); font-size: 12.5px; }\n\n/* \u2500\u2500 Tables \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\ntable.data {\n  width: 100%; border-collapse: separate; border-spacing: 0; background: var(--white);\n  border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-soft);\n}\ntable.data th {\n  text-align: left; font-size: 9.5px; font-weight: 800; text-transform: uppercase;\n  letter-spacing: .08em; color: var(--faint); padding: 13px 16px;\n  border-bottom: 1px solid var(--line); white-space: nowrap;\n  background: linear-gradient(135deg, rgba(177, 202, 218, .18), rgba(249, 248, 245, .6));\n}\ntable.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }\ntable.data th.mid, table.data td.mid { text-align: center; }\ntable.data td { padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }\ntable.data tbody tr:last-child td { border-bottom: 0; }\ntable.data tbody tr.clickable { cursor: pointer; }\ntable.data tbody tr.clickable:hover { background: rgba(241, 239, 234, .7); }\ntable.data td strong { font-weight: 700; }\ntable.data td .sub { color: var(--faint); font-size: 11.5px; margin-top: 5px; line-height: 1.4; }\ntable.data td.num { font-family: var(--mono); font-weight: 700; }\n.mono { font-family: var(--mono); font-size: 11.5px; }\n\n/* Result pills */\n.badge {\n  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px;\n  font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;\n}\n.badge.pass { color: var(--patina-deep); background: rgba(24, 202, 168, .12); }\n.badge.fail { color: var(--orange); background: rgba(255, 69, 26, .1); }\n.badge.pass::before, .badge.fail::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n.badge.na { color: var(--muted); background: var(--nimbus-shade); }\n.badge.w { font-family: var(--mono); color: var(--azure); background: #e7edf2; font-weight: 700; letter-spacing: 0; }\n\n/* Score bar */\n.bar { position: relative; flex: 1; height: 7px; border-radius: 999px; background: #e6e2da; overflow: hidden; min-width: 54px; }\n.bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--patina); }\n.bar-row { display: flex; align-items: center; gap: 9px; }\n.bar-row .pct { font-family: var(--mono); font-size: 11.5px; font-weight: 700; min-width: 42px; text-align: right; }\n\n/* \u2500\u2500 Heatmap \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.heat-wrap { overflow-x: auto; }\ntable.heat { border-collapse: separate; border-spacing: 4px; }\ntable.heat th { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 700; padding: 2px 6px; }\ntable.heat th.row-h { text-align: left; max-width: 280px; color: var(--navy); font-family: var(--font); font-weight: 600; font-size: 12.5px; }\ntable.heat td.cell {\n  width: 34px; height: 28px; border-radius: 7px; text-align: center; cursor: pointer;\n  font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--navy);\n}\ntable.heat td.cell.na { color: var(--faint); background: var(--nimbus-shade); font-size: 9.5px; }\ntable.heat td.cell:hover { outline: 2px solid var(--azure); outline-offset: 1px; }\n\n/* \u2500\u2500 Findings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.finding {\n  background: var(--white); border: 1px solid var(--line); border-left: 3px solid var(--arctic);\n  border-radius: var(--r-md); padding: 17px 20px; margin-bottom: 11px; box-shadow: var(--shadow-soft);\n}\n.finding.high { border-left-color: var(--orange); }\n.finding.medium { border-left-color: var(--amber); }\n.finding.low { border-left-color: var(--azure); }\n.finding .kind { font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-bottom: 7px; }\n.finding.high .kind { color: var(--orange); }\n.finding h3 { font-size: 15px; font-weight: 700; letter-spacing: -.015em; margin-bottom: 6px; }\n.finding p { color: var(--muted); font-size: 13px; line-height: 1.5; }\n.finding ul { list-style: none; margin: 11px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }\n.finding li {\n  color: var(--muted); font-size: 11.5px; line-height: 1.5; padding: 9px 12px;\n  background: var(--nimbus); border-left: 3px solid var(--arctic); border-radius: 0 8px 8px 0;\n}\n.finding.high li { border-left-color: rgba(255, 69, 26, .5); }\n.finding .links { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }\n\n/* \u2500\u2500 Buttons / links \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.btn {\n  background: var(--white); border: 1px solid var(--line); color: var(--muted); cursor: pointer;\n  font-family: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: .05em;\n  text-transform: uppercase; padding: 8px 13px; border-radius: 10px; transition: all .14s ease;\n  text-decoration: none; display: inline-block;\n}\n.btn:hover { border-color: var(--arctic); color: var(--navy); }\n.btn.active { background: var(--navy); border-color: var(--navy); color: var(--white); }\n\n.crumbs { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); flex-wrap: wrap; }\n.crumbs a { color: var(--azure); text-decoration: none; cursor: pointer; }\n.crumbs a:hover { color: var(--orange); }\n\n.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }\n.toolbar .spacer { flex: 1; }\n.toolbar strong { font-size: 14px; letter-spacing: -.02em; }\n\n/* Detail page heading, reusing hero typography on the light field. */\n.detail-head { margin-bottom: 22px; }\n.detail-head h1 { font-size: clamp(24px, 2.6vw, 32px); font-weight: 900; letter-spacing: -.04em; line-height: 1.06; }\n.detail-head .sub { margin-top: 8px; color: var(--muted); font-size: 13.5px; line-height: 1.5; max-width: 720px; }\n.detail-head .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }\n\n/* \u2500\u2500 Text blocks \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\ndetails.block {\n  background: var(--white); border: 1px solid var(--line); border-radius: var(--r-md);\n  padding: 14px 18px; margin-bottom: 26px; box-shadow: var(--shadow-soft);\n}\ndetails.block > summary {\n  cursor: pointer; color: var(--muted); font-size: 10.5px; font-weight: 800;\n  letter-spacing: .07em; text-transform: uppercase; list-style: none;\n}\ndetails.block > summary::-webkit-details-marker { display: none; }\ndetails.block > summary::before { content: "\u25B8 "; color: var(--orange); }\ndetails.block[open] > summary::before { content: "\u25BE "; }\n\npre.text {\n  white-space: pre-wrap; word-break: break-word; font-family: var(--mono);\n  font-size: 11.5px; line-height: 1.65; color: var(--muted); margin-top: 12px;\n  background: var(--nimbus); border-radius: 10px; padding: 14px 16px;\n  max-height: 460px; overflow-y: auto;\n}\n.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }\n@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }\n.col-head { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }\n\n.criteria { display: grid; grid-template-columns: max-content 1fr; gap: 11px 20px; font-size: 13px; }\n.criteria dt { color: var(--faint); font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding-top: 4px; }\n.criteria dd { color: var(--muted); line-height: 1.5; }\n\n/* \u2500\u2500 Diff \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.diff { font-family: var(--mono); font-size: 11px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }\n.diff div { padding: 3px 12px; white-space: pre-wrap; word-break: break-word; }\n.diff .add { background: rgba(24, 202, 168, .12); color: var(--patina-deep); }\n.diff .remove { background: rgba(255, 69, 26, .09); color: #a8321a; }\n.diff .context { color: var(--muted); background: var(--nimbus); }\n.diff-stat .a { color: var(--patina-deep); }\n.diff-stat .r { color: var(--orange); }\n\n/* \u2500\u2500 Trend chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.chart { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--shadow-soft); }\n.chart svg { display: block; width: 100%; height: auto; }\n.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 14px; }\n.legend span { display: flex; align-items: center; gap: 6px; }\n.legend strong { font-family: var(--mono); }\n.swatch { width: 11px; height: 11px; border-radius: 3px; }\n\n/* \u2500\u2500 Timeline \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.timeline { position: relative; padding-left: 26px; }\n.timeline::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }\n.tl-item { position: relative; margin-bottom: 26px; }\n.tl-item::before {\n  content: ""; position: absolute; left: -25px; top: 6px; width: 12px; height: 12px;\n  border-radius: 50%; background: var(--white); border: 3px solid var(--arctic);\n}\n.tl-item.up::before { border-color: var(--patina); }\n.tl-item.dn::before { border-color: var(--orange); }\n.tl-head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-bottom: 6px; }\n.tl-head .run { font-weight: 900; font-size: 17px; letter-spacing: -.03em; }\n.tl-head .date { color: var(--faint); font-size: 11.5px; font-family: var(--mono); }\n.tl-notes { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 8px 0; max-width: 780px; }\n.movers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }\n/* Movers carry requirement IDs as well as dimension names, so they are not uppercased \u2014\n   BR-Acme_CallSummary-001 has to stay readable exactly as it appears in requirements.md. */\n.mover {\n  font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 5px 10px;\n  border: 1px solid var(--line); background: var(--nimbus); color: var(--muted);\n}\n.mover.up { border-color: rgba(24, 202, 168, .35); background: #dff6ef; color: var(--patina-deep); }\n.mover.dn { border-color: rgba(255, 69, 26, .3); background: rgba(255, 69, 26, .08); color: var(--orange); }\n\n/* \u2500\u2500 Footer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.foot {\n  margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line);\n  color: var(--faint); font-size: 10.5px; font-weight: 600; letter-spacing: .04em;\n  display: flex; gap: 18px; flex-wrap: wrap; text-transform: uppercase;\n}\n.foot .mono { font-family: var(--mono); text-transform: none; letter-spacing: 0; }\n\n/* \u2500\u2500 Print \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n@media print {\n  body { background: var(--white); }\n  .tabs, .btn, .crumbs { display: none !important; }\n  .hero { box-shadow: none; }\n  .finding, table.data, .panel, .chart, details.block { box-shadow: none; break-inside: avoid; }\n  details.block { display: none; }\n}\n';
+var report_default = '/* Shared styling for every generated report.\n   Inlined into each page at build time, so reports work offline and stand alone.\n\n   The visual language follows the run artifact: nimbus off-white field, navy type,\n   orange accent, mono numerals, a navy hero carrying the headline dial, and eyebrow-led\n   sections on white cards.\n\n   Fonts are requested by name with a system fallback rather than loaded from Google Fonts.\n   A report has to render identically offline and when emailed as a single file, so it\n   cannot depend on a CDN \u2014 where Roboto is installed it is used, and where it is not the\n   metrics stay close enough that layout does not shift. */\n\n:root {\n  --orange: #ff451a;\n  --navy: #152550;\n  --navy-deep: #101d43;\n  --azure: #2243a2;\n  --arctic: #b1cada;\n  --nimbus: #f9f8f5;\n  --nimbus-shade: #f1efea;\n  --patina: #18caa8;\n  --patina-deep: #0f7d63;\n  --amber: #f7ad00;\n  --white: #ffffff;\n  --muted: #4b5978;\n  --faint: #8a92a6;\n  --line: rgba(21, 37, 80, 0.12);\n  --shadow: 0 18px 48px rgba(21, 37, 80, 0.1);\n  --shadow-soft: 0 8px 24px rgba(21, 37, 80, 0.07);\n  --r-xl: 28px;\n  --r-lg: 20px;\n  --r-md: 14px;\n  --font: "Roboto", "Helvetica Neue", Arial, Helvetica, sans-serif;\n  --mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;\n\n  /* Semantic aliases used by the viewers when colouring scores. */\n  --pass: var(--patina-deep);\n  --warn: #a8730a;\n  --fail: var(--orange);\n  --na: var(--faint);\n  --text: var(--navy);\n  --dim: var(--faint);\n}\n\n*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\nhtml { scroll-behavior: smooth; }\n\nbody {\n  font-family: var(--font);\n  color: var(--navy);\n  background: radial-gradient(circle at 88% 6%, rgba(177, 202, 218, 0.36), transparent 24rem), var(--nimbus);\n  font-size: 14px;\n  line-height: 1.5;\n  -webkit-font-smoothing: antialiased;\n  -webkit-print-color-adjust: exact;\n  print-color-adjust: exact;\n}\n\nbutton, input { font: inherit; color: inherit; }\n.page { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 22px 0 64px; }\n\n/* \u2500\u2500 Hero \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.hero {\n  position: relative;\n  overflow: hidden;\n  isolation: isolate;\n  color: var(--white);\n  border-radius: var(--r-xl);\n  background: radial-gradient(circle at 78% 22%, rgba(34, 67, 162, 0.9), transparent 38%),\n    linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 58%, #1a347d 100%);\n  box-shadow: 0 24px 64px rgba(21, 37, 80, 0.2);\n}\n.hero::before, .hero::after {\n  content: "";\n  position: absolute;\n  z-index: -1;\n  border: 1px solid rgba(177, 202, 218, 0.22);\n  border-radius: 50%;\n  transform: rotate(-18deg);\n}\n.hero::before { width: 680px; height: 170px; right: -200px; top: 110px; }\n.hero::after { width: 520px; height: 120px; right: -50px; bottom: -54px; border-color: rgba(255, 69, 26, 0.28); }\n\n.hero-top {\n  display: flex; align-items: center; justify-content: space-between; gap: 22px;\n  padding: 26px 38px 0;\n}\n.hero-stamp { display: flex; align-items: center; gap: 9px; color: rgba(255, 255, 255, 0.78); font-size: 12px; letter-spacing: .02em; }\n.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--patina); box-shadow: 0 0 0 5px rgba(24, 202, 168, .14); }\n.live-dot.warn { background: var(--amber); box-shadow: 0 0 0 5px rgba(247, 173, 0, .16); }\n.live-dot.fail { background: var(--orange); box-shadow: 0 0 0 5px rgba(255, 69, 26, .16); }\n\n.hero-grid {\n  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(230px, 0.6fr);\n  gap: 40px; align-items: center; padding: 32px 42px 40px;\n}\n\n.eyebrow {\n  display: inline-flex; align-items: center; gap: 9px; color: var(--arctic);\n  font-weight: 700; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;\n}\n.eyebrow::before { content: ""; width: 26px; height: 3px; border-radius: 999px; background: var(--orange); }\n\n.hero h1 { margin-top: 14px; font-size: clamp(28px, 3.2vw, 40px); line-height: 1.03; letter-spacing: -.04em; font-weight: 900; }\n.hero h1 span { color: var(--orange); }\n.hero .sub { max-width: 640px; margin-top: 14px; color: rgba(255, 255, 255, .74); font-size: 14.5px; line-height: 1.55; }\n\n.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }\n.chip {\n  padding: 7px 12px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 999px;\n  background: rgba(255, 255, 255, .07); color: rgba(255, 255, 255, .86);\n  font-size: 11.5px; font-weight: 600; white-space: nowrap;\n}\n.chip b, .chip strong { color: var(--white); font-weight: 700; }\n.chip.candidate { border-color: rgba(177, 202, 218, .5); color: var(--arctic); }\n.chip.deployed { border-color: rgba(24, 202, 168, .45); color: #7ee8cf; }\n.chip.warn { border-color: rgba(247, 173, 0, .5); color: #ffd97a; }\n.chip.danger { border-color: rgba(255, 69, 26, .5); color: #ffb4a0; }\n\n/* Chips also appear on the light field, inside tables and timelines. */\n.on-light .chip, table.data .chip, .tl-head .chip, .movers .chip, .theme-head .chip, .panel .chip {\n  border-color: var(--line); background: var(--nimbus-shade); color: var(--muted);\n}\n.on-light .chip strong, table.data .chip strong, .tl-head .chip strong, .theme-head .chip strong { color: var(--navy); }\ntable.data .chip.candidate, .tl-head .chip.candidate { background: #e7edf2; color: var(--azure); border-color: rgba(34, 67, 162, .2); }\ntable.data .chip.deployed, .tl-head .chip.deployed, .panel .chip.deployed { background: #dff6ef; color: var(--patina-deep); border-color: rgba(24, 202, 168, .28); }\ntable.data .chip.warn, .tl-head .chip.warn, .panel .chip.warn { background: #fff1c2; color: #8a6200; border-color: rgba(247, 173, 0, .3); }\n\n/* Headline dial \u2014 conic arc, matching the run artifact. */\n.dial { position: relative; width: min(100%, 230px); aspect-ratio: 1; margin-left: auto; display: grid; place-items: center; }\n.dial::before {\n  content: ""; position: absolute; inset: 0; border-radius: 50%;\n  background: conic-gradient(var(--dial-color, var(--orange)) 0 var(--arc, 0%), rgba(255, 255, 255, .12) var(--arc, 0%) 100%);\n}\n.dial::after {\n  content: ""; position: absolute; inset: 13px; border-radius: 50%;\n  background: linear-gradient(145deg, rgba(16, 29, 67, .96), rgba(34, 67, 162, .8));\n  border: 1px solid rgba(255, 255, 255, .12);\n}\n.dial-face { position: relative; z-index: 1; text-align: center; max-width: 78%; margin: 0 auto; }\n.dial-num { display: block; font-size: clamp(38px, 4.6vw, 58px); line-height: .92; font-weight: 900; letter-spacing: -.06em; }\n.dial-num small { font-size: .36em; color: var(--orange); letter-spacing: -.02em; }\n.dial-lab { display: block; margin-top: 7px; color: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }\n.dial-sub { display: block; margin-top: 4px; color: rgba(255, 255, 255, .6); font-size: 10px; font-family: var(--mono); }\n\n/* \u2500\u2500 Tabs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.tabs {\n  display: flex; gap: 7px; margin: 18px 0 26px; overflow-x: auto; padding-bottom: 2px;\n}\n.tab {\n  border: 1px solid var(--line); border-radius: 999px; background: var(--white); cursor: pointer;\n  color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;\n  padding: 9px 15px; white-space: nowrap; transition: all .14s ease; box-shadow: var(--shadow-soft);\n}\n.tab:hover { border-color: var(--arctic); color: var(--navy); }\n.tab.active { background: var(--navy); border-color: var(--navy); color: var(--white); }\n.tab .count { font-family: var(--mono); opacity: .7; margin-left: 6px; font-weight: 600; }\n\n/* \u2500\u2500 Metric strip \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.metrics {\n  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px;\n  overflow: hidden; margin-bottom: 30px; border: 1px solid var(--line);\n  border-radius: var(--r-lg); background: var(--line); box-shadow: var(--shadow-soft);\n}\n.metric { padding: 20px 22px; background: rgba(255, 255, 255, .9); }\n.metric .val { display: block; font-size: 30px; line-height: 1; letter-spacing: -.04em; font-family: var(--mono); font-weight: 700; }\n.metric .lbl { display: block; margin-top: 8px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }\n.metric .note { display: block; margin-top: 6px; color: var(--faint); font-size: 11.5px; line-height: 1.4; }\n.metric.primary { background: var(--white); }\n\n.delta { font-family: var(--mono); font-size: 11px; font-weight: 700; white-space: nowrap; }\n.delta.up { color: var(--patina-deep); }\n.delta.dn { color: var(--orange); }\n.delta.eq { color: var(--faint); }\n\n/* \u2500\u2500 Sections \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.section { margin-bottom: 40px; }\n.section > h2 {\n  display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;\n  font-size: 22px; font-weight: 700; letter-spacing: -.03em; color: var(--navy);\n}\n.section > h2::before {\n  content: ""; flex: 0 0 auto; width: 22px; height: 3px; border-radius: 999px;\n  background: var(--orange); align-self: center;\n}\n.section > h2 .hint { font-size: 12.5px; font-weight: 400; letter-spacing: 0; color: var(--muted); }\n\n.panel { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--white); box-shadow: var(--shadow-soft); padding: 20px 22px; }\n.empty { color: var(--faint); font-size: 12.5px; }\n\n/* \u2500\u2500 Tables \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\ntable.data {\n  width: 100%; border-collapse: separate; border-spacing: 0; background: var(--white);\n  border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-soft);\n}\ntable.data th {\n  text-align: left; font-size: 9.5px; font-weight: 800; text-transform: uppercase;\n  letter-spacing: .08em; color: var(--faint); padding: 13px 16px;\n  border-bottom: 1px solid var(--line); white-space: nowrap;\n  background: linear-gradient(135deg, rgba(177, 202, 218, .18), rgba(249, 248, 245, .6));\n}\ntable.data th.num, table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }\ntable.data th.mid, table.data td.mid { text-align: center; }\ntable.data td { padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }\ntable.data tbody tr:last-child td { border-bottom: 0; }\ntable.data tbody tr.clickable { cursor: pointer; }\ntable.data tbody tr.clickable:hover { background: rgba(241, 239, 234, .7); }\ntable.data td strong { font-weight: 700; }\ntable.data td .sub { color: var(--faint); font-size: 11.5px; margin-top: 5px; line-height: 1.4; }\ntable.data td.num { font-family: var(--mono); font-weight: 700; }\n.mono { font-family: var(--mono); font-size: 11.5px; }\n\n/* Result pills */\n.badge {\n  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px;\n  font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;\n}\n.badge.pass { color: var(--patina-deep); background: rgba(24, 202, 168, .12); }\n.badge.fail { color: var(--orange); background: rgba(255, 69, 26, .1); }\n.badge.pass::before, .badge.fail::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }\n.badge.na { color: var(--muted); background: var(--nimbus-shade); }\n.badge.w { font-family: var(--mono); color: var(--azure); background: #e7edf2; font-weight: 700; letter-spacing: 0; }\n\n/* Score bar */\n.bar { position: relative; flex: 1; height: 7px; border-radius: 999px; background: #e6e2da; overflow: hidden; min-width: 54px; }\n.bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--patina); }\n.bar-row { display: flex; align-items: center; gap: 9px; }\n.bar-row .pct { font-family: var(--mono); font-size: 11.5px; font-weight: 700; min-width: 42px; text-align: right; }\n\n/* \u2500\u2500 Heatmap \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.heat-wrap { overflow-x: auto; }\ntable.heat { border-collapse: separate; border-spacing: 4px; }\ntable.heat th { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 700; padding: 2px 6px; }\ntable.heat th.row-h { text-align: left; max-width: 280px; color: var(--navy); font-family: var(--font); font-weight: 600; font-size: 12.5px; }\ntable.heat td.cell {\n  width: 34px; height: 28px; border-radius: 7px; text-align: center; cursor: pointer;\n  font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--navy);\n}\ntable.heat td.cell.na { color: var(--faint); background: var(--nimbus-shade); font-size: 9.5px; }\ntable.heat td.cell:hover { outline: 2px solid var(--azure); outline-offset: 1px; }\n\n/* The version that went live is outlined down the matrix. The shipped version is often not\n   the highest scoring one, so the grid has to say which column is production instead of\n   letting the biggest number imply it. Side insets on every cell, closed off at the header\n   and the last row, read as one continuous outline. */\ntable.data th.implemented, table.data td.implemented {\n  box-shadow: inset 2px 0 0 var(--navy), inset -2px 0 0 var(--navy);\n}\ntable.data th.implemented {\n  box-shadow: inset 2px 0 0 var(--navy), inset -2px 0 0 var(--navy), inset 0 2px 0 var(--navy);\n  color: var(--navy);\n}\ntable.data tbody tr:last-child td.implemented {\n  box-shadow: inset 2px 0 0 var(--navy), inset -2px 0 0 var(--navy), inset 0 -2px 0 var(--navy);\n}\ntable.data th.implemented .flag {\n  margin-top: 5px; color: var(--orange); font-size: 8.5px; font-weight: 800; letter-spacing: .12em;\n}\ntable.data tbody tr.implemented > td:first-child { box-shadow: inset 3px 0 0 var(--navy); }\ntable.data tbody tr.overall td { background: var(--nimbus-shade); }\ntable.data tbody tr.overall td.cell { background-clip: padding-box; }\n\n/* \u2500\u2500 Prose and authored narrative \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.prose p { color: var(--muted); font-size: 13.5px; line-height: 1.65; }\n.prose p + p { margin-top: 11px; }\n.prose ul.notes, .prose ol.notes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; }\n.prose ul.notes { list-style: disc; }\n.prose li { color: var(--muted); font-size: 13.5px; line-height: 1.6; }\n\n.theme {\n  background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg);\n  padding: 20px 22px; margin-bottom: 13px; box-shadow: var(--shadow-soft);\n}\n.theme-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }\n.theme-head h3 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; color: var(--navy); }\n.theme-head .chip { font-family: var(--mono); font-size: 11px; }\n.theme-row { display: grid; grid-template-columns: 84px 1fr; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); }\n.theme-row .k {\n  font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;\n  color: var(--faint); padding-top: 3px;\n}\n.theme-row .v p { font-size: 13px; }\n\n/* \u2500\u2500 Findings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.finding {\n  background: var(--white); border: 1px solid var(--line); border-left: 3px solid var(--arctic);\n  border-radius: var(--r-md); padding: 17px 20px; margin-bottom: 11px; box-shadow: var(--shadow-soft);\n}\n.finding.high { border-left-color: var(--orange); }\n.finding.medium { border-left-color: var(--amber); }\n.finding.low { border-left-color: var(--azure); }\n.finding .kind { font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-bottom: 7px; }\n.finding.high .kind { color: var(--orange); }\n.finding h3 { font-size: 15px; font-weight: 700; letter-spacing: -.015em; margin-bottom: 6px; }\n.finding p { color: var(--muted); font-size: 13px; line-height: 1.5; }\n.finding ul { list-style: none; margin: 11px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }\n.finding li {\n  color: var(--muted); font-size: 11.5px; line-height: 1.5; padding: 9px 12px;\n  background: var(--nimbus); border-left: 3px solid var(--arctic); border-radius: 0 8px 8px 0;\n}\n.finding.high li { border-left-color: rgba(255, 69, 26, .5); }\n.finding .links { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }\n\n/* \u2500\u2500 Buttons / links \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.btn {\n  background: var(--white); border: 1px solid var(--line); color: var(--muted); cursor: pointer;\n  font-family: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: .05em;\n  text-transform: uppercase; padding: 8px 13px; border-radius: 10px; transition: all .14s ease;\n  text-decoration: none; display: inline-block;\n}\n.btn:hover { border-color: var(--arctic); color: var(--navy); }\n.btn.active { background: var(--navy); border-color: var(--navy); color: var(--white); }\n\n.crumbs { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); flex-wrap: wrap; }\n.crumbs a { color: var(--azure); text-decoration: none; cursor: pointer; }\n.crumbs a:hover { color: var(--orange); }\n\n.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }\n.toolbar .spacer { flex: 1; }\n.toolbar strong { font-size: 14px; letter-spacing: -.02em; }\n\n/* Detail page heading, reusing hero typography on the light field. */\n.detail-head { margin-bottom: 22px; }\n.detail-head h1 { font-size: clamp(24px, 2.6vw, 32px); font-weight: 900; letter-spacing: -.04em; line-height: 1.06; }\n.detail-head .sub { margin-top: 8px; color: var(--muted); font-size: 13.5px; line-height: 1.5; max-width: 720px; }\n.detail-head .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }\n\n/* \u2500\u2500 Text blocks \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\ndetails.block {\n  background: var(--white); border: 1px solid var(--line); border-radius: var(--r-md);\n  padding: 14px 18px; margin-bottom: 26px; box-shadow: var(--shadow-soft);\n}\ndetails.block > summary {\n  cursor: pointer; color: var(--muted); font-size: 10.5px; font-weight: 800;\n  letter-spacing: .07em; text-transform: uppercase; list-style: none;\n}\ndetails.block > summary::-webkit-details-marker { display: none; }\ndetails.block > summary::before { content: "\u25B8 "; color: var(--orange); }\ndetails.block[open] > summary::before { content: "\u25BE "; }\n\npre.text {\n  white-space: pre-wrap; word-break: break-word; font-family: var(--mono);\n  font-size: 11.5px; line-height: 1.65; color: var(--muted); margin-top: 12px;\n  background: var(--nimbus); border-radius: 10px; padding: 14px 16px;\n  max-height: 460px; overflow-y: auto;\n}\n.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }\n@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }\n.col-head { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }\n\n.criteria { display: grid; grid-template-columns: max-content 1fr; gap: 11px 20px; font-size: 13px; }\n.criteria dt { color: var(--faint); font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding-top: 4px; }\n.criteria dd { color: var(--muted); line-height: 1.5; }\n\n/* \u2500\u2500 Diff \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.diff { font-family: var(--mono); font-size: 11px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }\n.diff div { padding: 3px 12px; white-space: pre-wrap; word-break: break-word; }\n.diff .add { background: rgba(24, 202, 168, .12); color: var(--patina-deep); }\n.diff .remove { background: rgba(255, 69, 26, .09); color: #a8321a; }\n.diff .context { color: var(--muted); background: var(--nimbus); }\n.diff-stat .a { color: var(--patina-deep); }\n.diff-stat .r { color: var(--orange); }\n\n/* \u2500\u2500 Trend chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.chart { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--shadow-soft); }\n.chart svg { display: block; width: 100%; height: auto; }\n.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 14px; }\n.legend span { display: flex; align-items: center; gap: 6px; }\n.legend strong { font-family: var(--mono); }\n.swatch { width: 11px; height: 11px; border-radius: 3px; }\n\n/* \u2500\u2500 Timeline \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.timeline { position: relative; padding-left: 26px; }\n.timeline::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }\n.tl-item { position: relative; margin-bottom: 26px; }\n.tl-item::before {\n  content: ""; position: absolute; left: -25px; top: 6px; width: 12px; height: 12px;\n  border-radius: 50%; background: var(--white); border: 3px solid var(--arctic);\n}\n.tl-item.up::before { border-color: var(--patina); }\n.tl-item.dn::before { border-color: var(--orange); }\n.tl-head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-bottom: 6px; }\n.tl-head .run { font-weight: 900; font-size: 17px; letter-spacing: -.03em; }\n.tl-head .date { color: var(--faint); font-size: 11.5px; font-family: var(--mono); }\n.tl-notes { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 8px 0; max-width: 780px; }\n.movers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }\n/* Movers carry requirement IDs as well as dimension names, so they are not uppercased \u2014\n   BR-Acme_CallSummary-001 has to stay readable exactly as it appears in requirements.md. */\n.mover {\n  font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 5px 10px;\n  border: 1px solid var(--line); background: var(--nimbus); color: var(--muted);\n}\n.mover.up { border-color: rgba(24, 202, 168, .35); background: #dff6ef; color: var(--patina-deep); }\n.mover.dn { border-color: rgba(255, 69, 26, .3); background: rgba(255, 69, 26, .08); color: var(--orange); }\n\n/* \u2500\u2500 Footer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n.foot {\n  margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line);\n  color: var(--faint); font-size: 10.5px; font-weight: 600; letter-spacing: .04em;\n  display: flex; gap: 18px; flex-wrap: wrap; text-transform: uppercase;\n}\n.foot .mono { font-family: var(--mono); text-transform: none; letter-spacing: 0; }\n\n/* \u2500\u2500 Print \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n\n@media print {\n  body { background: var(--white); }\n  .tabs, .btn, .crumbs { display: none !important; }\n  .hero { box-shadow: none; }\n  .finding, table.data, .panel, .chart, details.block { box-shadow: none; break-inside: avoid; }\n  details.block { display: none; }\n}\n';
 
 // report-template:shared.js
 var shared_default = `/* Shared viewer helpers. Loaded before the per-report script.
@@ -18898,6 +19132,458 @@ renderChrome();
 renderRoute();
 `;
 
+// report-template:rollup.js
+var rollup_default2 = `/* Rollup views \u2014 the closing account of one improvement cycle.
+
+   Two things separate this from the improvements report. It is anchored on the version that
+   was actually implemented rather than on the latest run, because those are often different
+   runs; and it carries an authored narrative, which is rendered but never invented here. */
+
+function impl() { return MODEL.implemented; }
+
+/** The run the cycle closed on: the implemented one, or the last one if nothing shipped. */
+function closingRun() {
+  for (var i = 0; i < MODEL.runs.length; i++) {
+    if (MODEL.runs[i].implemented) return MODEL.runs[i];
+  }
+  return MODEL.runs[MODEL.runs.length - 1];
+}
+
+function versionLabel(n) { return n === null || n === undefined ? "v?" : "v" + n; }
+
+/** True when the implemented version is not the highest scoring one \u2014 worth stating plainly. */
+function shippedIsNotBest() {
+  var i = impl();
+  if (!i || !MODEL.best || i.runNumber === null) return false;
+  return MODEL.best.runNumber !== i.runNumber;
+}
+
+/* \u2500\u2500 Trend chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function trendChart() {
+  var runs = MODEL.runs;
+  var W = 900, H = 250, padL = 42, padR = 16, padT = 20, padB = 50;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var n = runs.length;
+
+  function x(i) { return n === 1 ? padL + innerW / 2 : padL + (i / (n - 1)) * innerW; }
+  function y(v) { return padT + innerH - v * innerH; }
+
+  var grid = "";
+  for (var g = 0; g <= 4; g++) {
+    var gv = g / 4;
+    grid += '<line x1="' + padL + '" y1="' + y(gv) + '" x2="' + (W - padR) + '" y2="' + y(gv) +
+      '" stroke="rgba(21,37,80,0.10)" stroke-width="1"/>' +
+      '<text x="' + (padL - 8) + '" y="' + (y(gv) + 4) + '" fill="#8a92a6" font-size="10" font-family="Roboto Mono, monospace" text-anchor="end">' +
+      Math.round(gv * 100) + "%</text>";
+  }
+
+  var pts = [], dots = "", labels = "", marks = "";
+  for (var i = 0; i < n; i++) {
+    var r = runs[i], v = r.passRate;
+    if (v === null) continue;
+    pts.push(x(i) + "," + y(v));
+
+    // The implemented run is ringed rather than recoloured, so the colour still reads as
+    // its score and the ring reads as "this is the one that shipped".
+    if (r.implemented) {
+      dots += '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="11" fill="none" stroke="#152550" stroke-width="2"/>';
+      marks += '<line x1="' + x(i) + '" y1="' + padT + '" x2="' + x(i) + '" y2="' + (padT + innerH) +
+        '" stroke="#152550" stroke-width="1" stroke-dasharray="3 4" opacity="0.45"/>' +
+        '<text x="' + (x(i) - 6) + '" y="' + (padT + 11) + '" fill="#152550" font-size="9" font-weight="800" text-anchor="end" letter-spacing="0.8">IMPLEMENTED</text>';
+    } else if (r.best && shippedIsNotBest()) {
+      marks += '<text x="' + x(i) + '" y="' + (y(v) - 14) + '" fill="#a8730a" font-size="9" font-weight="800" text-anchor="middle" letter-spacing="0.8">BEST</text>';
+    }
+
+    dots += '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="5" fill="' + colour(v) +
+      '" stroke="#ffffff" stroke-width="2.5"><title>Run ' + r.runNumber + " \\u2014 " + pct(v) + "</title></circle>";
+    labels += '<text x="' + x(i) + '" y="' + (H - padB + 19) + '" fill="#152550" font-size="11" font-weight="700" text-anchor="middle">' +
+      r.runNumber + "</text>" +
+      '<text x="' + x(i) + '" y="' + (H - padB + 32) + '" fill="#8a92a6" font-size="9" font-family="Roboto Mono, monospace" text-anchor="middle">' +
+      versionLabel(r.promptVersion.number) + "</text>";
+  }
+
+  return '<div class="chart"><svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' +
+    grid + marks +
+    '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#2243a2" stroke-width="2.5" stroke-linejoin="round"/>' +
+    dots + labels +
+    '<text x="' + padL + '" y="' + (H - 5) + '" fill="#8a92a6" font-size="9" font-weight="700" letter-spacing="1">RUN / PROMPT VERSION</text>' +
+    "</svg>" +
+    '<div class="legend"><span>Overall pass rate across ' + MODEL.runs.length + " runs</span>" +
+    (impl() ? '<span>ringed = version implemented in Genesys</span>' : "") +
+    (shippedIsNotBest() ? '<span style="color:#a8730a">the highest scoring run is not the one implemented</span>' : "") +
+    "</div></div>";
+}
+
+/* \u2500\u2500 Overview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewOverview() {
+  setTab("overview");
+  var h = MODEL.headline, i = impl(), closing = closingRun();
+
+  var out = '<div class="metrics">' +
+    '<div class="metric"><div class="val" style="color:' + colour(h.baselinePassRate) + '">' + pct(h.baselinePassRate) +
+    '</div><div class="lbl">Baseline</div><div class="note">run ' + MODEL.baseline.runNumber + " \\u00b7 " +
+    versionLabel(MODEL.baseline.versionNumber) + " as production had it</div></div>" +
+
+    '<div class="metric primary"><div class="val" style="color:' + colour(h.implementedPassRate) + '">' + pct(h.implementedPassRate) +
+    '</div><div class="lbl">' + (i ? "Implemented" : "Latest") + '</div><div class="note">' +
+    (i ? versionLabel(i.versionNumber) + " \\u00b7 measured by run " + (i.runNumber === null ? "\\u2014" : i.runNumber)
+       : "run " + closing.runNumber + " \\u00b7 nothing deployed yet") + "</div></div>" +
+
+    '<div class="metric"><div class="val" style="color:' + (h.delta === null ? "var(--navy)" : h.delta >= 0 ? "var(--patina-deep)" : "var(--orange)") + '">' +
+    (h.delta === null ? "\\u2014" : (h.delta >= 0 ? "+" : "\\u2212") + pct(Math.abs(h.delta))) +
+    '</div><div class="lbl">Movement</div><div class="note">overall pass rate, baseline to implemented</div></div>' +
+
+    '<div class="metric"><div class="val">' + h.testCasesImproved + "<span style=\\"color:var(--faint);font-size:18px\\"> / " +
+    (h.testCasesImproved + h.testCasesHeld + h.testCasesRegressed) + '</span></div><div class="lbl">Test cases improved</div>' +
+    '<div class="note">' + h.testCasesHeld + " held \\u00b7 " + h.testCasesRegressed + " regressed</div></div>" +
+
+    '<div class="metric"><div class="val">' + MODEL.runs.length + '</div><div class="lbl">Runs</div>' +
+    '<div class="note">' + (MODEL.period.from ? date(MODEL.period.from) + " \\u2192 " + date(MODEL.period.to) : "\\u2014") + "</div></div></div>";
+
+  if (MODEL.narrative && MODEL.narrative.executiveSummary) {
+    out += '<div class="section"><h2>Executive summary</h2><div class="panel prose">' +
+      paras(MODEL.narrative.executiveSummary) + "</div></div>";
+  } else {
+    out += '<div class="section"><h2>Executive summary</h2><div class="panel empty">' +
+      "No narrative has been recorded for this cycle. Call generate_rollup_report with the " +
+      "executive summary, themes and next steps to author it \\u2014 the measurements below are " +
+      "rebuilt from the runs either way.</div></div>";
+  }
+
+  out += '<div class="section"><h2>Overall pass rate by run</h2>' + trendChart() + "</div>";
+  out += '<div class="section"><h2>What shipped</h2>' + deploymentPanel() + "</div>";
+  out += '<div class="section"><h2>Baseline \\u2192 implemented <span class="hint">per test case, run ' +
+    MODEL.baseline.runNumber + " versus run " + closing.runNumber + '</span></h2>' + deltaTable() + "</div>";
+
+  if (MODEL.outstanding.length) {
+    out += '<div class="section"><h2>Still open <span class="hint">unresolved in the implemented run</span></h2>';
+    for (var w = 0; w < MODEL.outstanding.length; w++) out += findingCard(MODEL.outstanding[w]);
+    out += "</div>";
+  }
+
+  out += '<div class="section"><h2>Runs</h2>' + runTable() + "</div>";
+  mount(out);
+}
+
+/** Renders authored prose as paragraphs. Escaped first \u2014 narrative is text, not markup. */
+function paras(text) {
+  var blocks = String(text || "").split(/\\n\\s*\\n/);
+  var out = "";
+  for (var i = 0; i < blocks.length; i++) {
+    if (blocks[i].replace(/\\s/g, "") === "") continue;
+    out += "<p>" + esc(blocks[i].replace(/\\s*\\n\\s*/g, " ")) + "</p>";
+  }
+  return out;
+}
+
+function deploymentPanel() {
+  var i = impl();
+  if (!i) {
+    return '<div class="panel empty">No candidate from this cycle is live in Genesys. The newest ' +
+      "deployed snapshot is still the prompt production started with, so this rollup describes " +
+      "measured work that has not been implemented.</div>";
+  }
+
+  var rows = [
+    ["Implemented version", versionLabel(i.versionNumber) + (i.matchedBy === "unmatched"
+      ? ' <span class="chip warn">no matching candidate</span>'
+      : ' <span class="chip deployed">live in Genesys</span>')],
+    ["Deployed", date(i.deployedAt, true) + ' <span class="mono">snapshot ' + i.deployedSnapshotVersion + "</span>"],
+    ["Evidence", i.runNumber === null
+      ? '<span class="empty">no run measured this prompt</span>'
+      : 'run ' + i.runNumber + " \\u2014 " + pct(i.passRate) +
+        ' <a class="btn" href="' + esc(runHref(i.runNumber)) + '">Open run \\u2192</a>'],
+    ["Rollback point", i.rollbackVersion === null
+      ? '<span class="empty">none recorded</span>'
+      : 'version-history snapshot ' + i.rollbackVersion + " holds the replaced prompt"],
+  ];
+
+  var out = '<table class="data"><tbody>';
+  for (var r = 0; r < rows.length; r++) {
+    out += '<tr><td style="width:190px;color:var(--muted)">' + rows[r][0] + "</td><td>" + rows[r][1] + "</td></tr>";
+  }
+  out += "</tbody></table>";
+
+  if (i.notes) out += '<div class="panel prose" style="margin-top:12px">' + paras(i.notes) + "</div>";
+
+  if (shippedIsNotBest()) {
+    out += '<div class="finding medium" style="margin-top:12px"><div class="kind">Worth knowing</div>' +
+      "<h3>The implemented version is not the highest scoring one</h3><p>Run " + MODEL.best.runNumber +
+      " (" + versionLabel(MODEL.best.versionNumber) + ") scored " + pct(MODEL.best.passRate) + ", above the " +
+      pct(i.passRate) + " of run " + i.runNumber + " which measured what shipped. That can be the right call \\u2014 a " +
+      "higher headline can hide a regression on a heavier requirement \\u2014 but it is stated here so the choice is " +
+      "visible rather than implied.</p></div>";
+  }
+  return out;
+}
+
+function deltaTable() {
+  var out = '<table class="data"><thead><tr><th>Test case</th><th class="num">Baseline</th>' +
+    '<th class="num">Implemented</th><th class="mid">Movement</th></tr></thead><tbody>';
+
+  var rows = MODEL.baselineToImplemented.slice().sort(function (a, b) {
+    var da = (a.from === null || a.to === null) ? 0 : a.to - a.from;
+    var db = (b.from === null || b.to === null) ? 0 : b.to - b.from;
+    return db - da;
+  });
+
+  for (var i = 0; i < rows.length; i++) {
+    var d = rows[i];
+    var move = (d.from === null || d.to === null) ? null : d.to - d.from;
+    out += "<tr><td>" + esc(pretty(d.name)) + "</td>" +
+      '<td class="num" style="color:' + colour(d.from) + '">' + pct(d.from) + "</td>" +
+      '<td class="num" style="color:' + colour(d.to) + '">' + pct(d.to) + "</td>" +
+      '<td class="mid">' + (deltaTag(move) || '<span class="empty">not comparable</span>') + "</td></tr>";
+  }
+  return out + "</tbody></table>";
+}
+
+var KIND_LABELS = {
+  "dimension-failure": "Rubric dimension",
+  "requirement-risk": "Requirement at risk",
+  "regression": "Regression",
+  "coverage-gap": "Coverage gap",
+  "scoring-anomaly": "Scoring anomaly",
+};
+
+function findingCard(f) {
+  var ev = "";
+  if (f.evidence && f.evidence.length) {
+    ev = "<ul>";
+    for (var i = 0; i < f.evidence.length; i++) ev += "<li>" + esc(f.evidence[i]) + "</li>";
+    ev += "</ul>";
+  }
+  return '<div class="finding ' + f.severity + '"><div class="kind">' + esc(KIND_LABELS[f.kind] || f.kind) +
+    "</div><h3>" + esc(f.title) + "</h3><p>" + esc(f.detail) + "</p>" + ev + "</div>";
+}
+
+function runHref(runNumber) {
+  for (var i = 0; i < MODEL.runs.length; i++) {
+    if (MODEL.runs[i].runNumber === runNumber) return MODEL.runs[i].dashboardHref;
+  }
+  return "#";
+}
+
+function runTable() {
+  var out = '<table class="data"><thead><tr><th></th><th>Run</th><th>Date</th><th>Mode</th><th>Version</th>' +
+    '<th>Pass rate</th><th class="num">Weighted</th><th class="mid">Interactions</th><th></th></tr></thead><tbody>';
+
+  for (var i = MODEL.runs.length - 1; i >= 0; i--) {
+    var r = MODEL.runs[i];
+    var prev = i > 0 ? MODEL.runs[i - 1] : null;
+    var delta = (prev && r.passRate !== null && prev.passRate !== null) ? r.passRate - prev.passRate : null;
+    var flag = r.implemented
+      ? '<span class="chip deployed">live</span>'
+      : (r.best && shippedIsNotBest() ? '<span class="chip warn">best</span>' : "");
+
+    out += '<tr' + (r.implemented ? ' class="implemented"' : "") + "><td>" + flag + "</td>" +
+      "<td><strong>" + r.runNumber + "</strong></td>" +
+      "<td>" + date(r.finalizedAt) + "</td>" +
+      '<td style="color:var(--muted)">' + (r.mode === "existing" ? "existing" : "prompt test") + "</td>" +
+      '<td><span class="chip ' + (r.promptVersion.status || "") + '">' + versionLabel(r.promptVersion.number) +
+      (r.promptVersion.status ? " \\u00b7 " + r.promptVersion.status : "") + "</span></td>" +
+      "<td>" + bar(r.passRate) + " " + (deltaTag(delta) || "") + "</td>" +
+      '<td class="num" style="color:' + colour(r.weightedScore) + '">' + score2(r.weightedScore) + "</td>" +
+      '<td class="mid">' + r.transcriptsEvaluated +
+      (r.skippedCount ? ' <span class="chip warn">' + r.skippedCount + " skipped</span>" : "") + "</td>" +
+      '<td class="num"><a class="btn" href="' + esc(r.dashboardHref) + '">Open run \\u2192</a></td></tr>';
+  }
+
+  return out + "</tbody></table>" +
+    '<div class="legend"><span><a class="btn" href="improvements.html">Open the improvements report \\u2192</a></span>' +
+    "<span>run-by-run prompt diffs and what each change moved</span></div>";
+}
+
+/* \u2500\u2500 Commentary \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function viewCommentary() {
+  setTab("commentary");
+  var n = MODEL.narrative;
+
+  if (!n || (!n.themes.length && !n.methodologyNotes.length && !n.nextSteps.length)) {
+    mount('<div class="panel empty">No commentary has been recorded. Call generate_rollup_report ' +
+      "with themes describing what was wrong, what was changed and what it bought \\u2014 the numbers " +
+      "are in the other tabs, but only the agent that made the changes can explain them.</div>");
+    return;
+  }
+
+  var out = "";
+  if (n.themes.length) {
+    out += '<div class="section"><h2>Issues, approach, benefit</h2>';
+    for (var i = 0; i < n.themes.length; i++) {
+      var t = n.themes[i];
+      out += '<div class="theme"><div class="theme-head"><h3>' + esc(t.title) + "</h3>" +
+        (t.metric ? '<span class="chip">' + esc(t.metric) + "</span>" : "") + "</div>" +
+        row("Issue", t.issue) + row("Approach", t.approach) + row("Benefit", t.benefit) + "</div>";
+    }
+    out += "</div>";
+  }
+
+  if (n.methodologyNotes.length) {
+    out += '<div class="section"><h2>Notes on the measurement <span class="hint">the harness, not the prompt</span></h2>' +
+      '<div class="panel prose"><ul class="notes">';
+    for (var m = 0; m < n.methodologyNotes.length; m++) out += "<li>" + esc(n.methodologyNotes[m]) + "</li>";
+    out += "</ul></div></div>";
+  }
+
+  if (n.nextSteps.length) {
+    out += '<div class="section"><h2>Recommended next steps</h2><div class="panel prose"><ol class="notes">';
+    for (var s = 0; s < n.nextSteps.length; s++) out += "<li>" + esc(n.nextSteps[s]) + "</li>";
+    out += "</ol></div></div>";
+  }
+
+  out += '<div class="legend"><span>Narrative recorded ' + date(n.authoredAt, true) + "</span></div>";
+  mount(out);
+}
+
+function row(label, text) {
+  return '<div class="theme-row"><span class="k">' + label + '</span><div class="v">' + paras(text) + "</div></div>";
+}
+
+/* \u2500\u2500 Matrices \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+/**
+ * The run-by-run matrix. The implemented version's column is outlined: the shipped version
+ * is often not the best scoring one, so the table must show which column is production
+ * rather than letting the highest number imply it.
+ */
+function seriesTable(rows, label, withCategory) {
+  if (!rows.length) return '<div class="panel empty">No data recorded.</div>';
+
+  var implIdx = -1;
+  for (var q = 0; q < MODEL.runs.length; q++) if (MODEL.runs[q].implemented) implIdx = q;
+
+  var out = '<div class="heat-wrap"><table class="data"><thead><tr><th>' + label + "</th>";
+  for (var r = 0; r < MODEL.runs.length; r++) {
+    var run = MODEL.runs[r];
+    out += '<th class="mid' + (r === implIdx ? " implemented" : "") + '">' + run.runNumber +
+      '<div class="sub" style="font-weight:400">' + versionLabel(run.promptVersion.number) + "</div>" +
+      (r === implIdx ? '<div class="flag">LIVE</div>' : "") + "</th>";
+  }
+  out += '<th class="mid">Baseline \\u2192 live</th></tr></thead><tbody>';
+
+  // Overall first, so the headline movement frames the per-test-case rows below it.
+  out += matrixRow({ label: "Overall", key: "", series: MODEL.runs.map(function (x) { return x.passRate; }) },
+    implIdx, false, true);
+  for (var i = 0; i < rows.length; i++) out += matrixRow(rows[i], implIdx, withCategory, false);
+
+  return out + "</tbody></table></div>" +
+    '<div class="legend">' +
+    (implIdx >= 0 ? '<span><b>Outlined column</b> = the version implemented in Genesys (run ' +
+      MODEL.runs[implIdx].runNumber + ", " + versionLabel(MODEL.runs[implIdx].promptVersion.number) + ")</span>" : "") +
+    "<span>values are pass rates as percentages</span></div>";
+}
+
+function matrixRow(row, implIdx, withCategory, isOverall) {
+  var out = "<tr" + (isOverall ? ' class="overall"' : "") + "><td>" +
+    (isOverall ? "<strong>" + esc(row.label) + "</strong>" : esc(pretty(row.label)));
+  // Only show the key when it adds something \u2014 test case rows are keyed by their own name.
+  if (!isOverall && row.key && row.key !== row.label) {
+    out += withCategory && row.category
+      ? '<div class="sub">' + esc(row.category) + " \\u00b7 " + esc(row.key) + "</div>"
+      : '<div class="sub mono">' + esc(row.key) + "</div>";
+  } else if (!isOverall && withCategory && row.category) {
+    out += '<div class="sub">' + esc(row.category) + "</div>";
+  }
+  out += "</td>";
+
+  for (var j = 0; j < row.series.length; j++) {
+    var v = row.series[j];
+    var cls = "mid cell" + (j === implIdx ? " implemented" : "");
+    if (v === null || v === undefined) {
+      out += '<td class="' + cls + '" style="color:var(--faint)">\\u2014</td>';
+    } else {
+      out += '<td class="' + cls + '" style="background:' + heatColour(v) + '">' + Math.round(v * 100) + "</td>";
+    }
+  }
+
+  // Baseline to implemented, which is the movement this rollup is reporting on.
+  var from = row.series[0], to = implIdx >= 0 ? row.series[implIdx] : row.series[row.series.length - 1];
+  var move = (from === null || from === undefined || to === null || to === undefined) ? null : to - from;
+  return out + '<td class="mid">' + (deltaTag(move) || "\\u2014") + "</td></tr>";
+}
+
+function viewTestCases() {
+  setTab("testcases");
+  mount('<div class="section"><h2>Pass rates by run</h2>' +
+    seriesTable(MODEL.testCaseSeries, "Test case", false) + "</div>");
+}
+
+function viewRequirements() {
+  setTab("requirements");
+  if (!MODEL.requirementSeries.length) {
+    mount('<div class="panel empty">No requirement history is available \\u2014 requirements.md was not ' +
+      "found, or no run recorded requirement mappings.</div>");
+    return;
+  }
+  mount('<div class="section"><h2>Requirement compliance by run <span class="hint">the same runs ' +
+    'viewed through the business requirements they validate</span></h2>' +
+    seriesTable(MODEL.requirementSeries, "Requirement", true) + "</div>");
+}
+
+/* \u2500\u2500 Chrome + routes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+
+function renderChrome() {
+  var i = impl(), closing = closingRun(), h = MODEL.headline;
+
+  document.getElementById("eyebrow").textContent = i ? "Rollup \\u00b7 implemented" : "Rollup \\u00b7 not yet implemented";
+  // Hyphens are swapped for spaces so a long set name breaks between words in the headline.
+  document.getElementById("title").innerHTML =
+    esc(MODEL.config.name.replace(/_/g, "_\\u200b")) + ' <span>\\u00b7</span> ' +
+    (i ? "shipped " + versionLabel(i.versionNumber) : "cycle to date");
+  document.getElementById("subtitle").textContent =
+    MODEL.testSet.name.replace(/-/g, " ") + " \\u00b7 " + MODEL.runs.length + " runs \\u00b7 " +
+    (MODEL.period.from ? date(MODEL.period.from) + " to " + date(MODEL.period.to) : "\\u2014") +
+    (i && i.runNumber !== null ? " \\u00b7 measured by run " + i.runNumber : "");
+
+  setDial(h.implementedPassRate, i ? "Implemented" : "Latest run",
+    h.delta === null ? "" : (h.delta >= 0 ? "+" : "\\u2212") + pct(Math.abs(h.delta)) + " from baseline");
+  setStamp(h.implementedPassRate, i
+    ? versionLabel(i.versionNumber) + " live in Genesys"
+    : "Run " + closing.runNumber + " \\u00b7 nothing deployed");
+
+  var chips = [
+    '<span class="chip"><b>Baseline</b> <strong>' + pct(h.baselinePassRate) + "</strong> \\u00b7 run " + MODEL.baseline.runNumber + "</span>",
+    '<span class="chip ' + (i ? "deployed" : "") + '"><b>' + (i ? "Implemented" : "Latest") + "</b> <strong>" +
+      pct(h.implementedPassRate) + "</strong> \\u00b7 " + versionLabel(closing.promptVersion.number) + "</span>",
+    '<span class="chip"><b>Test cases</b> <strong>' + h.testCasesImproved + " improved</strong>" +
+      (h.testCasesRegressed ? " \\u00b7 " + h.testCasesRegressed + " regressed" : "") + "</span>",
+  ];
+  if (shippedIsNotBest()) {
+    chips.push('<span class="chip warn"><b>Best</b> <strong>' + pct(MODEL.best.passRate) +
+      "</strong> \\u00b7 run " + MODEL.best.runNumber + " not implemented</span>");
+  }
+  if (i && i.rollbackVersion !== null) {
+    chips.push('<span class="chip"><b>Rollback</b> <strong>snapshot ' + i.rollbackVersion + "</strong></span>");
+  }
+  if (MODEL.outstanding.length) {
+    chips.push('<span class="chip danger"><b>Still open</b> <strong>' + MODEL.outstanding.length + "</strong></span>");
+  }
+  document.getElementById("chips").innerHTML = chips.join("");
+
+  document.getElementById("tab-counts-commentary").textContent =
+    MODEL.narrative ? MODEL.narrative.themes.length : 0;
+  document.getElementById("tab-counts-testcases").textContent = MODEL.testCaseSeries.length;
+  document.getElementById("tab-counts-requirements").textContent = MODEL.requirementSeries.length;
+
+  document.getElementById("foot").innerHTML =
+    "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
+    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
+    "<span>Self-contained \\u2014 safe to copy or share as a single file</span>";
+}
+
+route("/", viewOverview);
+route("/commentary", viewCommentary);
+route("/testcases", viewTestCases);
+route("/requirements", viewRequirements);
+
+renderChrome();
+renderRoute();
+`;
+
 // src/reports/render.ts
 function embedJson(value) {
   return JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
@@ -18927,6 +19613,14 @@ function renderImprovementsReport(model) {
     improvements_default,
     improvements_default2,
     `Improvements \u2014 ${model.testSet.name}`,
+    model
+  );
+}
+function renderRollupReport(model) {
+  return render(
+    rollup_default,
+    rollup_default2,
+    `Rollup \u2014 ${model.config.name} \u2014 ${model.testSet.name}`,
     model
   );
 }
@@ -19844,7 +20538,11 @@ async function update_summary_setting(args) {
       previous_prompt_length: previousPrompt.length,
       new_prompt_length: newPrompt.length,
       preserved_fields: preservedFields,
-      note: "The full setting was sent back to Genesys with only the prompt" + (args.name ? " and name" : "") + " changed; every other field was preserved as read from the live setting."
+      note: "The full setting was sent back to Genesys with only the prompt" + (args.name ? " and name" : "") + " changed; every other field was preserved as read from the live setting.",
+      next_step_mandatory: [
+        '1. save_version(status="deployed") \u2014 record what is now live, with notes saying which candidate it came from and why it was chosen.',
+        "2. generate_rollup_report(summary_config_name, test_set_name, executive_summary, themes, next_steps) \u2014 the closing report for the cycle. The user has accepted a version, so the effort now needs an account of it: where the config started, what was wrong, what was changed, what it bought, and what is still open. Do not hand-write this HTML."
+      ]
     });
   });
 }
@@ -21042,6 +21740,62 @@ Watchlist: ${model.watchlist.length} unresolved item${model.watchlist.length ===
 Changelog: ${model.changelog.filter((c) => c.promptDiff.added || c.promptDiff.removed).length} runs with prompt changes`
   );
 }
+async function generate_rollup_report(args) {
+  const configName = str(args, "summary_config_name");
+  const testSetName = str(args, "test_set_name");
+  const themes = Array.isArray(args.themes) ? args.themes.map((t, idx) => {
+    const title = typeof t.title === "string" ? t.title.trim() : "";
+    if (!title) throw new Error(`themes[${idx}] is missing a title.`);
+    return {
+      title,
+      issue: typeof t.issue === "string" ? t.issue : "",
+      approach: typeof t.approach === "string" ? t.approach : "",
+      benefit: typeof t.benefit === "string" ? t.benefit : "",
+      metric: typeof t.metric === "string" && t.metric.trim() !== "" ? t.metric.trim() : null
+    };
+  }) : [];
+  const strings = (key) => Array.isArray(args[key]) ? args[key].filter((s) => typeof s === "string" && s.trim() !== "") : [];
+  const summary = typeof args.executive_summary === "string" ? args.executive_summary.trim() : "";
+  let narrativePath = null;
+  if (summary !== "" || themes.length > 0 || strings("next_steps").length > 0) {
+    narrativePath = saveRollupNarrative(configName, testSetName, {
+      executiveSummary: summary,
+      themes,
+      methodologyNotes: strings("methodology_notes"),
+      nextSteps: strings("next_steps"),
+      authoredAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  }
+  const model = buildRollupReport(configName, testSetName);
+  const filePath = saveRollupReport(configName, testSetName, renderRollupReport(model));
+  const impl = model.implemented;
+  const pctOf2 = (v) => v === null ? "\u2014" : `${Math.round(v * 100)}%`;
+  const lines = [
+    `Rollup report generated: ${filePath}`,
+    narrativePath ? `Narrative saved: ${narrativePath}` : null,
+    "",
+    `Config:     ${configName}`,
+    `Test set:   ${testSetName}`,
+    `Runs:       ${model.runs.length}`,
+    `Baseline:   run ${model.baseline?.runNumber} \u2014 ${pctOf2(model.headline.baselinePassRate)}`,
+    impl ? `Implemented: v${impl.versionNumber ?? "?"} \u2014 ${pctOf2(impl.passRate)}` + (impl.runNumber === null ? " (no run measured this prompt)" : ` (run ${impl.runNumber})`) + (impl.rollbackVersion === null ? "" : `, rollback snapshot ${impl.rollbackVersion}`) : "Implemented: nothing from this cycle is live in Genesys",
+    `Movement:   ${model.headline.delta === null ? "\u2014" : (model.headline.delta >= 0 ? "+" : "\u2212") + pctOf2(Math.abs(model.headline.delta))} overall \u2014 ${model.headline.testCasesImproved} test cases improved, ${model.headline.testCasesHeld} held, ${model.headline.testCasesRegressed} regressed`,
+    `Still open: ${model.outstanding.length} item${model.outstanding.length === 1 ? "" : "s"} in the implemented run`
+  ].filter((l) => l !== null);
+  if (impl && model.best && impl.runNumber !== null && model.best.runNumber !== impl.runNumber) {
+    lines.push(
+      "",
+      `NOTE: run ${model.best.runNumber} scored ${pctOf2(model.best.passRate)}, above the implemented run ${impl.runNumber} (${pctOf2(impl.passRate)}). The report outlines the implemented column in the pass-rate matrix and states this difference, so tell the user if it was deliberate.`
+    );
+  }
+  if (model.narrative === null) {
+    lines.push(
+      "",
+      "NO NARRATIVE RECORDED. The report renders the measurements but reads as an empty account. Call this tool again with executive_summary, themes and next_steps."
+    );
+  }
+  return ok(lines.join("\n"));
+}
 async function regenerate_reports(args) {
   const configName = str(args, "summary_config_name");
   const only = args.test_set_name ? str(args, "test_set_name") : null;
@@ -21088,6 +21842,19 @@ async function regenerate_reports(args) {
       lines.push(
         `  \u2717 ${testSetName} improvements: ${err instanceof Error ? err.message : String(err)}`
       );
+    }
+    if (loadRollupNarrative(configName, testSetName) !== null) {
+      try {
+        const path4 = saveRollupReport(
+          configName,
+          testSetName,
+          renderRollupReport(buildRollupReport(configName, testSetName))
+        );
+        lines.push(`  \u2713 ${testSetName}: ${path4}`);
+      } catch (err) {
+        failures++;
+        lines.push(`  \u2717 ${testSetName} rollup: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
   return ok(
@@ -21255,6 +22022,7 @@ var toolHandlers = {
   generate_improvements_dashboard,
   generate_eval_run_dashboard,
   regenerate_reports,
+  generate_rollup_report,
   get_pipeline_state,
   // Copilot
   list_assistants,

@@ -14,11 +14,13 @@
 
 import runTemplate from "template:run.html";
 import improvementsTemplate from "template:improvements.html";
+import rollupTemplate from "template:rollup.html";
 import styles from "template:report.css";
 import sharedScript from "template:shared.js";
 import runScript from "template:run.js";
 import improvementsScript from "template:improvements.js";
-import type { ImprovementsReport, RunReport } from "./model.js";
+import rollupScript from "template:rollup.js";
+import type { ImprovementsReport, RollupReport, RunReport } from "./model.js";
 
 /**
  * Embed JSON inside a <script> block safely. Escaping `<` is what prevents a `</script>`
@@ -68,6 +70,15 @@ export function renderImprovementsReport(model: ImprovementsReport): string {
     improvementsTemplate,
     improvementsScript,
     `Improvements — ${model.testSet.name}`,
+    model,
+  );
+}
+
+export function renderRollupReport(model: RollupReport): string {
+  return render(
+    rollupTemplate,
+    rollupScript,
+    `Rollup — ${model.config.name} — ${model.testSet.name}`,
     model,
   );
 }

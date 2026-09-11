@@ -457,9 +457,26 @@ Version snapshots with `"status": "candidate"` are **local-only drafts**. They a
 1. save_version(summary_config_name, summary_setting_id)        ← snapshot current live state FIRST
 2. update_summary_setting(summary_config_name, prompt)          ← push approved candidate prompt to Genesys
 3. save_version(summary_config_name, prompt, status="deployed") ← record the newly live state
+4. generate_rollup_report(summary_config_name, test_set_name,   ← the closing report for the cycle
+     executive_summary, themes, next_steps)
 ```
 
 Never call `update_summary_setting` proactively. Always wait for explicit user approval, and call `get_pipeline_state` first — if the cycle is already at `deployed-cycle-complete` and no newer candidate has been tested, the approval you are holding may be a stale answer to an earlier gate.
+
+### The rollup — the last step once a version is accepted
+
+Acceptance is not the end of the work; the effort still needs an account of itself. Once a version is live, call `generate_rollup_report`. It writes `rollup.html` next to `improvements.html`, rebuilding every measurement from the runs, and **outlines the implemented version's column in the pass-rate matrix** — the shipped version is often not the highest-scoring one, so the report has to show which column is production instead of letting the biggest number imply it. Where the best run was not the one deployed, it says so directly.
+
+Supply the part no tool can derive:
+
+| Argument | What goes in it |
+|---|---|
+| `executive_summary` | Where the config started and its material failures, what was done, where it ended up. Prose, a few paragraphs, with the numbers that matter |
+| `themes` | One per problem class fixed, each with `issue`, `approach`, `benefit`, and optionally `metric` (e.g. `"40% → 85%"`) |
+| `methodology_notes` | Findings about the evaluation rather than the prompt — a test case contradicting a requirement, a transcript that should not have been in the set, a platform limit |
+| `next_steps` | What the user should do now, including anything a prompt cannot fix |
+
+Write it from the runs' `improvements.md` files and their reports. A rollup that could have been written before the work started is worthless — be specific, and be honest about what did not close. Never hand-write the HTML; `regenerate_reports` re-renders the rollup from the saved narrative when templates change.
 
 ### Testing a candidate prompt (without deploying)
 

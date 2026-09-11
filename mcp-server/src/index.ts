@@ -90,6 +90,7 @@ const toolHandlers: Record<string, HandlerFn> = {
   generate_improvements_dashboard: handlers.generate_improvements_dashboard,
   generate_eval_run_dashboard: handlers.generate_eval_run_dashboard,
   regenerate_reports: handlers.regenerate_reports,
+  generate_rollup_report: handlers.generate_rollup_report,
   get_pipeline_state: handlers.get_pipeline_state,
 
   // Copilot

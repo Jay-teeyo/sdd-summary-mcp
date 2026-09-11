@@ -298,7 +298,97 @@ export interface ImprovementsReport {
   watchlist: Finding[];
 }
 
-export type Report = RunReport | ImprovementsReport;
+// ─── Rollup report ────────────────────────────────────────────────────────────
+
+/**
+ * One theme of the improvement effort: what was wrong, what was done, what it bought.
+ *
+ * This is the one part of any report that cannot be derived from the data. Numbers show
+ * that Resolution moved from 40% to 85%; only the agent that made the change can say it
+ * was because pending callbacks were being written up as completed outcomes. So the
+ * narrative is authored and stored, and everything around it is rebuilt from disk.
+ */
+export interface RollupTheme {
+  title: string;
+  issue: string;
+  approach: string;
+  benefit: string;
+  /** Optional measured movement for the theme, e.g. "40% → 85%". */
+  metric: string | null;
+}
+
+export interface RollupNarrative {
+  executiveSummary: string;
+  themes: RollupTheme[];
+  /** Findings about the evaluation itself rather than the prompt — harness fixes, API limits. */
+  methodologyNotes: string[];
+  nextSteps: string[];
+  authoredAt: string;
+}
+
+export interface RollupRunEntry extends RunSeriesEntry {
+  /** The run that measured the prompt now live in Genesys. */
+  implemented: boolean;
+  /** The highest pass rate in the series, which is not always the implemented one. */
+  best: boolean;
+}
+
+/**
+ * Which version actually went live, and the evidence for it.
+ *
+ * Deployment leaves two snapshots behind — a rollback copy of the outgoing prompt and a
+ * record of the incoming one — and neither carries the candidate number it came from. The
+ * link back to the candidate is made by comparing prompt text, so the report can state
+ * "v7 is live, measured by run 9" rather than guessing from snapshot order.
+ */
+export interface ImplementedVersion {
+  /** The candidate version whose prompt is live, or null when nothing matched it. */
+  versionNumber: number | null;
+  /** The snapshot recording the deployment. */
+  deployedSnapshotVersion: number;
+  deployedAt: string;
+  notes: string | null;
+  /** The run that measured this prompt, and its result. */
+  runNumber: number | null;
+  passRate: number | null;
+  /** The snapshot holding the prompt that was replaced. */
+  rollbackVersion: number | null;
+  matchedBy: "prompt-identical" | "unmatched";
+}
+
+export interface RollupReport {
+  kind: "rollup";
+  generator: GeneratorInfo;
+  config: { name: string };
+  testSet: { name: string };
+  period: { from: string | null; to: string | null };
+  runs: RollupRunEntry[];
+  baseline: {
+    runNumber: number;
+    passRate: number | null;
+    weightedScore: number | null;
+    versionNumber: number | null;
+  } | null;
+  implemented: ImplementedVersion | null;
+  best: { runNumber: number; versionNumber: number | null; passRate: number | null } | null;
+  headline: {
+    baselinePassRate: number | null;
+    implementedPassRate: number | null;
+    delta: number | null;
+    testCasesImproved: number;
+    testCasesRegressed: number;
+    testCasesHeld: number;
+  };
+  testCaseSeries: SeriesRow[];
+  requirementSeries: SeriesRow[];
+  /** Baseline run versus the implemented run, per test case. */
+  baselineToImplemented: Delta[];
+  /** What is still unresolved in the implemented run — the honest tail of the effort. */
+  outstanding: Finding[];
+  narrative: RollupNarrative | null;
+}
+
+export type Report = RunReport | ImprovementsReport | RollupReport;
 
 // ─── Shared computation ───────────────────────────────────────────────────────
 

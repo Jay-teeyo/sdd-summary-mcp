@@ -322,6 +322,31 @@ generate_improvements_dashboard(
 )
 ```
 
+### Rollup report — `rollup.html`
+
+Written once you accept a version and it goes live, by `generate_rollup_report`. Saved beside `improvements.html`, it is the closing account of the cycle rather than another view of a run:
+
+- Baseline, implemented result, and the movement between them — plus how many test cases improved, held and regressed
+- **The pass-rate matrix with the implemented version's column outlined.** The version you ship is often not the one with the highest headline, so the matrix marks which column is production instead of letting the biggest number imply it. Where a higher-scoring run was not the one deployed, the report says so and leaves the reasoning to you
+- **What shipped** — the live version, when it was pushed, the run that measured it, and the snapshot holding the prompt it replaced, so the rollback point is written down rather than remembered
+- **Commentary** — the authored part: an executive summary, one card per problem class with the issue, the approach and the benefit, notes on the measurement itself, and recommended next steps
+- What is still open in the implemented run, taken from that run's findings
+
+Which version is live is established by matching the deployed prompt text against the candidate snapshots, not by snapshot order — so the report names the candidate that actually shipped.
+
+The narrative is the one thing that cannot be derived from the data, so it is supplied as arguments and stored as `rollup.json` next to the runs. That keeps the rollup a derived artefact like the rest: `regenerate_reports` re-renders it from the saved narrative when the templates change.
+
+```
+generate_rollup_report(
+  summary_config_name="Acme_CallSummary",
+  test_set_name="Acme_CallSummary-Full-Test-Suite",
+  executive_summary="...",
+  themes=[{ "title": "...", "issue": "...", "approach": "...", "benefit": "...", "metric": "40% → 85%" }],
+  methodology_notes=["..."],
+  next_steps=["..."]
+)
+```
+
 ### Rebuilding reports
 
 Reports are derived artefacts — the JSON files in `eval-runs/` are the record. Nothing is lost by deleting a report, and none of this re-scores anything or calls Genesys:

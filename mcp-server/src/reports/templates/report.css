@@ -119,13 +119,13 @@ button, input { font: inherit; color: inherit; }
 .chip.danger { border-color: rgba(255, 69, 26, .5); color: #ffb4a0; }
 
 /* Chips also appear on the light field, inside tables and timelines. */
-.on-light .chip, table.data .chip, .tl-head .chip, .movers .chip {
+.on-light .chip, table.data .chip, .tl-head .chip, .movers .chip, .theme-head .chip, .panel .chip {
   border-color: var(--line); background: var(--nimbus-shade); color: var(--muted);
 }
-.on-light .chip strong, table.data .chip strong, .tl-head .chip strong { color: var(--navy); }
+.on-light .chip strong, table.data .chip strong, .tl-head .chip strong, .theme-head .chip strong { color: var(--navy); }
 table.data .chip.candidate, .tl-head .chip.candidate { background: #e7edf2; color: var(--azure); border-color: rgba(34, 67, 162, .2); }
-table.data .chip.deployed, .tl-head .chip.deployed { background: #dff6ef; color: var(--patina-deep); border-color: rgba(24, 202, 168, .28); }
-table.data .chip.warn, .tl-head .chip.warn { background: #fff1c2; color: #8a6200; border-color: rgba(247, 173, 0, .3); }
+table.data .chip.deployed, .tl-head .chip.deployed, .panel .chip.deployed { background: #dff6ef; color: var(--patina-deep); border-color: rgba(24, 202, 168, .28); }
+table.data .chip.warn, .tl-head .chip.warn, .panel .chip.warn { background: #fff1c2; color: #8a6200; border-color: rgba(247, 173, 0, .3); }
 
 /* Headline dial — conic arc, matching the run artifact. */
 .dial { position: relative; width: min(100%, 230px); aspect-ratio: 1; margin-left: auto; display: grid; place-items: center; }
@@ -244,6 +244,49 @@ table.heat td.cell {
 }
 table.heat td.cell.na { color: var(--faint); background: var(--nimbus-shade); font-size: 9.5px; }
 table.heat td.cell:hover { outline: 2px solid var(--azure); outline-offset: 1px; }
+
+/* The version that went live is outlined down the matrix. The shipped version is often not
+   the highest scoring one, so the grid has to say which column is production instead of
+   letting the biggest number imply it. Side insets on every cell, closed off at the header
+   and the last row, read as one continuous outline. */
+table.data th.implemented, table.data td.implemented {
+  box-shadow: inset 2px 0 0 var(--navy), inset -2px 0 0 var(--navy);
+}
+table.data th.implemented {
+  box-shadow: inset 2px 0 0 var(--navy), inset -2px 0 0 var(--navy), inset 0 2px 0 var(--navy);
+  color: var(--navy);
+}
+table.data tbody tr:last-child td.implemented {
+  box-shadow: inset 2px 0 0 var(--navy), inset -2px 0 0 var(--navy), inset 0 -2px 0 var(--navy);
+}
+table.data th.implemented .flag {
+  margin-top: 5px; color: var(--orange); font-size: 8.5px; font-weight: 800; letter-spacing: .12em;
+}
+table.data tbody tr.implemented > td:first-child { box-shadow: inset 3px 0 0 var(--navy); }
+table.data tbody tr.overall td { background: var(--nimbus-shade); }
+table.data tbody tr.overall td.cell { background-clip: padding-box; }
+
+/* ── Prose and authored narrative ───────────────────────────────────────── */
+
+.prose p { color: var(--muted); font-size: 13.5px; line-height: 1.65; }
+.prose p + p { margin-top: 11px; }
+.prose ul.notes, .prose ol.notes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; }
+.prose ul.notes { list-style: disc; }
+.prose li { color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+
+.theme {
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 20px 22px; margin-bottom: 13px; box-shadow: var(--shadow-soft);
+}
+.theme-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.theme-head h3 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; color: var(--navy); }
+.theme-head .chip { font-family: var(--mono); font-size: 11px; }
+.theme-row { display: grid; grid-template-columns: 84px 1fr; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); }
+.theme-row .k {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--faint); padding-top: 3px;
+}
+.theme-row .v p { font-size: 13px; }
 
 /* ── Findings ───────────────────────────────────────────────────────────── */
 

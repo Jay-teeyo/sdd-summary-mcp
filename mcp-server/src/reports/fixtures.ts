@@ -21,6 +21,7 @@ import {
   type Delta,
   type Finding,
   type ImprovementsReport,
+  type RollupReport,
   type ReportRequirement,
   type ReportTestCase,
   type RunComparison,
@@ -774,5 +775,98 @@ export function improvementsReportFixture(): ImprovementsReport {
     testCaseSeries,
     requirementSeries,
     watchlist,
+  };
+}
+
+/**
+ * Rollup fixture, deliberately set up with the awkward case: the version that shipped is
+ * version 3 measured by run 4, while run 5 scored higher on a later candidate that was never
+ * deployed. That is the arrangement the implemented-column outline exists for, so the
+ * template is previewed against it rather than against a tidy "best one wins" series.
+ */
+export function rollupReportFixture(): RollupReport {
+  const improvements = improvementsReportFixture();
+  const implementedRun = 4;
+
+  const runs = improvements.runs.map((r) => ({
+    ...r,
+    implemented: r.runNumber === implementedRun,
+    best: r.runNumber === 5,
+  }));
+
+  const closingIdx = improvements.runs.findIndex((r) => r.runNumber === implementedRun);
+  const baselineToImplemented = improvements.testCaseSeries.map((row) => ({
+    name: row.label,
+    from: row.series[0],
+    to: row.series[closingIdx],
+  }));
+  const moved = (d: { from: number | null; to: number | null }, dir: 1 | -1) =>
+    d.from !== null && d.to !== null && (d.to - d.from) * dir > 0.005;
+
+  return {
+    kind: "rollup",
+    generator,
+    config: { name: CONFIG },
+    testSet: { name: TEST_SET },
+    period: { from: "2026-08-27T10:05:00.000Z", to: "2026-09-10T08:15:00.000Z" },
+    runs,
+    baseline: { runNumber: 1, passRate: 0.2, weightedScore: 0.51, versionNumber: 1 },
+    implemented: {
+      versionNumber: 3,
+      deployedSnapshotVersion: 6,
+      deployedAt: "2026-09-10T08:15:00.000Z",
+      notes: "Deployed version 3. Chosen over version 4 because version 4 regressed the outcome rules, which carry weight 5.",
+      runNumber: implementedRun,
+      passRate: 0.4,
+      rollbackVersion: 5,
+      matchedBy: "prompt-identical",
+    },
+    best: { runNumber: 5, versionNumber: 4, passRate: 0.6 },
+    headline: {
+      baselinePassRate: 0.2,
+      implementedPassRate: 0.4,
+      delta: 0.2,
+      testCasesImproved: baselineToImplemented.filter((d) => moved(d, 1)).length,
+      testCasesRegressed: baselineToImplemented.filter((d) => moved(d, -1)).length,
+      testCasesHeld: baselineToImplemented.filter((d) => !moved(d, 1) && !moved(d, -1)).length,
+    },
+    testCaseSeries: improvements.testCaseSeries,
+    requirementSeries: improvements.requirementSeries,
+    baselineToImplemented,
+    outstanding: improvements.watchlist,
+    narrative: {
+      executiveSummary:
+        "The live prompt was passing one interaction in five. Three failure classes accounted for almost " +
+        "all of it: the four prescribed sections were not produced reliably, order and card references were " +
+        "written into the summary body, and pending work was recorded as a completed resolution.\n\n" +
+        "Four candidates were authored and tested across five runs. Version 3 was deployed: it lifted the " +
+        "pass rate from 20% to 40% and doubled structural compliance without touching the outcome rules, " +
+        "which version 4 went on to regress.",
+      themes: [
+        {
+          title: "Structure — the four prescribed sections",
+          issue: "Section headings were paraphrased or merged, so downstream parsing could not rely on them.",
+          approach: "The four headings were listed verbatim in the prompt with an instruction to reproduce them exactly, even when a section has nothing to report.",
+          benefit: "Structural compliance moved from 40% to 80% and has not regressed since.",
+          metric: "40% → 80%",
+        },
+        {
+          title: "Privacy — order and card references in the summary body",
+          issue: "The prohibition covered names and contact details but not order or card numbers, which appeared in most summaries.",
+          approach: "The rule was widened to any identifier, with order and card references named explicitly as examples.",
+          benefit: "Improved but not closed: this is still the lowest-scoring requirement in the set at 40%.",
+          metric: "20% → 40%",
+        },
+      ],
+      methodologyNotes: [
+        "The test set changed composition at run 4, so deltas across that boundary compare different populations. Runs 1–3 and 4–5 are only comparable within each group.",
+        "One interaction was too short for Genesys to summarise and is excluded from every run rather than scored as a failure.",
+      ],
+      nextSteps: [
+        "Re-test version 4 with the outcome rules restored, since its other gains are worth keeping.",
+        "Re-run version 3 against the current test set for a like-for-like baseline after the run 4 composition change.",
+      ],
+      authoredAt: "2026-09-10T08:40:00.000Z",
+    },
   };
 }

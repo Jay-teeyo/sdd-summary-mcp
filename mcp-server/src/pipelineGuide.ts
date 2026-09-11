@@ -52,6 +52,8 @@ ALWAYS call save_improvement_recommendations after finalize_eval_run — do not 
 - finalize_eval_run auto-generates both reports (run report + improvements report).
 - To re-render one: generate_eval_run_dashboard or generate_improvements_dashboard.
 - After pulling a newer plugin version, or after editing requirements.md: regenerate_reports.
+- Once the user accepts a version and it is live: generate_rollup_report — the closing account of
+  the cycle, with the narrative (executive summary, themes, next steps) you supply. Never hand-write it.
 
 ## Test Case Authoring — applicabilityCondition (REQUIRED on every dimension)
 Every dimension must have applicabilityCondition set:
@@ -563,8 +565,30 @@ start_eval_run(
 3. \`save_version(summary_config_name=..., summary_setting_id=...)\` — snapshots the still-live prompt as the rollback point
 4. \`update_summary_setting(summary_config_name=..., prompt=...)\` — pushes to Genesys (resolves the setting ID from the interaction filter)
 5. \`save_version(summary_config_name=..., prompt=..., status="deployed")\` — records the newly live state
+6. \`generate_rollup_report(summary_config_name=..., test_set_name=..., executive_summary=..., themes=[...], next_steps=[...])\` — the closing report
 
 **NEVER call \`update_summary_setting\` without prior prompt_test eval evidence and user approval.**
+
+### The rollup — the last step of a cycle (MANDATORY)
+
+Acceptance is not the end of the work: the effort still needs an account of itself. Once a version is
+live, call \`generate_rollup_report\`. It rebuilds every measurement from the runs and outlines the
+implemented version's column in the pass-rate matrix, so a reader can see which version is production
+rather than assuming it was the highest-scoring one.
+
+What you must supply is the part no tool can derive:
+
+| Argument | What goes in it |
+|---|---|
+| \`executive_summary\` | Where the config started and its material failures, what was done, where it ended up |
+| \`themes\` | One per problem class fixed: \`issue\` (what was going wrong), \`approach\` (what changed in the prompt), \`benefit\` (what it bought, and the honest limit if it did not close), optional \`metric\` |
+| \`methodology_notes\` | Findings about the evaluation rather than the prompt — a test case that contradicted a requirement, a transcript that should not have been in the set, a platform limit |
+| \`next_steps\` | What the user should do now, including anything a prompt change cannot fix |
+
+Write it from the runs' own \`improvements.md\` files and reports. Do not pad it with general
+prompt-engineering advice: a rollup that could have been written before the work started is worthless.
+Be honest about what did not close — a theme whose benefit is "partly fixed, and here is the ceiling"
+is more useful than one that claims success.
 
 ---
 

@@ -623,6 +623,37 @@ export function saveImprovementsDashboard(
 }
 
 /**
+ * Writes rollup.html at the test-set level, alongside improvements.html.
+ */
+export function saveRollupReport(configName: string, testSetName: string, html: string): string {
+  const filePath = path.join(evalRunsTestSetDir(configName, testSetName), "rollup.html");
+  fs.writeFileSync(filePath, html, "utf-8");
+  return filePath;
+}
+
+/**
+ * The authored part of the rollup, kept next to the runs it describes.
+ *
+ * Stored as data rather than baked into the HTML so the rollup stays a derived artefact
+ * like every other report: the narrative is the record, and the page can be re-rendered
+ * from it with a newer template.
+ */
+export function saveRollupNarrative(
+  configName: string,
+  testSetName: string,
+  narrative: unknown,
+): string {
+  const filePath = path.join(evalRunsTestSetDir(configName, testSetName), "rollup.json");
+  writeJson(filePath, narrative);
+  return filePath;
+}
+
+export function loadRollupNarrative<T>(configName: string, testSetName: string): T | null {
+  const filePath = path.join(evalRunsTestSetDir(configName, testSetName), "rollup.json");
+  return fs.existsSync(filePath) ? readJson<T>(filePath) : null;
+}
+
+/**
  * Writes improvements.md into the eval run directory and returns the path.
  * Called by save_improvement_recommendations after the agent has written its analysis.
  */

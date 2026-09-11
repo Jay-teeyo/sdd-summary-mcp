@@ -25,11 +25,15 @@ import type {
   CoverageReport,
   Delta,
   GeneratorInfo,
+  ImplementedVersion,
   ImprovementsReport,
   ReportDimension,
   ReportRequirement,
   ReportTestCase,
   ReportTranscript,
+  RollupNarrative,
+  RollupReport,
+  RollupRunEntry,
   RunComparison,
   RunReport,
   RunSeriesEntry,
@@ -389,6 +393,160 @@ export function buildRunReport(
     coverage,
     findings: deriveRunFindings({ testCases, requirements, coverage, comparison, regressions }),
     comparison,
+  };
+}
+
+// ─── Rollup report ────────────────────────────────────────────────────────────
+
+/**
+ * The closing report for a completed cycle: where the config started, what was changed,
+ * what shipped, and what is still open.
+ *
+ * It is built on the improvements model rather than re-reading the runs, so the two can
+ * never disagree about a number. The one thing it adds from version history is which
+ * candidate actually went live — see `linkDeployedVersion`.
+ */
+export function buildRollupReport(configName: string, testSetName: string): RollupReport {
+  const improvements = buildImprovementsReport(configName, testSetName);
+  const implemented = linkDeployedVersion(configName, improvements.runs);
+
+  const best =
+    improvements.runs.reduce<RunSeriesEntry | null>(
+      (acc, r) => (r.passRate !== null && (acc === null || r.passRate > (acc.passRate ?? -1)) ? r : acc),
+      null,
+    ) ?? null;
+
+  const baselineEntry = improvements.runs[0];
+  const implementedEntry =
+    implemented?.runNumber != null
+      ? improvements.runs.find((r) => r.runNumber === implemented.runNumber) ?? null
+      : null;
+
+  // The comparison column is the implemented run where there is one, and the latest run
+  // otherwise, so a rollup written before deployment still reads sensibly.
+  const closingEntry = implementedEntry ?? improvements.runs[improvements.runs.length - 1];
+  const baselineIdx = 0;
+  const closingIdx = improvements.runs.indexOf(closingEntry);
+
+  const baselineToImplemented: Delta[] = improvements.testCaseSeries.map((row) => ({
+    name: row.label,
+    from: row.series[baselineIdx] ?? null,
+    to: row.series[closingIdx] ?? null,
+  }));
+
+  const moved = (d: Delta, dir: 1 | -1) =>
+    d.from !== null && d.to !== null && (d.to - d.from) * dir > 0.005;
+
+  const runs: RollupRunEntry[] = improvements.runs.map((r) => ({
+    ...r,
+    implemented: implemented?.runNumber === r.runNumber,
+    best: best !== null && best.runNumber === r.runNumber,
+  }));
+
+  // Findings are reported for the run that measured what shipped — which is not always the
+  // last run, since a later candidate can be tested and then not deployed.
+  const outstanding =
+    implementedEntry !== null && implementedEntry.runNumber !== improvements.runs[improvements.runs.length - 1].runNumber
+      ? buildRunReport(configName, testSetName, implementedEntry.runNumber).findings.filter(
+          (f) => f.severity !== "low" || f.kind === "scoring-anomaly",
+        )
+      : improvements.watchlist;
+
+  return {
+    kind: "rollup",
+    generator: generator(),
+    config: { name: configName },
+    testSet: { name: testSetName },
+    period: {
+      from: baselineEntry.finalizedAt,
+      to: implemented?.deployedAt ?? improvements.runs[improvements.runs.length - 1].finalizedAt,
+    },
+    runs,
+    baseline: {
+      runNumber: baselineEntry.runNumber,
+      passRate: baselineEntry.passRate,
+      weightedScore: baselineEntry.weightedScore,
+      versionNumber: baselineEntry.promptVersion.number,
+    },
+    implemented,
+    best:
+      best === null
+        ? null
+        : { runNumber: best.runNumber, versionNumber: best.promptVersion.number, passRate: best.passRate },
+    headline: {
+      baselinePassRate: baselineEntry.passRate,
+      implementedPassRate: closingEntry.passRate,
+      delta:
+        baselineEntry.passRate === null || closingEntry.passRate === null
+          ? null
+          : closingEntry.passRate - baselineEntry.passRate,
+      testCasesImproved: baselineToImplemented.filter((d) => moved(d, 1)).length,
+      testCasesRegressed: baselineToImplemented.filter((d) => moved(d, -1)).length,
+      testCasesHeld: baselineToImplemented.filter((d) => !moved(d, 1) && !moved(d, -1)).length,
+    },
+    testCaseSeries: improvements.testCaseSeries,
+    requirementSeries: improvements.requirementSeries,
+    baselineToImplemented,
+    outstanding,
+    narrative: storage.loadRollupNarrative<RollupNarrative>(configName, testSetName),
+  };
+}
+
+/**
+ * Works out which candidate is live, by prompt text rather than by snapshot order.
+ *
+ * Deploying writes two snapshots: a rollback copy of the outgoing prompt and a record of
+ * the incoming one. Neither records the candidate number it came from, and the candidate
+ * that shipped is frequently not the last one authored or the highest scoring — so
+ * ordering cannot be trusted. Comparing prompt text can: the live snapshot's prompt is
+ * byte-identical to the candidate it was deployed from.
+ */
+function linkDeployedVersion(
+  configName: string,
+  runs: RunSeriesEntry[],
+): ImplementedVersion | null {
+  const versions = storage.listVersionSnapshots(configName);
+  const deployed = versions.filter((v) => (v.status ?? "deployed") === "deployed");
+  const live = deployed.length > 0 ? deployed[deployed.length - 1] : null;
+  if (live === null) return null;
+
+  const candidate =
+    versions.find(
+      (v) => v.version !== live.version && v.status === "candidate" && v.setting.prompt === live.setting.prompt,
+    ) ?? null;
+
+  // Nothing from this cycle is live: the newest deployed snapshot predates the candidates,
+  // so it is still a capture of what production had before the work started. An unmatched
+  // snapshot newer than every candidate is different — that is a prompt deployed from
+  // outside version history, which is worth reporting rather than hiding.
+  if (candidate === null) {
+    const newestCandidate =
+      versions.filter((v) => v.status === "candidate").pop() ?? null;
+    const nothingShipped =
+      newestCandidate === null ? live.version === 0 : live.version < newestCandidate.version;
+    if (nothingShipped) return null;
+  }
+
+  const rollback =
+    [...deployed]
+      .reverse()
+      .find((v) => v.version < live.version && v.setting.prompt !== live.setting.prompt) ?? null;
+
+  // The most recent run to measure that prompt is the evidence for the deployment.
+  const measuring =
+    candidate === null
+      ? null
+      : [...runs].reverse().find((r) => r.promptVersion.number === candidate.version) ?? null;
+
+  return {
+    versionNumber: candidate?.version ?? null,
+    deployedSnapshotVersion: live.version,
+    deployedAt: live.snapshotAt,
+    notes: live.notes ?? null,
+    runNumber: measuring?.runNumber ?? null,
+    passRate: measuring?.passRate ?? null,
+    rollbackVersion: rollback?.version ?? null,
+    matchedBy: candidate === null ? "unmatched" : "prompt-identical",
   };
 }
 

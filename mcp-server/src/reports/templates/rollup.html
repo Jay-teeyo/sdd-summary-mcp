@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!--
+  Rollup report — the closing account of one improvement cycle for a test set.
+
+  Written once a version has been accepted and pushed live. Unlike the run and improvements
+  reports it carries an authored narrative alongside the measurements, because "why did this
+  change" is the one thing the data cannot answer. Run dashboards and the improvements
+  report are linked relatively, so the eval-runs folder can be copied whole.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{PAGE_TITLE}}</title>
+<style>{{STYLES}}</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="hero">
+    <div class="hero-top">
+      <div class="eyebrow" id="eyebrow">Rollup &middot; cycle complete</div>
+      <div class="hero-stamp"><i class="live-dot" id="stampdot"></i><span id="stamptext"></span></div>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <h1 id="title"></h1>
+        <p class="sub" id="subtitle"></p>
+        <div class="hero-tags" id="chips"></div>
+      </div>
+      <div class="dial" id="dial">
+        <div class="dial-face">
+          <span class="dial-num" id="dialnum"></span>
+          <span class="dial-lab" id="diallab">Implemented</span>
+          <span class="dial-sub" id="dialsub"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview" onclick="go('/')">Overview</button>
+    <button class="tab" data-tab="commentary" onclick="go('/commentary')">Commentary <span class="count" id="tab-counts-commentary"></span></button>
+    <button class="tab" data-tab="testcases" onclick="go('/testcases')">Pass rates by run <span class="count" id="tab-counts-testcases"></span></button>
+    <button class="tab" data-tab="requirements" onclick="go('/requirements')">Requirements <span class="count" id="tab-counts-requirements"></span></button>
+  </nav>
+
+  <main id="body"></main>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script type="application/json" id="report-model">{{MODEL}}</script>
+<script>{{SHARED}}</script>
+<script>{{VIEWER}}</script>
+</body>
+</html>

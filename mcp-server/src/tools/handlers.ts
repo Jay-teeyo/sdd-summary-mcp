@@ -23,9 +23,9 @@ import {
   TOO_SHORT_SUMMARY_MESSAGE,
 } from "../genesys/summaries.js";
 import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues } from "../genesys/copilot.js";
-import { buildImprovementsReport, buildRunReport } from "../reports/build.js";
+import { buildImprovementsReport, buildRollupReport, buildRunReport } from "../reports/build.js";
 import { loadRequirements } from "../reports/requirements.js";
-import { renderImprovementsReport, renderRunReport } from "../reports/render.js";
+import { renderImprovementsReport, renderRollupReport, renderRunReport } from "../reports/render.js";
 import type {
   SummarySetting,
   StoredTranscript,
@@ -1216,6 +1216,14 @@ export async function update_summary_setting(args: Args) {
         "The full setting was sent back to Genesys with only the prompt" +
         (args.name ? " and name" : "") +
         " changed; every other field was preserved as read from the live setting.",
+      next_step_mandatory: [
+        "1. save_version(status=\"deployed\") — record what is now live, with notes saying which " +
+        "candidate it came from and why it was chosen.",
+        "2. generate_rollup_report(summary_config_name, test_set_name, executive_summary, themes, " +
+        "next_steps) — the closing report for the cycle. The user has accepted a version, so the " +
+        "effort now needs an account of it: where the config started, what was wrong, what was " +
+        "changed, what it bought, and what is still open. Do not hand-write this HTML.",
+      ],
     });
   });
 }
@@ -2765,6 +2773,96 @@ export async function generate_improvements_dashboard(args: Args) {
 }
 
 /**
+ * The closing report for an accepted cycle.
+ *
+ * Everything measurable is rebuilt from the runs; the narrative arguments are the part no
+ * tool can derive — why each change was made and what it bought. They are stored as data
+ * next to the runs so the page can be re-rendered later with a newer template.
+ */
+export async function generate_rollup_report(args: Args) {
+  const configName = str(args, "summary_config_name");
+  const testSetName = str(args, "test_set_name");
+
+  const themes = Array.isArray(args.themes)
+    ? (args.themes as Array<Record<string, unknown>>).map((t, idx) => {
+        const title = typeof t.title === "string" ? t.title.trim() : "";
+        if (!title) throw new Error(`themes[${idx}] is missing a title.`);
+        return {
+          title,
+          issue: typeof t.issue === "string" ? t.issue : "",
+          approach: typeof t.approach === "string" ? t.approach : "",
+          benefit: typeof t.benefit === "string" ? t.benefit : "",
+          metric: typeof t.metric === "string" && t.metric.trim() !== "" ? t.metric.trim() : null,
+        };
+      })
+    : [];
+
+  const strings = (key: string): string[] =>
+    Array.isArray(args[key])
+      ? (args[key] as unknown[]).filter((s): s is string => typeof s === "string" && s.trim() !== "")
+      : [];
+
+  const summary = typeof args.executive_summary === "string" ? args.executive_summary.trim() : "";
+
+  // A narrative is only written when something was actually supplied, so re-rendering a
+  // rollup without narrative arguments cannot wipe one that was authored earlier.
+  let narrativePath: string | null = null;
+  if (summary !== "" || themes.length > 0 || strings("next_steps").length > 0) {
+    narrativePath = storage.saveRollupNarrative(configName, testSetName, {
+      executiveSummary: summary,
+      themes,
+      methodologyNotes: strings("methodology_notes"),
+      nextSteps: strings("next_steps"),
+      authoredAt: new Date().toISOString(),
+    });
+  }
+
+  const model = buildRollupReport(configName, testSetName);
+  const filePath = storage.saveRollupReport(configName, testSetName, renderRollupReport(model));
+
+  const impl = model.implemented;
+  const pctOf = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
+
+  const lines = [
+    `Rollup report generated: ${filePath}`,
+    narrativePath ? `Narrative saved: ${narrativePath}` : null,
+    "",
+    `Config:     ${configName}`,
+    `Test set:   ${testSetName}`,
+    `Runs:       ${model.runs.length}`,
+    `Baseline:   run ${model.baseline?.runNumber} — ${pctOf(model.headline.baselinePassRate)}`,
+    impl
+      ? `Implemented: v${impl.versionNumber ?? "?"} — ${pctOf(impl.passRate)}` +
+        (impl.runNumber === null ? " (no run measured this prompt)" : ` (run ${impl.runNumber})`) +
+        (impl.rollbackVersion === null ? "" : `, rollback snapshot ${impl.rollbackVersion}`)
+      : "Implemented: nothing from this cycle is live in Genesys",
+    `Movement:   ${model.headline.delta === null ? "—" : (model.headline.delta >= 0 ? "+" : "−") + pctOf(Math.abs(model.headline.delta))} overall — ` +
+      `${model.headline.testCasesImproved} test cases improved, ${model.headline.testCasesHeld} held, ` +
+      `${model.headline.testCasesRegressed} regressed`,
+    `Still open: ${model.outstanding.length} item${model.outstanding.length === 1 ? "" : "s"} in the implemented run`,
+  ].filter((l): l is string => l !== null);
+
+  if (impl && model.best && impl.runNumber !== null && model.best.runNumber !== impl.runNumber) {
+    lines.push(
+      "",
+      `NOTE: run ${model.best.runNumber} scored ${pctOf(model.best.passRate)}, above the implemented ` +
+      `run ${impl.runNumber} (${pctOf(impl.passRate)}). The report outlines the implemented column in ` +
+      `the pass-rate matrix and states this difference, so tell the user if it was deliberate.`,
+    );
+  }
+
+  if (model.narrative === null) {
+    lines.push(
+      "",
+      "NO NARRATIVE RECORDED. The report renders the measurements but reads as an empty account. " +
+      "Call this tool again with executive_summary, themes and next_steps.",
+    );
+  }
+
+  return ok(lines.join("\n"));
+}
+
+/**
  * Rebuilds every report for a config from the results on disk.
  *
  * This is what makes the templates shippable: reports are derived artefacts, so pulling a
@@ -2826,6 +2924,22 @@ export async function regenerate_reports(args: Args) {
       lines.push(
         `  ✗ ${testSetName} improvements: ${err instanceof Error ? err.message : String(err)}`,
       );
+    }
+
+    // A rollup is only rebuilt where one was authored — its narrative is the record, and a
+    // test set with no narrative has no rollup to bring forward.
+    if (storage.loadRollupNarrative(configName, testSetName) !== null) {
+      try {
+        const path = storage.saveRollupReport(
+          configName,
+          testSetName,
+          renderRollupReport(buildRollupReport(configName, testSetName)),
+        );
+        lines.push(`  ✓ ${testSetName}: ${path}`);
+      } catch (err) {
+        failures++;
+        lines.push(`  ✗ ${testSetName} rollup: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 
