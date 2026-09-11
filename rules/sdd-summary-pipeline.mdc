@@ -25,6 +25,40 @@ Always run steps 3 and 4 together — 3 fetches transcripts, 4 enriches them wit
 
 ---
 
+## Decision Gates — Ask, Then Stop
+
+**When you ask the user anything — a gate, an approval, a clarification — end your turn on the question.** Never keep working while a question is outstanding, and never leave two questions open at once.
+
+This is correctness, not etiquette. A question stays live until it is answered, and the answer arrives with no timestamp and no reference to what it answered. Ask "test v2, deploy v1, or stop?", press on without waiting, and that question is still open; answered later — after six more runs and a deployment — it lands as a plain instruction to build v2, indistinguishable from a live one. **Every gate you walk past becomes a future instruction to redo finished work.**
+
+These gates must end the turn:
+
+| Gate | Before |
+|---|---|
+| Invite artefacts | Deriving any requirement |
+| `requirements.md` review | Writing any test case |
+| `applicabilityCondition` uncertain | `save_test_case` |
+| Test the next candidate / deploy / stop | Continuing after `save_improvement_recommendations` |
+| Deployment approval | `update_summary_setting` |
+
+## Reconcile Before Acting on a Version or Run
+
+**Call `get_pipeline_state(summary_config_name=...)` before acting on any instruction that names a version or a run number.** It reads local files only — no Genesys calls — so there is no reason to skip it.
+
+It returns the current stage, the latest version and status, the newest deployed version, candidates never tested, candidates tested but not deployed, every run (including any started and never finalized), and pass-rate history per test set.
+
+Refuse to execute, and ask the user instead, when:
+
+- the instruction names a version at or below `versions.latest.version` — that version already exists
+- the instruction names a run at or below `highest_run_number` for that test set — that run already happened
+- the instruction says deploy but `stage` is already `deployed-cycle-complete`
+
+Say what the mismatch is: *"this asks for candidate v1, but v7 is deployed and the latest run is #9 — what would you like instead?"* Executing a stale instruction burns preview API calls, writes run directories, and can push a live prompt backwards.
+
+Also call it when **resuming a session** — never infer state from your own memory of the conversation — and before **deploying** or **starting an eval run**.
+
+---
+
 ## Step 1 — Authentication
 
 ### On a first run, ASK before explaining
@@ -297,8 +331,10 @@ The Genesys Cloud AI Studio model is **Claude Haiku 4.5**. All prompt improvemen
 ### Required steps
 
 1. Call `finalize_eval_run` — read its full response carefully
-2. Using the failure analysis and prompt provided, synthesize `improvements.md` (structure below)
-3. Call `save_improvement_recommendations(summary_config_name, test_set_name, run_number, content)` to persist it
+2. Read the generated run report — its findings already rank the failing dimensions by weighted impact and quote the evidence
+3. Using the failure analysis and prompt provided, synthesize `improvements.md` (structure below)
+4. Call `save_improvement_recommendations(summary_config_name, test_set_name, run_number, content)` to persist it
+5. **Present the results and stop.** Ask whether to author and test the next candidate, deploy the current best, or stop here — then end your turn and wait. Do not start the next candidate on your own initiative: it commits preview API calls and a further eval run, and it orphans the gate you just asked (see "Decision Gates — Ask, Then Stop")
 
 ### improvements.md required structure
 
@@ -423,7 +459,7 @@ Version snapshots with `"status": "candidate"` are **local-only drafts**. They a
 3. save_version(summary_config_name, prompt, status="deployed") ← record the newly live state
 ```
 
-Never call `update_summary_setting` proactively. Always wait for explicit user approval.
+Never call `update_summary_setting` proactively. Always wait for explicit user approval, and call `get_pipeline_state` first — if the cycle is already at `deployed-cycle-complete` and no newer candidate has been tested, the approval you are holding may be a stale answer to an earlier gate.
 
 ### Testing a candidate prompt (without deploying)
 

@@ -405,6 +405,7 @@ Never call `update_summary_setting` without prompt_test evidence and explicit ap
 | `generate_eval_run_dashboard(...)` | Re-render a single run's report |
 | `generate_improvements_dashboard(...)` | Re-render the rolling improvements report |
 | `regenerate_reports(...)` | Rebuild every report for a config from the results on disk |
+| `get_pipeline_state(...)` | Where the config actually is: latest version, deployed version, every run, current stage |
 | `save_version(...)` | Snapshot a prompt to version history, as `candidate` or `deployed` |
 | `list_versions(...)` | View prompt version history |
 | `update_summary_setting(...)` | Update the prompt in Genesys |

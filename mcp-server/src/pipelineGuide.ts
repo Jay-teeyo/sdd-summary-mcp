@@ -18,6 +18,19 @@ SDD Summary MCP Server — Genesys Cloud AI Studio / Agent Copilot summary confi
    derive from the existing prompt (optional), then have them REVIEW requirements.md before any test
    cases are written. Never derive requirements silently. See the Requirements section of the full guide.
 
+## Decision Gates — ASK, THEN STOP
+Whenever you ask the user a question (gate, approval, clarification): end your turn there.
+Never continue past an unanswered question, and never leave more than one question open.
+An unanswered question card stays live indefinitely; if you work on regardless, its answer
+can arrive hours later, describing a state that no longer exists.
+
+## Before Acting on Any Version or Run Instruction
+Instructions carry no timestamp. A late gate answer, a resumed session or a queued question
+can hand you wording composed much earlier ("create candidate v1", "build v3") that reads as
+valid at any point in the cycle. Call get_pipeline_state(summary_config_name=...) — local
+files only, no API calls — and if the instruction names a version or run that already exists,
+it describes finished work: say so and ask, do not redo it.
+
 ## Evaluation Workflow
 Two modes — use the same three-tool flow for both:
   start_eval_run → [subagents: submit_eval_scores × N] → finalize_eval_run
@@ -552,6 +565,52 @@ start_eval_run(
 5. \`save_version(summary_config_name=..., prompt=..., status="deployed")\` — records the newly live state
 
 **NEVER call \`update_summary_setting\` without prior prompt_test eval evidence and user approval.**
+
+---
+
+## Decision Gates and Stale Instructions (MANDATORY)
+
+### Asking blocks — always
+
+When you ask the user anything — a gate, an approval, a clarification — **end your turn on the
+question.** Do not keep working while it is outstanding, and never have two questions open at once.
+
+This is not politeness, it is correctness. A question card stays live until answered, and an answer
+carries no timestamp and no reference to the question it answers. If you ask "test v2, deploy v1, or
+stop?" and then press on without waiting, that card is still sitting there. Answered later — after
+another six runs and a deployment — it arrives as a plain instruction to build v2, and nothing in it
+says it is nine hours old. Every gate you walk past is a future instruction to redo finished work.
+
+The gates that must block:
+
+| Gate | When |
+|---|---|
+| Artefacts | Before deriving any requirement |
+| \`requirements.md\` review | Before writing any test case |
+| \`applicabilityCondition\` uncertainty | Before \`save_test_case\` |
+| Post-eval decision: test the next candidate / deploy / stop | After each \`save_improvement_recommendations\` |
+| Deployment approval | Before \`update_summary_setting\` |
+
+### Reconcile before acting
+
+**Call \`get_pipeline_state(summary_config_name=...)\` before acting on any instruction that names a
+version or a run number.** It reads local files only — no Genesys calls — and returns the current
+stage, the latest version and its status, the newest deployed version, candidates never tested,
+candidates tested but not deployed, every run including any left unfinalized, and pass-rate history.
+
+Then compare:
+
+- Instruction names a version **at or below** \`versions.latest.version\` → that version already exists
+- Instruction names a run **at or below** \`highest_run_number\` for that test set → that run already happened
+- Instruction says "deploy" but \`stage\` is already \`deployed-cycle-complete\` → the cycle is closed
+
+In any of those cases **do not execute it.** State the mismatch plainly — "this asks for candidate v1;
+v7 is deployed and the latest run is #9" — and ask the user what they actually want. Executing a stale
+instruction is expensive: it burns preview API calls, writes run directories, and can push a live
+prompt backwards.
+
+Also call it when **resuming a session** (never infer state from your own memory of the conversation),
+**before deploying**, and **before starting an eval run**.
 
 ---
 

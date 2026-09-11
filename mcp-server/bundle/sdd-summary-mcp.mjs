@@ -14472,6 +14472,17 @@ var StdioServerTransport = class {
 var TOOL_DEFINITIONS = [
   // ─── Pipeline guide ─────────────────────────────────────────────────────────
   {
+    name: "get_pipeline_state",
+    description: 'Where a summary configuration actually is right now, read from local files only \u2014 no Genesys calls, so it is cheap and safe to call at any time.\n\nReturns: the current pipeline stage, the latest version and its status, the newest deployed version, candidates authored but never tested, candidates tested but not deployed, every eval run including any started and never finalized, pass-rate history per test set, and counts of requirements, test cases, test sets and transcripts.\n\nCALL THIS BEFORE ACTING ON ANY INSTRUCTION THAT NAMES A VERSION OR RUN NUMBER.\nInstructions do not carry a timestamp. A gate answer delivered late, a resumed session, or a queued question can hand you wording composed much earlier \u2014 "create candidate v1", "build v3" \u2014 which reads as valid at any point in the cycle. Acted on blind it redoes finished work and can push a completed, deployed cycle back to its first step. If the instruction names a version at or below the latest version, or a run at or below the highest run number, it describes work already done: say so and ask the user what they want, rather than executing it.\n\nAlso call it when resuming a session, before deploying, and before starting an eval run.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string", description: "Summary configuration name" }
+      },
+      required: ["summary_config_name"]
+    }
+  },
+  {
     name: "get_pipeline_guide",
     description: "Returns the complete SDD Summary pipeline reference guide as markdown. Call this at the start of a session to get the full workflow documentation: pipeline step order, authentication, transcript fetching, evaluation modes, version management rules, deployment gate, report rules, rate limiting notes, folder structure, and Genesys API facts. The server also surfaces a concise summary automatically via the MCP handshake \u2014 call this tool when you need the full details for any step.",
     inputSchema: { type: "object", properties: {}, required: [] }
@@ -15418,6 +15429,19 @@ SDD Summary MCP Server \u2014 Genesys Cloud AI Studio / Agent Copilot summary co
    derive from the existing prompt (optional), then have them REVIEW requirements.md before any test
    cases are written. Never derive requirements silently. See the Requirements section of the full guide.
 
+## Decision Gates \u2014 ASK, THEN STOP
+Whenever you ask the user a question (gate, approval, clarification): end your turn there.
+Never continue past an unanswered question, and never leave more than one question open.
+An unanswered question card stays live indefinitely; if you work on regardless, its answer
+can arrive hours later, describing a state that no longer exists.
+
+## Before Acting on Any Version or Run Instruction
+Instructions carry no timestamp. A late gate answer, a resumed session or a queued question
+can hand you wording composed much earlier ("create candidate v1", "build v3") that reads as
+valid at any point in the cycle. Call get_pipeline_state(summary_config_name=...) \u2014 local
+files only, no API calls \u2014 and if the instruction names a version or run that already exists,
+it describes finished work: say so and ask, do not redo it.
+
 ## Evaluation Workflow
 Two modes \u2014 use the same three-tool flow for both:
   start_eval_run \u2192 [subagents: submit_eval_scores \xD7 N] \u2192 finalize_eval_run
@@ -15954,6 +15978,52 @@ start_eval_run(
 
 ---
 
+## Decision Gates and Stale Instructions (MANDATORY)
+
+### Asking blocks \u2014 always
+
+When you ask the user anything \u2014 a gate, an approval, a clarification \u2014 **end your turn on the
+question.** Do not keep working while it is outstanding, and never have two questions open at once.
+
+This is not politeness, it is correctness. A question card stays live until answered, and an answer
+carries no timestamp and no reference to the question it answers. If you ask "test v2, deploy v1, or
+stop?" and then press on without waiting, that card is still sitting there. Answered later \u2014 after
+another six runs and a deployment \u2014 it arrives as a plain instruction to build v2, and nothing in it
+says it is nine hours old. Every gate you walk past is a future instruction to redo finished work.
+
+The gates that must block:
+
+| Gate | When |
+|---|---|
+| Artefacts | Before deriving any requirement |
+| \`requirements.md\` review | Before writing any test case |
+| \`applicabilityCondition\` uncertainty | Before \`save_test_case\` |
+| Post-eval decision: test the next candidate / deploy / stop | After each \`save_improvement_recommendations\` |
+| Deployment approval | Before \`update_summary_setting\` |
+
+### Reconcile before acting
+
+**Call \`get_pipeline_state(summary_config_name=...)\` before acting on any instruction that names a
+version or a run number.** It reads local files only \u2014 no Genesys calls \u2014 and returns the current
+stage, the latest version and its status, the newest deployed version, candidates never tested,
+candidates tested but not deployed, every run including any left unfinalized, and pass-rate history.
+
+Then compare:
+
+- Instruction names a version **at or below** \`versions.latest.version\` \u2192 that version already exists
+- Instruction names a run **at or below** \`highest_run_number\` for that test set \u2192 that run already happened
+- Instruction says "deploy" but \`stage\` is already \`deployed-cycle-complete\` \u2192 the cycle is closed
+
+In any of those cases **do not execute it.** State the mismatch plainly \u2014 "this asks for candidate v1;
+v7 is deployed and the latest run is #9" \u2014 and ask the user what they actually want. Executing a stale
+instruction is expensive: it burns preview API calls, writes run directories, and can push a live
+prompt backwards.
+
+Also call it when **resuming a session** (never infer state from your own memory of the conversation),
+**before deploying**, and **before starting an eval run**.
+
+---
+
 ## Report Rules (MANDATORY)
 
 | Report | Tool | Location |
@@ -16323,6 +16393,34 @@ function finalizePendingEvalRun(configName, testSetName, runNumber, aggregatePas
   meta.testCasePassRates = testCasePassRates;
   writeJson(p, meta);
 }
+function listRunStates(configName) {
+  const baseDir = evalRunsBaseDir(configName);
+  if (!fs2.existsSync(baseDir)) return [];
+  const out = [];
+  for (const ts of fs2.readdirSync(baseDir).filter((f) => fs2.statSync(path2.join(baseDir, f)).isDirectory())) {
+    const tsDir = path2.join(baseDir, ts);
+    for (const rDir of fs2.readdirSync(tsDir).filter((f) => fs2.statSync(path2.join(tsDir, f)).isDirectory())) {
+      const pendingPath = path2.join(tsDir, rDir, "_pending.json");
+      if (!fs2.existsSync(pendingPath)) continue;
+      const m = readJson(pendingPath);
+      out.push({
+        testSetName: m.testSetName,
+        runNumber: m.runNumber,
+        startedAt: m.startedAt,
+        finalizedAt: m.finalizedAt ?? null,
+        mode: m.useExistingSummaries ? "existing" : "prompt_test",
+        promptVersionNumber: m.promptVersionNumber ?? null,
+        promptVersionStatus: m.promptVersionStatus ?? null,
+        aggregatePassRate: m.aggregatePassRate ?? null,
+        transcriptsEvaluated: m.transcriptIds.length,
+        skippedCount: m.skippedTranscripts?.length ?? 0
+      });
+    }
+  }
+  return out.sort(
+    (a, b) => a.testSetName === b.testSetName ? b.runNumber - a.runNumber : a.testSetName.localeCompare(b.testSetName)
+  );
+}
 function readAllFinalizedRunMetas(configName, testSetName) {
   const tsDir = path2.join(evalRunsBaseDir(configName), testSetName);
   if (!fs2.existsSync(tsDir)) return [];
@@ -16387,6 +16485,11 @@ function saveVersionSnapshot(configName, setting, notes, status) {
 function listVersionSnapshots(configName) {
   const d = versionHistoryDir(configName);
   return listJsonFiles(d).filter((name) => name.startsWith("summary-configuration-")).map((name) => readJson(path2.join(d, `${name}.json`))).sort((a, b) => a.version - b.version);
+}
+function listLifecycleConfigs() {
+  const base = getLifecycleDir();
+  if (!fs2.existsSync(base)) return [];
+  return fs2.readdirSync(base).filter((f) => fs2.statSync(path2.join(base, f)).isDirectory());
 }
 function saveInteractionFilter(configName, filter) {
   const filePath = path2.join(lifecycleConfigDir(configName), "interaction-filter.json");
@@ -21000,6 +21103,95 @@ ${lines.join("\n")}
 Reports are rebuilt from the results on disk, so nothing was re-scored and no Genesys calls were made.`
   );
 }
+async function get_pipeline_state(args) {
+  const configName = str(args, "summary_config_name");
+  if (!listLifecycleConfigs().includes(configName)) {
+    return json({
+      summary_config_name: configName,
+      workspace_exists: false,
+      stage: "no-workspace",
+      note: `No lifecycle workspace exists for "${configName}". Existing configs: ` + (listLifecycleConfigs().join(", ") || "(none)")
+    });
+  }
+  const versions = listVersionSnapshots(configName);
+  const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+  const latestDeployed = [...versions].reverse().find((v) => (v.status ?? "deployed") === "deployed") ?? null;
+  const runs = listRunStates(configName);
+  const unfinalised = runs.filter((r) => r.finalizedAt === null);
+  const finalised = runs.filter((r) => r.finalizedAt !== null);
+  const requirements = loadRequirements(configName);
+  const filter = loadInteractionFilter(configName);
+  const untestedCandidates = versions.filter(
+    (v) => v.status === "candidate" && !finalised.some((r) => r.promptVersionNumber === v.version)
+  );
+  const testedNotDeployed = versions.filter(
+    (v) => v.status === "candidate" && finalised.some((r) => r.promptVersionNumber === v.version) && (latestDeployed === null || v.version > latestDeployed.version)
+  );
+  const stage = (() => {
+    if (unfinalised.length > 0) return "eval-run-in-progress";
+    if (requirements.unavailable) return "requirements-not-authored";
+    if (listTestCases(configName).length === 0) return "test-cases-not-authored";
+    if (finalised.length === 0) return "no-eval-runs-yet";
+    if (untestedCandidates.length > 0) return "candidate-authored-not-tested";
+    if (testedNotDeployed.length > 0) return "candidate-tested-awaiting-deployment-decision";
+    return "deployed-cycle-complete";
+  })();
+  return json({
+    summary_config_name: configName,
+    workspace_exists: true,
+    stage,
+    read_at: (/* @__PURE__ */ new Date()).toISOString(),
+    summary_setting_id: filter?.summarySettingId ?? null,
+    versions: {
+      latest: latestVersion ? {
+        version: latestVersion.version,
+        status: latestVersion.status ?? "deployed",
+        snapshot_at: latestVersion.snapshotAt,
+        notes: latestVersion.notes ?? null,
+        prompt_length: latestVersion.setting.prompt.length
+      } : null,
+      latest_deployed: latestDeployed ? { version: latestDeployed.version, snapshot_at: latestDeployed.snapshotAt } : null,
+      total: versions.length,
+      candidates_never_tested: untestedCandidates.map((v) => v.version),
+      candidates_tested_not_deployed: testedNotDeployed.map((v) => v.version)
+    },
+    runs: {
+      total: runs.length,
+      finalized: finalised.length,
+      in_progress: unfinalised.map((r) => ({
+        test_set_name: r.testSetName,
+        run_number: r.runNumber,
+        started_at: r.startedAt,
+        note: "Started but never finalized \u2014 call finalize_eval_run or treat it as abandoned."
+      })),
+      latest_finalized: finalised[0] ? {
+        test_set_name: finalised[0].testSetName,
+        run_number: finalised[0].runNumber,
+        mode: finalised[0].mode,
+        prompt_version: finalised[0].promptVersionNumber,
+        prompt_version_status: finalised[0].promptVersionStatus,
+        pass_rate: finalised[0].aggregatePassRate,
+        finalized_at: finalised[0].finalizedAt
+      } : null,
+      by_test_set: [...new Set(runs.map((r) => r.testSetName))].map((name) => {
+        const forSet = finalised.filter((r) => r.testSetName === name);
+        return {
+          test_set_name: name,
+          highest_run_number: Math.max(...runs.filter((r) => r.testSetName === name).map((r) => r.runNumber)),
+          finalized_runs: forSet.length,
+          pass_rate_history: forSet.slice().reverse().map((r) => ({ run: r.runNumber, version: r.promptVersionNumber, pass_rate: r.aggregatePassRate }))
+        };
+      })
+    },
+    artefacts: {
+      requirements: requirements.unavailable ? null : requirements.requirements.length,
+      test_cases: listTestCases(configName).length,
+      test_sets: listTestSets(configName).map((t) => t.name),
+      transcripts: listLifecycleTranscripts(configName).length
+    },
+    staleness_check: "Compare any instruction that names a version or run number against this. An instruction referring to a version at or below versions.latest.version, or a run at or below runs.by_test_set[].highest_run_number, describes work that has already happened \u2014 do not redo it. Report the mismatch to the user and ask what they want instead of acting on it."
+  });
+}
 async function get_pipeline_guide(_args) {
   return { content: [{ type: "text", text: FULL_PIPELINE_GUIDE }] };
 }
@@ -21063,6 +21255,7 @@ var toolHandlers = {
   generate_improvements_dashboard,
   generate_eval_run_dashboard,
   regenerate_reports,
+  get_pipeline_state,
   // Copilot
   list_assistants,
   get_copilot_config,

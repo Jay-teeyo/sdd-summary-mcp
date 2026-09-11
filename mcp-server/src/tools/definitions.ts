@@ -3,6 +3,32 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 export const TOOL_DEFINITIONS: Tool[] = [
   // ─── Pipeline guide ─────────────────────────────────────────────────────────
   {
+    name: "get_pipeline_state",
+    description:
+      "Where a summary configuration actually is right now, read from local files only — no " +
+      "Genesys calls, so it is cheap and safe to call at any time.\n\n" +
+      "Returns: the current pipeline stage, the latest version and its status, the newest " +
+      "deployed version, candidates authored but never tested, candidates tested but not " +
+      "deployed, every eval run including any started and never finalized, pass-rate history " +
+      "per test set, and counts of requirements, test cases, test sets and transcripts.\n\n" +
+      "CALL THIS BEFORE ACTING ON ANY INSTRUCTION THAT NAMES A VERSION OR RUN NUMBER.\n" +
+      "Instructions do not carry a timestamp. A gate answer delivered late, a resumed session, " +
+      "or a queued question can hand you wording composed much earlier — \"create candidate v1\", " +
+      "\"build v3\" — which reads as valid at any point in the cycle. Acted on blind it redoes " +
+      "finished work and can push a completed, deployed cycle back to its first step. If the " +
+      "instruction names a version at or below the latest version, or a run at or below the " +
+      "highest run number, it describes work already done: say so and ask the user what they " +
+      "want, rather than executing it.\n\n" +
+      "Also call it when resuming a session, before deploying, and before starting an eval run.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string", description: "Summary configuration name" },
+      },
+      required: ["summary_config_name"],
+    },
+  },
+  {
     name: "get_pipeline_guide",
     description:
       "Returns the complete SDD Summary pipeline reference guide as markdown. " +

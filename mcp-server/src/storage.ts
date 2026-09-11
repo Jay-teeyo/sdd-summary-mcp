@@ -537,6 +537,57 @@ export function finalizePendingEvalRun(
 }
 
 /**
+ * Every run on disk for a config, finalized or not, newest first.
+ *
+ * Unlike `listEvalRuns` this deliberately includes runs that were never finalized, because
+ * an abandoned run is exactly the kind of state that makes a stale instruction look
+ * plausible — "score the run" reads as valid whether the run is live or was left half
+ * scored days ago.
+ */
+export function listRunStates(
+  configName: string,
+): Array<{
+  testSetName: string;
+  runNumber: number;
+  startedAt: string;
+  finalizedAt: string | null;
+  mode: "existing" | "prompt_test";
+  promptVersionNumber: number | null;
+  promptVersionStatus: "candidate" | "deployed" | null;
+  aggregatePassRate: number | null;
+  transcriptsEvaluated: number;
+  skippedCount: number;
+}> {
+  const baseDir = evalRunsBaseDir(configName);
+  if (!fs.existsSync(baseDir)) return [];
+
+  const out: ReturnType<typeof listRunStates> = [];
+  for (const ts of fs.readdirSync(baseDir).filter((f) => fs.statSync(path.join(baseDir, f)).isDirectory())) {
+    const tsDir = path.join(baseDir, ts);
+    for (const rDir of fs.readdirSync(tsDir).filter((f) => fs.statSync(path.join(tsDir, f)).isDirectory())) {
+      const pendingPath = path.join(tsDir, rDir, "_pending.json");
+      if (!fs.existsSync(pendingPath)) continue;
+      const m = readJson<EvalRunPendingMeta>(pendingPath);
+      out.push({
+        testSetName: m.testSetName,
+        runNumber: m.runNumber,
+        startedAt: m.startedAt,
+        finalizedAt: m.finalizedAt ?? null,
+        mode: m.useExistingSummaries ? "existing" : "prompt_test",
+        promptVersionNumber: m.promptVersionNumber ?? null,
+        promptVersionStatus: m.promptVersionStatus ?? null,
+        aggregatePassRate: m.aggregatePassRate ?? null,
+        transcriptsEvaluated: m.transcriptIds.length,
+        skippedCount: m.skippedTranscripts?.length ?? 0,
+      });
+    }
+  }
+  return out.sort((a, b) =>
+    a.testSetName === b.testSetName ? b.runNumber - a.runNumber : a.testSetName.localeCompare(b.testSetName),
+  );
+}
+
+/**
  * Returns all finalized _pending.json metas for every run under a test set, sorted oldest→newest.
  */
 export function readAllFinalizedRunMetas(

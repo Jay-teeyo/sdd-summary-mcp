@@ -24,6 +24,7 @@ import {
 } from "../genesys/summaries.js";
 import { listAssistants, getCopilotConfig, updateCopilotConfig, getAssistantQueues } from "../genesys/copilot.js";
 import { buildImprovementsReport, buildRunReport } from "../reports/build.js";
+import { loadRequirements } from "../reports/requirements.js";
 import { renderImprovementsReport, renderRunReport } from "../reports/render.js";
 import type {
   SummarySetting,
@@ -2838,6 +2839,143 @@ export async function regenerate_reports(args: Args) {
     `Reports are rebuilt from the results on disk, so nothing was re-scored and no ` +
     `Genesys calls were made.`,
   );
+}
+
+// ─── Pipeline state ────────────────────────────────────────────────────────────
+
+/**
+ * Where a configuration actually is, read from disk.
+ *
+ * This exists to settle one question cheaply: does an instruction still apply? A gate
+ * answer, a resumed session, or a queued question delivered hours late all arrive with no
+ * indication of when they were composed, and their wording carries the state at that
+ * moment — "create candidate v1", "build v3". Acted on blind, they walk a finished cycle
+ * backwards. Compared against this, they are obviously stale.
+ *
+ * Reads only local files: no Genesys calls, so it is safe to call before anything else and
+ * as often as needed.
+ */
+export async function get_pipeline_state(args: Args) {
+  const configName = str(args, "summary_config_name");
+
+  if (!storage.listLifecycleConfigs().includes(configName)) {
+    return json({
+      summary_config_name: configName,
+      workspace_exists: false,
+      stage: "no-workspace",
+      note:
+        `No lifecycle workspace exists for "${configName}". Existing configs: ` +
+        (storage.listLifecycleConfigs().join(", ") || "(none)"),
+    });
+  }
+
+  const versions = storage.listVersionSnapshots(configName);
+  const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+  const latestDeployed = [...versions].reverse().find((v) => (v.status ?? "deployed") === "deployed") ?? null;
+  const runs = storage.listRunStates(configName);
+  const unfinalised = runs.filter((r) => r.finalizedAt === null);
+  const finalised = runs.filter((r) => r.finalizedAt !== null);
+  const requirements = loadRequirements(configName);
+  const filter = storage.loadInteractionFilter(configName);
+
+  // Versions above the newest deployed one are prompts authored but never pushed live.
+  const untestedCandidates = versions.filter(
+    (v) =>
+      v.status === "candidate" &&
+      !finalised.some((r) => r.promptVersionNumber === v.version),
+  );
+  const testedNotDeployed = versions.filter(
+    (v) =>
+      v.status === "candidate" &&
+      finalised.some((r) => r.promptVersionNumber === v.version) &&
+      (latestDeployed === null || v.version > latestDeployed.version),
+  );
+
+  // A single label for "what step are we on", so a stale instruction naming a different
+  // step is immediately recognisable.
+  const stage = (() => {
+    if (unfinalised.length > 0) return "eval-run-in-progress";
+    if (requirements.unavailable) return "requirements-not-authored";
+    if (storage.listTestCases(configName).length === 0) return "test-cases-not-authored";
+    if (finalised.length === 0) return "no-eval-runs-yet";
+    if (untestedCandidates.length > 0) return "candidate-authored-not-tested";
+    if (testedNotDeployed.length > 0) return "candidate-tested-awaiting-deployment-decision";
+    return "deployed-cycle-complete";
+  })();
+
+  return json({
+    summary_config_name: configName,
+    workspace_exists: true,
+    stage,
+    read_at: new Date().toISOString(),
+    summary_setting_id: filter?.summarySettingId ?? null,
+
+    versions: {
+      latest: latestVersion
+        ? {
+            version: latestVersion.version,
+            status: latestVersion.status ?? "deployed",
+            snapshot_at: latestVersion.snapshotAt,
+            notes: latestVersion.notes ?? null,
+            prompt_length: latestVersion.setting.prompt.length,
+          }
+        : null,
+      latest_deployed: latestDeployed
+        ? { version: latestDeployed.version, snapshot_at: latestDeployed.snapshotAt }
+        : null,
+      total: versions.length,
+      candidates_never_tested: untestedCandidates.map((v) => v.version),
+      candidates_tested_not_deployed: testedNotDeployed.map((v) => v.version),
+    },
+
+    runs: {
+      total: runs.length,
+      finalized: finalised.length,
+      in_progress: unfinalised.map((r) => ({
+        test_set_name: r.testSetName,
+        run_number: r.runNumber,
+        started_at: r.startedAt,
+        note: "Started but never finalized — call finalize_eval_run or treat it as abandoned.",
+      })),
+      latest_finalized: finalised[0]
+        ? {
+            test_set_name: finalised[0].testSetName,
+            run_number: finalised[0].runNumber,
+            mode: finalised[0].mode,
+            prompt_version: finalised[0].promptVersionNumber,
+            prompt_version_status: finalised[0].promptVersionStatus,
+            pass_rate: finalised[0].aggregatePassRate,
+            finalized_at: finalised[0].finalizedAt,
+          }
+        : null,
+      by_test_set: [...new Set(runs.map((r) => r.testSetName))].map((name) => {
+        const forSet = finalised.filter((r) => r.testSetName === name);
+        return {
+          test_set_name: name,
+          highest_run_number: Math.max(...runs.filter((r) => r.testSetName === name).map((r) => r.runNumber)),
+          finalized_runs: forSet.length,
+          pass_rate_history: forSet
+            .slice()
+            .reverse()
+            .map((r) => ({ run: r.runNumber, version: r.promptVersionNumber, pass_rate: r.aggregatePassRate })),
+        };
+      }),
+    },
+
+    artefacts: {
+      requirements: requirements.unavailable ? null : requirements.requirements.length,
+      test_cases: storage.listTestCases(configName).length,
+      test_sets: storage.listTestSets(configName).map((t) => t.name),
+      transcripts: storage.listLifecycleTranscripts(configName).length,
+    },
+
+    staleness_check:
+      "Compare any instruction that names a version or run number against this. An " +
+      "instruction referring to a version at or below versions.latest.version, or a run at " +
+      "or below runs.by_test_set[].highest_run_number, describes work that has already " +
+      "happened — do not redo it. Report the mismatch to the user and ask what they want " +
+      "instead of acting on it.",
+  });
 }
 
 // ─── Pipeline guide ────────────────────────────────────────────────────────────
