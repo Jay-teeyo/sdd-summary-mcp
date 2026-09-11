@@ -52,13 +52,18 @@ export function deriveRunFindings(input: FindingInputs): Finding[] {
   const findings: Finding[] = [];
   const { testCases, requirements, coverage, comparison, regressions } = input;
 
-  // Dimensions ranked by weighted impact — a weight-5 rule failing a third of the time
-  // matters more than a weight-1 rule failing most of the time.
-  const impact = (weight: number, passRate: number | null) => weight * (1 - (passRate ?? 1));
+  // Weight first, then failure rate. Weight is the author's statement of what matters, so a
+  // weight-5 rule failing at all outranks any weight-4 rule however often it fails; within
+  // one weight the worse failure rate leads.
+  const failureRate = (passRate: number | null) => 1 - (passRate ?? 1);
   const failing = testCases
     .flatMap((tc) => tc.dimensions.map((d) => ({ testCase: tc.name, d })))
     .filter((x) => x.d.stats.evaluated > 0 && (x.d.stats.passRate ?? 1) < DIMENSION_ATTENTION)
-    .sort((a, b) => impact(b.d.weight, b.d.stats.passRate) - impact(a.d.weight, a.d.stats.passRate));
+    .sort(
+      (a, b) =>
+        b.d.weight - a.d.weight ||
+        failureRate(b.d.stats.passRate) - failureRate(a.d.stats.passRate),
+    );
 
   const shown = failing.slice(0, MAX_DIMENSION_FINDINGS);
   for (const { testCase, d } of shown) {
@@ -85,7 +90,7 @@ export function deriveRunFindings(input: FindingInputs): Finding[] {
       severity: "low",
       kind: "dimension-failure",
       title: `${remaining} further dimension${remaining === 1 ? " is" : "s are"} below ${Math.round(DIMENSION_ATTENTION * 100)}% pass`,
-      detail: "Lower weighted impact than those above. Open each test case to review them in full.",
+      detail: "Lower weighted than those above. Open each test case to review them in full.",
       evidence: failing.slice(MAX_DIMENSION_FINDINGS).map(
         (x) => `${x.d.name} — ${pctOf(x.d.stats.passRate)}% pass (weight ${x.d.weight})`,
       ),
@@ -215,6 +220,6 @@ export function findDimensionRegressions(
       });
     }
   }
-  // Heaviest first: a weight-5 drop of 20 points outranks a weight-1 drop of 40.
-  return out.sort((a, b) => b.weight * (b.from - b.to) - a.weight * (a.from - a.to));
+  // Heaviest first, as with the dimension findings; the larger drop breaks ties within a weight.
+  return out.sort((a, b) => b.weight - a.weight || (b.from - b.to) - (a.from - a.to));
 }

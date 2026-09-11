@@ -17110,8 +17110,10 @@ function pctOf(v) {
 function deriveRunFindings(input) {
   const findings = [];
   const { testCases, requirements, coverage, comparison, regressions } = input;
-  const impact = (weight, passRate) => weight * (1 - (passRate ?? 1));
-  const failing = testCases.flatMap((tc) => tc.dimensions.map((d) => ({ testCase: tc.name, d }))).filter((x) => x.d.stats.evaluated > 0 && (x.d.stats.passRate ?? 1) < DIMENSION_ATTENTION).sort((a, b) => impact(b.d.weight, b.d.stats.passRate) - impact(a.d.weight, a.d.stats.passRate));
+  const failureRate = (passRate) => 1 - (passRate ?? 1);
+  const failing = testCases.flatMap((tc) => tc.dimensions.map((d) => ({ testCase: tc.name, d }))).filter((x) => x.d.stats.evaluated > 0 && (x.d.stats.passRate ?? 1) < DIMENSION_ATTENTION).sort(
+    (a, b) => b.d.weight - a.d.weight || failureRate(b.d.stats.passRate) - failureRate(a.d.stats.passRate)
+  );
   const shown = failing.slice(0, MAX_DIMENSION_FINDINGS);
   for (const { testCase, d } of shown) {
     const reasons = (testCases.find((t) => t.name === testCase)?.transcripts ?? []).flatMap((t) => t.scores.filter((s) => s.dimension === d.name && !s.na && !s.passed)).map((s) => s.reasoning).filter((r) => r.trim().length > 0);
@@ -17130,7 +17132,7 @@ function deriveRunFindings(input) {
       severity: "low",
       kind: "dimension-failure",
       title: `${remaining} further dimension${remaining === 1 ? " is" : "s are"} below ${Math.round(DIMENSION_ATTENTION * 100)}% pass`,
-      detail: "Lower weighted impact than those above. Open each test case to review them in full.",
+      detail: "Lower weighted than those above. Open each test case to review them in full.",
       evidence: failing.slice(MAX_DIMENSION_FINDINGS).map(
         (x) => `${x.d.name} \u2014 ${pctOf(x.d.stats.passRate)}% pass (weight ${x.d.weight})`
       ),
@@ -17221,7 +17223,7 @@ function findDimensionRegressions(previous, current, previousRunNumber) {
       });
     }
   }
-  return out.sort((a, b) => b.weight * (b.from - b.to) - a.weight * (a.from - a.to));
+  return out.sort((a, b) => b.weight - a.weight || b.from - b.to - (a.from - a.to));
 }
 
 // src/reports/model.ts
@@ -18219,7 +18221,7 @@ function viewOverview() {
   }
 
   if (MODEL.findings.length) {
-    out += '<div class="section"><h2>What this run is telling you <span class="hint">derived from these results, ranked by weighted impact</span></h2>';
+    out += '<div class="section"><h2>What this run is telling you <span class="hint">derived from these results, heaviest weight first</span></h2>';
     for (var i = 0; i < MODEL.findings.length; i++) out += findingCard(MODEL.findings[i]);
     out += "</div>";
   }
