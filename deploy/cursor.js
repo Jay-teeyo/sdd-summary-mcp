@@ -138,7 +138,7 @@ function printCursorNextSteps(target, sourceIsNested) {
          Open ${S.bold('Customize')} in the sidebar → ${S.bold('MCPs')} → toggle
          "${S.SERVER_KEY}" ${S.bold('on')}
 
-       It should then report ${S.bold('42 tools')}. If the toggle is missing entirely,
+       It should then report ${S.bold('44 tools')}. If the toggle is missing entirely,
        the config was not found — check step 1 opened the right folder.
 
     4. Start a new chat and just say ${S.bold('"begin"')}. The agent will check
