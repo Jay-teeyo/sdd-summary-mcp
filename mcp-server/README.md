@@ -18,7 +18,7 @@ This server is not configured by hand. `deploy.js` at the repository root asks w
 
 All of them run the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`. There is no dependency install or build step on the consuming machine.
 
-Project scope is recommended because this server exposes 42 Genesys-specific tools plus always-applied guidance; at user scope those load into unrelated projects. On Cursor there is no documented way to disable a user-scoped plugin per project; on Kiro global steering loads in every workspace and the global agent needs an absolute bundle path, losing portability.
+Project scope is recommended because this server exposes 44 Genesys-specific tools plus always-applied guidance; at user scope those load into unrelated projects. On Cursor there is no documented way to disable a user-scoped plugin per project; on Kiro global steering loads in every workspace and the global agent needs an absolute bundle path, losing portability.
 
 ### What differs between the two hosts
 

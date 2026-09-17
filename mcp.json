@@ -42,7 +42,10 @@
         "list_versions",
         "save_improvement_recommendations",
         "generate_eval_run_dashboard",
-        "generate_improvements_dashboard"
+        "generate_improvements_dashboard",
+        "generate_rollup_report",
+        "regenerate_reports",
+        "get_pipeline_state"
       ]
     }
   }

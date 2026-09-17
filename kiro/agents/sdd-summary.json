@@ -47,6 +47,8 @@
     "@sdd-summary/save_improvement_recommendations",
     "@sdd-summary/generate_eval_run_dashboard",
     "@sdd-summary/generate_improvements_dashboard",
+    "@sdd-summary/generate_rollup_report",
+    "@sdd-summary/regenerate_reports",
     "@sdd-summary/get_pipeline_state"
   ],
   "toolsSettings": {

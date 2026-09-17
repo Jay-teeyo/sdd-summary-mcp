@@ -114,6 +114,25 @@ function buildSteering(rulePath, kiroBlockPath) {
  * The checked-in agent files under kiro/agents/ carry the prompt, tool list and
  * crew settings; the allowlist is overwritten here from mcp.json so that adding a
  * tool there updates both hosts at once.
+ *
+ * WHY THE DRIFT CHECK BELOW EXISTS
+ * --------------------------------
+ * The template's own `@sdd-summary/*` entries are DISCARDED and regenerated from
+ * mcp.json — but the template is also the artefact copied by hand for a
+ * user-scope install (see docs/setup.md Option B), where no deploy ever runs and
+ * its list IS the effective one. So the two must agree, and nothing structural
+ * forced them to.
+ *
+ * That gap shipped once: `get_pipeline_state` was in the template but not in
+ * mcp.json, so every deployed project silently lost it — on BOTH hosts, since
+ * mcp.json feeds Cursor's permissions.json too. The agent's own prompt mandates
+ * calling that tool before acting on any version or run number, so the single
+ * most frequent call prompted for approval every time, which is exactly the
+ * friction that gets a reconciliation step skipped.
+ *
+ * Re-running the deploy could not fix it, because the deploy is what overwrites
+ * the list. Only mcp.json could. Hence: compare, and refuse to deploy a
+ * mismatch rather than quietly resolving it in mcp.json's favour.
  */
 function writeAgent(target, agentName, allowTools) {
   const srcPath = path.join(S.SOURCE_KIRO, 'agents', `${agentName}.json`);
@@ -136,6 +155,34 @@ function writeAgent(target, agentName, allowTools) {
   // pipeline list.
   if (agentName === MAIN_AGENT && allowTools.length) {
     const mcpEntries = allowTools.map((t) => `@${S.SERVER_KEY}/${t}`);
+
+    // Fail loudly on template/mcp.json drift — see the comment above.
+    const templateMcp = (agent.allowedTools || []).filter((t) =>
+      t.startsWith(`@${S.SERVER_KEY}/`),
+    );
+    const onlyInTemplate = templateMcp.filter((t) => !mcpEntries.includes(t));
+    const onlyInMcpJson = mcpEntries.filter((t) => !templateMcp.includes(t));
+
+    if (onlyInTemplate.length || onlyInMcpJson.length) {
+      S.err(`Tool allowlist drift between mcp.json and kiro/agents/${agentName}.json.`);
+      if (onlyInTemplate.length) {
+        console.log(
+          `    In the template but NOT in mcp.json alwaysAllow — these would be\n` +
+          `    SILENTLY DROPPED from every deployed project, on Cursor as well as Kiro:\n` +
+          onlyInTemplate.map((t) => `      ${t}`).join('\n') + '\n',
+        );
+      }
+      if (onlyInMcpJson.length) {
+        console.log(
+          `    In mcp.json alwaysAllow but NOT in the template — a hand-copied\n` +
+          `    user-scope install (docs/setup.md Option B) would lack these:\n` +
+          onlyInMcpJson.map((t) => `      ${t}`).join('\n') + '\n',
+        );
+      }
+      console.log('    Make the two lists agree, then re-run.\n');
+      process.exit(1);
+    }
+
     const builtins = (agent.allowedTools || []).filter((t) => !t.startsWith('@'));
     agent.allowedTools = [...builtins, ...mcpEntries];
   }
@@ -226,7 +273,7 @@ function printKiroNextSteps(target, sourceIsNested) {
        ${S.dim(`needed. To be explicit: kiro-cli chat --agent ${MAIN_AGENT}`)}
 
     To verify the install: ${S.bold('/mcp')} in chat, or ${S.bold('kiro-cli mcp list')}.
-    It should report the ${S.bold('sdd-summary')} server with ${S.bold('42 tools')}.
+    It should report the ${S.bold('sdd-summary')} server with ${S.bold('44 tools')}.
 
   Re-run this script after any server change to refresh the vendored copy.
 `);

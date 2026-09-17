@@ -29,7 +29,7 @@ This decision comes first, because it determines which projects the tooling is a
 | Active in | One project only | Every workspace you open |
 | Mechanism | `.kiro/` or `.cursor/` files in the target project | Global config directory / Cursor plugin |
 
-The server exposes 42 Genesys tools and always-applied pipeline guidance. At user scope those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 490 lines of guidance injected into every request.
+The server exposes 44 Genesys tools and always-applied pipeline guidance. At user scope those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 490 lines of guidance injected into every request.
 
 Host-specific caveats at user scope:
 
@@ -120,7 +120,7 @@ Cloning *inside* the project keeps everything in one place: the deployed tooling
 
 The deploy also sets `chat.defaultAgent` in the project's `.kiro/settings/cli.json`, so the pipeline agent is this project's default and no `--agent` flag is needed. That setting is workspace-scoped — every other project you open is untouched.
 
-To confirm the install, run `/mcp` in a chat or `kiro-cli mcp list`. You should see `sdd-summary` with **42 tools**.
+To confirm the install, run `/mcp` in a chat or `kiro-cli mcp list`. You should see `sdd-summary` with **44 tools**.
 
 #### Cursor
 
@@ -132,11 +132,15 @@ Two manual steps.
 
 Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on.
 
-It should then report **42 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
+It should then report **44 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
 
 ### 5. Start the pipeline
 
 Open a new chat and say **"begin"**. The agent asks whether you already have a Genesys OAuth client, and only walks you through creating one if you don't. See [First Run](#verify) below.
+
+**On Kiro, start that chat as `kiro-cli chat` from the project directory.** The deploy sets the pipeline agent as this project's default, but `chat.defaultAgent` is a *workspace* setting — it only applies when the CLI starts inside the project. Be explicit if you prefer: `kiro-cli chat --agent sdd-summary`.
+
+> **A chat that is not this project's Kiro CLI agent has none of the tools**, and that is by design rather than a broken install. The `sdd-summary` server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent only. Any other agent — including one belonging to a separate assistant running in the same repository — sees no `@sdd-summary/*` tools. This follows directly from Kiro putting `allowedTools` only in an agent config: the tools and their pre-approvals have to travel together, so declaring the server per-agent is what makes a full eval suite run without hundreds of prompts. If you want the pipeline reachable from somewhere else, that is a second, separate agent registration — not a change to this one.
 
 ### Resulting layout
 
@@ -369,9 +373,9 @@ Either way user data stays outside the install location, so re-deploying or rein
 
 ## Verify
 
-**Kiro:** run `/mcp` in a chat, or `kiro-cli mcp list`. You should see `sdd-summary` with 42 tools. There is no enable step. `kiro-cli agent list` should also show `sdd-summary` and `sdd-summary-scorer` as workspace agents, with `sdd-summary` marked as the default.
+**Kiro:** run `/mcp` in a chat, or `kiro-cli mcp list`. You should see `sdd-summary` with 44 tools. There is no enable step. `kiro-cli agent list` should also show `sdd-summary` and `sdd-summary-scorer` as workspace agents, with `sdd-summary` marked as the default.
 
-**Cursor:** check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 42 tools.
+**Cursor:** check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 44 tools.
 
 Then open a new chat in the project and say **"begin"**.
 

@@ -20,7 +20,7 @@ Choose a scope first, because it determines which projects the tooling is active
 | Mechanism | `.kiro/` or `.cursor/` files in the target project | Global config / Cursor plugin |
 | Use when | Normal use — this is a specialised tool | You genuinely want Genesys tooling everywhere |
 
-**Project scope is the default recommendation.** This server exposes 42 Genesys tools and always-applied pipeline guidance. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~490 lines of guidance into every request.
+**Project scope is the default recommendation.** This server exposes 44 Genesys tools and always-applied pipeline guidance. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~490 lines of guidance into every request.
 
 ### Option A — Project scope (recommended)
 
@@ -78,14 +78,14 @@ node sdd-summary-mcp/deploy.js --cursor
 
 Nothing to do. Kiro starts the server on demand and hot-reloads config changes, so there is no toggle and no window reload.
 
-To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`sdd-summary`** with **42 tools**.
+To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`sdd-summary`** with **44 tools**.
 
 </td><td>
 
 Two manual steps:
 
 1. **View → Command Palette → "Developer: Reload Window"**
-2. Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **42 tools**.
+2. Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **44 tools**.
 
 **Writing the config does not enable the server** and Cursor has no setting to pre-enable it, so this toggle is required. If the entry is missing entirely the config wasn't found — check step 1 opened the project folder itself.
 
@@ -96,7 +96,9 @@ Two manual steps:
 
 Open a new chat and say **"begin"**. The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
 
-On Kiro the pipeline agent is set as the project's default agent, so no `--agent` flag is needed. To be explicit: `kiro-cli chat --agent sdd-summary`.
+On **Kiro**, run that chat as `kiro-cli chat` **from the project directory**. The pipeline agent is set as the project's default agent, so no `--agent` flag is needed — but that default is a *workspace* setting, so it only applies when the CLI starts inside the project. To be explicit: `kiro-cli chat --agent sdd-summary`.
+
+> A chat that is not this project's Kiro CLI agent will not have the tools. The `sdd-summary` MCP server is declared in `.kiro/agents/sdd-summary.json`, so it loads for that agent only — a different agent, or a session started outside the project, sees no `@sdd-summary/*` tools at all. That is the pre-approval mechanism working as intended, not a broken install: `allowedTools` exists only in an agent config, so the tools and their approvals travel together.
 
 You end up with one of these:
 
