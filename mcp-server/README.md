@@ -2,22 +2,38 @@
 
 An MCP (Model Context Protocol) server for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**.
 
-Distributed as a Cursor plugin. The agent orchestrates the full workflow through natural language.
+Runs in **Kiro** and in **Cursor** from one byte-identical bundle. The agent orchestrates the full workflow through natural language.
 
 ---
 
 ## Installation
 
-This server is not configured by hand. Two options, both driven from the repository root — see [`../docs/setup.md`](../docs/setup.md):
+This server is not configured by hand. `deploy.js` at the repository root asks which editor you use and writes only that host's configuration — see [`../docs/setup.md`](../docs/setup.md):
 
 | Option | Scope | Mechanism |
 |---|---|---|
-| `node deploy.js <project>` | One project *(recommended)* | Writes `.cursor/` files into the target project and vendors the bundle there |
+| `node deploy.js <project>` | One project *(recommended)* | Writes `.kiro/` or `.cursor/` files into the target project and vendors the bundle there |
+| Kiro global agents | Every workspace | Agent files in `~/.kiro/agents/` with an absolute path to the bundle |
 | Cursor plugin install | Every workspace | Repo-root `mcp.json` resolved via `${CURSOR_PLUGIN_ROOT}` |
 
-Both run the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`. There is no dependency install or build step on the consuming machine.
+All of them run the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`. There is no dependency install or build step on the consuming machine.
 
-Project scope is recommended because this server exposes 42 Genesys-specific tools plus an always-applied rule; at user scope those load into unrelated projects, and Cursor documents no way to disable a user-scoped plugin per project.
+Project scope is recommended because this server exposes 42 Genesys-specific tools plus always-applied guidance; at user scope those load into unrelated projects. On Cursor there is no documented way to disable a user-scoped plugin per project; on Kiro global steering loads in every workspace and the global agent needs an absolute bundle path, losing portability.
+
+### What differs between the two hosts
+
+The server code is host-agnostic apart from one thing: the guidance it emits about spawning parallel scoring subagents, since the editors expose different mechanisms. `SDDSUM_HOST` selects that text — see `src/host.ts`.
+
+The packaging differs more:
+
+| | Kiro | Cursor |
+|---|---|---|
+| Server declared in | `.kiro/agents/*.json` | `.cursor/mcp.json` |
+| Bundle path style | Workspace-relative (Kiro's CWD *is* the workspace root) | `${workspaceFolder}` |
+| Tool pre-approval | `allowedTools` in the agent config | `.cursor/permissions.json` → `mcpAllowlist` |
+| Scoring subagents | `use_subagent`, `role: sdd-summary-scorer` | Task tool |
+
+Kiro expands neither `${workspaceFolder}` nor `${CURSOR_PLUGIN_ROOT}`, which is why its config uses a relative path and omits the storage variables entirely.
 
 ### Prerequisites
 
@@ -37,15 +53,23 @@ npm run typecheck    # verify types without emitting
 npm run bundle       # regenerate bundle/sdd-summary-mcp.mjs
 ```
 
-`bundle/sdd-summary-mcp.mjs` is a **committed artefact**, because Cursor installs a plugin by cloning its repository and never runs a build. Any change under `src/` therefore requires `npm run bundle` plus a commit, or the change will not reach users.
+`bundle/sdd-summary-mcp.mjs` is a **committed artefact**, because nothing on the consuming side ever runs a build: the deploy script vendors this file straight into the target project, and a Cursor plugin install clones the repository without building at all. Any change under `src/` therefore requires `npm run bundle` plus a commit, or the change will not reach users.
 
-`npm run build` (plain `tsc` into `dist/`) remains available for local type-checking and debugging, but `dist/` is gitignored and is not what Cursor runs.
+`npm run build` (plain `tsc` into `dist/`) remains available for local type-checking and debugging, but `dist/` is gitignored and is not what the editor runs.
+
+Report templates are `.html`/`.css`/`.js` files inlined into the bundle at build time, so the deployed single file carries them and they cannot fall out of step with the code that renders them.
 
 To verify a bundle in isolation:
 
 ```bash
 node bundle/sdd-summary-mcp.mjs
 # should print: SDD Summary MCP server running (stdio)
+```
+
+To see what a given host's guidance will actually look like, set the host when running it by hand:
+
+```bash
+SDDSUM_HOST=kiro node bundle/sdd-summary-mcp.mjs
 ```
 ---
 
@@ -76,23 +100,24 @@ prepare_prompt_test(summary_config_name=..., test_set_name=..., version_number=N
 start_eval_run → [score batches] → finalize_eval_run
 ```
 
-Spawn one subagent per batch in parallel using `composer-2.5-fast`.
+Spawn one subagent per batch in parallel. On Kiro use `use_subagent` with `role: "sdd-summary-scorer"` and `model: "claude-haiku-4.5"`; on Cursor use the Task tool with `composer-2.5-fast`. See [`../docs/eval-guide.md`](../docs/eval-guide.md).
 
 ---
 
 ## Environment Variables
 
-Credentials normally come from `login()`, which parses the Authorization URL and stores the result under `.sdd-summary/`. The plugin sets only the two path variables.
+Credentials normally come from `login()`, which parses the Authorization URL and stores the result under `.sdd-summary/`. The deploy sets only the host marker and, on Cursor, the two path variables.
 
 | Variable | Description |
 |---|---|
-| `SDDSUM_STORAGE_PATH` | Path for `.sdd-summary/` (OAuth config + tokens). Plugin sets this to `${workspaceFolder}/.sdd-summary`. |
-| `SDDSUM_LIFECYCLE_PATH` | Path for `.summaryconfig-lifecycle/`. Plugin sets this to `${workspaceFolder}/.summaryconfig-lifecycle`. |
+| `SDDSUM_HOST` | `cursor` or `kiro`. Selects host-specific guidance — chiefly the subagent spawn mechanism. Unset yields host-neutral wording. See `src/host.ts`. |
+| `SDDSUM_STORAGE_PATH` | Path for `.sdd-summary/` (OAuth config + tokens). Cursor deploy sets `${workspaceFolder}/.sdd-summary`; on Kiro it is left unset. |
+| `SDDSUM_LIFECYCLE_PATH` | Path for `.summaryconfig-lifecycle/`. Cursor deploy sets `${workspaceFolder}/.summaryconfig-lifecycle`; on Kiro it is left unset. |
 | `GENESYS_CLIENT_ID` | **Avoid setting.** Shadows the stored config and causes logins against the wrong org. Let `login()` manage it. |
 | `GENESYS_REGION` | **Avoid setting.** Extracted from the Authorization URL automatically. |
 | `GENESYS_CLIENT_SECRET` | Not required. Only for the vestigial machine-to-machine fallback — omit for standard user login. |
 
-Pinning storage to `${workspaceFolder}` keeps user data in the consuming project rather than the plugin directory, so reinstalling or updating the plugin cannot destroy work.
+Both hosts end up storing user data in the consuming project rather than the install directory, so reinstalling or updating can never destroy work. Cursor gets there by pinning the paths to `${workspaceFolder}`. Kiro cannot — it does not expand that placeholder — so the variables are omitted and `src/config.ts` resolves the project root itself, walking up for a `.kiro/`, `.cursor/` or `.git/` marker. That anchoring is deliberate: it keeps a chat started in a subdirectory writing to the one project root instead of silently creating a second lifecycle tree.
 
 ---
 

@@ -6,6 +6,7 @@
         "${CURSOR_PLUGIN_ROOT}/mcp-server/bundle/sdd-summary-mcp.mjs"
       ],
       "env": {
+        "SDDSUM_HOST": "cursor",
         "SDDSUM_STORAGE_PATH": "${workspaceFolder}/.sdd-summary",
         "SDDSUM_LIFECYCLE_PATH": "${workspaceFolder}/.summaryconfig-lifecycle"
       },

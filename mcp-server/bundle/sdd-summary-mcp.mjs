@@ -6929,8 +6929,21 @@ var require_dist = __commonJS({
 import fs from "fs";
 import os from "os";
 import path from "path";
+function findProjectRoot(start) {
+  let dir = path.resolve(start);
+  const { root } = path.parse(dir);
+  while (true) {
+    for (const marker of PROJECT_MARKERS) {
+      if (fs.existsSync(path.join(dir, marker))) return dir;
+    }
+    if (dir === root) return path.resolve(start);
+    const parent = path.dirname(dir);
+    if (parent === dir) return path.resolve(start);
+    dir = parent;
+  }
+}
 function resolveConfiguredDir(value, fallbackName) {
-  const fallback = path.join(process.cwd(), fallbackName);
+  const fallback = path.join(findProjectRoot(process.cwd()), fallbackName);
   if (!value) return fallback;
   if (value.includes("${")) {
     process.stderr.write(
@@ -6991,12 +7004,81 @@ function saveGenesysConfig(genesys2) {
   config2.genesys = genesys2;
   saveConfig(config2);
 }
-var CONFIG_FILE, SUMMARY_MODEL_NAME;
+var PROJECT_MARKERS, CONFIG_FILE, SUMMARY_MODEL_NAME;
 var init_config = __esm({
   "src/config.ts"() {
     "use strict";
+    PROJECT_MARKERS = [".kiro", ".cursor", ".git"];
     CONFIG_FILE = "config.json";
     SUMMARY_MODEL_NAME = "Claude Haiku 4.5";
+  }
+});
+
+// src/host.ts
+function getHost() {
+  const raw = (process.env.SDDSUM_HOST ?? "").trim().toLowerCase();
+  if (raw === "cursor") return "cursor";
+  if (raw === "kiro") return "kiro";
+  return "generic";
+}
+function hostDisplayName(host = getHost()) {
+  switch (host) {
+    case "cursor":
+      return "Cursor";
+    case "kiro":
+      return "Kiro";
+    default:
+      return "your editor";
+  }
+}
+function spawnInstructionBrief(host = getHost()) {
+  switch (host) {
+    case "cursor":
+      return "Spawn one subagent per batch in parallel using the Task tool with model composer-2.5-fast.";
+    case "kiro":
+      return `Spawn one subagent per batch in parallel with the use_subagent tool: one stage per batch, each with role "${KIRO_SCORER_AGENT}" and model ${KIRO_SCORER_MODEL}. That role is what grants a stage the submit_eval_scores tool \u2014 any other role lacks it. Every stage MUST call the summary tool before ending, or its work is discarded.`;
+    default:
+      return "Spawn one subagent per batch in parallel using whatever parallel-agent mechanism this host provides. Each subagent needs the submit_eval_scores tool from this server.";
+  }
+}
+function spawnInstructionFull(host = getHost()) {
+  switch (host) {
+    case "cursor":
+      return [
+        "- Spawn **one subagent per batch** using model `composer-2.5-fast`"
+      ].join("\n");
+    case "kiro":
+      return [
+        "- Spawn **one subagent per batch** with the `use_subagent` tool \u2014 one stage per batch, each",
+        `  with \`role: "${KIRO_SCORER_AGENT}"\` and \`model: "${KIRO_SCORER_MODEL}"\`.`,
+        "- **The role is load-bearing.** A Kiro subagent loads MCP servers from its OWN agent config, so",
+        `  only the \`${KIRO_SCORER_AGENT}\` agent has \`submit_eval_scores\`. A stage given any other role`,
+        "  cannot record scores at all, and will not say so \u2014 it will improvise or report success having",
+        '  written nothing. If the crew tool refuses the role outright ("Agents not available for crew',
+        '  stages"), the deploy did not install the scorer agent: stop and report that, do not substitute',
+        "  another role and do not score in the parent session.",
+        "- **Every stage must call the `summary` tool before it ends.** A stage that finishes with plain",
+        "  text delivers nothing back, so its batch looks unscored even though the tool calls succeeded.",
+        "- **Kiro's crew is fail-fast.** If one stage errors, its still-running siblings are cancelled, so",
+        "  a single bad batch can leave the run started with only some batches submitted. Do NOT call",
+        "  `finalize_eval_run` on the assumption it all landed: call",
+        "  `get_pipeline_state(summary_config_name=...)` to see which run is open, re-run only the missing",
+        "  batches, and finalize once."
+      ].join("\n");
+    default:
+      return [
+        "- Spawn **one subagent per batch** in parallel using this host's parallel-agent mechanism.",
+        "- Each subagent must have this server's `submit_eval_scores` tool available to it. If the host",
+        "  scopes tools per subagent, grant it there \u2014 scores cannot be recorded any other way."
+      ].join("\n");
+  }
+}
+var KIRO_SCORER_AGENT, KIRO_SCORER_MODEL;
+var init_host = __esm({
+  "src/host.ts"() {
+    "use strict";
+    KIRO_SCORER_AGENT = "sdd-summary-scorer";
+    KIRO_SCORER_MODEL = "claude-haiku-4.5";
   }
 });
 
@@ -7137,7 +7219,7 @@ function preparePkceLogin(config2) {
     if (error2) {
       state.error = `OAuth2 error: ${error2} \u2014 ${url.searchParams.get("error_description") ?? ""}`;
       res.writeHead(400, { "Content-Type": "text/html" });
-      res.end(`<html><body style="font-family:sans-serif;padding:2em"><h2 style="color:#c62828">Login failed: ${error2}</h2><p>You can close this tab and return to Cursor.</p></body></html>`);
+      res.end(`<html><body style="font-family:sans-serif;padding:2em"><h2 style="color:#c62828">Login failed: ${error2}</h2><p>You can close this tab and return to ${hostDisplayName()}.</p></body></html>`);
       server2.close();
       return;
     }
@@ -7151,7 +7233,7 @@ function preparePkceLogin(config2) {
     state.code = code;
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(
-      `<html><body style="font-family:sans-serif;padding:2em"><h2 style="color:#2e7d32">&#10003; Logged in to Genesys Cloud</h2><p>You can close this tab and return to Cursor.</p></body></html>`
+      `<html><body style="font-family:sans-serif;padding:2em"><h2 style="color:#2e7d32">&#10003; Logged in to Genesys Cloud</h2><p>You can close this tab and return to ${hostDisplayName()}.</p></body></html>`
     );
     server2.close();
   });
@@ -7231,6 +7313,7 @@ var init_auth = __esm({
   "src/genesys/auth.ts"() {
     "use strict";
     init_config();
+    init_host();
     TokenExpiredError = class extends Error {
       constructor() {
         super("Your Genesys session has expired.");
@@ -15047,7 +15130,7 @@ UNSUMMARISABLE INTERACTIONS:
 Transcripts whose summary reads "The interaction is too short to create a summary." are excluded from the run before batching \u2014 they appear under skipped_transcripts/skipped_detail rather than in any batch, and are absent from every pass-rate denominator. The exclusion overrides applicabilityCondition, including "always". Report the skipped count alongside the results so a small denominator is never mistaken for a full run.
 
 AFTER THIS CALL:
-Spawn one subagent per batch using model composer-2.5-fast. Each subagent scores every dimension of every test case for its transcripts and calls submit_eval_scores once per transcript \xD7 test case. After all subagents finish, call finalize_eval_run.`,
+Spawn one subagent per batch \u2014 the response's \`instruction\` field names the exact mechanism and model to use on this host; follow it rather than assuming one. Each subagent scores every dimension of every test case for its transcripts and calls submit_eval_scores once per transcript \xD7 test case. After all subagents finish, call finalize_eval_run.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -15295,7 +15378,7 @@ Everything else is rebuilt from disk. Calling it again without narrative argumen
   },
   {
     name: "regenerate_reports",
-    description: "Rebuild every HTML report for a summary configuration from the results already on disk.\n\nReports are derived artefacts, never the record \u2014 the JSON in eval-runs/ is. So after pulling a newer version of this plugin, run this once to bring historical runs into the current report templates. Nothing is re-scored and no Genesys calls are made.\n\nAlso use it after editing requirements.md (to refresh requirement coverage and the untested-requirement warnings) or after a report failed to generate during finalization.",
+    description: "Rebuild every HTML report for a summary configuration from the results already on disk.\n\nReports are derived artefacts, never the record \u2014 the JSON in eval-runs/ is. So after deploying a newer version of this server, run this once to bring historical runs into the current report templates. Nothing is re-scored and no Genesys calls are made.\n\nAlso use it after editing requirements.md (to refresh requirement coverage and the untested-requirement warnings) or after a report failed to generate during finalization.",
     inputSchema: {
       type: "object",
       properties: {
@@ -15468,6 +15551,7 @@ var v4_default = v4;
 init_config();
 
 // src/pipelineGuide.ts
+init_host();
 var SERVER_INSTRUCTIONS = `
 SDD Summary MCP Server \u2014 Genesys Cloud AI Studio / Agent Copilot summary configuration testing pipeline.
 
@@ -15500,7 +15584,7 @@ Two modes \u2014 use the same three-tool flow for both:
 - mode: "existing"      \u2192 scores production summaries already stored (no API calls)
 - mode: "prompt_test"   \u2192 generates new summaries from a candidate prompt via Genesys preview API
 
-Spawn one subagent per batch in parallel using the Task tool with model composer-2.5-fast.
+${spawnInstructionBrief()}
 ALWAYS call save_improvement_recommendations after finalize_eval_run \u2014 do not skip this.
 
 ## Version Management \u2014 CRITICAL RULES
@@ -15510,10 +15594,10 @@ ALWAYS call save_improvement_recommendations after finalize_eval_run \u2014 do n
 - To deploy after approval: update_summary_setting \u2192 then save_version with status="deployed" to record it.
 
 ## Report Rules
-- NEVER write report HTML manually or via file tools. The templates ship inside the plugin.
+- NEVER write report HTML manually or via file tools. The templates ship inside this server.
 - finalize_eval_run auto-generates both reports (run report + improvements report).
 - To re-render one: generate_eval_run_dashboard or generate_improvements_dashboard.
-- After pulling a newer plugin version, or after editing requirements.md: regenerate_reports.
+- After deploying a newer server version, or after editing requirements.md: regenerate_reports.
 - Once the user accepts a version and it is live: generate_rollup_report \u2014 the closing account of
   the cycle, with the narrative (executive summary, themes, next steps) you supply. Never hand-write it.
 
@@ -15872,7 +15956,7 @@ start_eval_run(summary_config_name=..., test_set_name=..., mode="prompt_test", v
 
 ### Subagent setup
 - \`start_eval_run\` returns \`run_number\`, \`total_batches\`, \`batches\`, and \`test_cases\`
-- Spawn **one subagent per batch** using model \`composer-2.5-fast\`
+${spawnInstructionFull()}
 
 **Scores may ONLY be submitted by calling the \`submit_eval_scores\` tool.** Never start a second copy
 of this server (\`node\`/\`npx\`/\`tsx\`/\`python\`, the MCP client SDK, or any script), and never write score
@@ -16107,13 +16191,13 @@ Also call it when **resuming a session** (never infer state from your own memory
 | Improvements report | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/improvements.html\` |
 | Both, rebuilt for every run | \`regenerate_reports\` | as above |
 
-- **NEVER generate report HTML manually.** The templates live inside the plugin, so hand-written
+- **NEVER generate report HTML manually.** The templates live inside this server, so hand-written
   or hand-patched HTML is overwritten on the next run and is inconsistent with every other report.
 - Both reports are written automatically by \`finalize_eval_run\` \u2014 call the generate tools only to
   re-render without re-scoring.
 - Reports are **derived artefacts**: they are rebuilt from the JSON in \`eval-runs/\`, so nothing is
   lost by deleting them. \`regenerate_reports\` rebuilds every report for a config, which is what to
-  run after pulling a newer plugin version (to pick up template changes) or after editing
+  run after deploying a newer server version (to pick up template changes) or after editing
   \`requirements.md\` (to refresh requirement coverage).
 
 ### What the run report contains
@@ -16206,6 +16290,7 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... \u2014 waiting
 `.trim();
 
 // src/tools/handlers.ts
+init_host();
 init_auth();
 
 // src/storage.ts
@@ -21484,7 +21569,7 @@ These interactions are too brief for the summary engine to act on. Add longer in
       batch_size: batchSize,
       test_cases: testCaseSummary,
       batches,
-      instruction: 'Spawn one subagent per batch using a fast model (composer-2.5-fast). Each subagent receives its batch of transcripts and the test_cases array above. For each transcript in its batch, the subagent scores every dimension of every test case and calls submit_eval_scores for each (transcript \xD7 test_case) pair. APPLICABILITY CHECK \u2014 for each dimension, check its applicability_condition field first: (1) If applicability_condition is "always": score normally (0.0\u20131.0). (2) If applicability_condition is anything else: first determine whether this condition applies to the transcript. If YES it applies \u2192 score normally. If NO it does not apply \u2192 submit score: null with reasoning explaining why it is not applicable. Null scores are excluded from pass-rate calculations \u2014 only submit null when the condition genuinely does not apply. ' + (skippedTranscripts.length > 0 ? `NOTE: ${skippedTranscripts.length} transcript(s) were excluded from the batches above because Genesys returned "${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary. They are listed under skipped_detail, are absent from every pass-rate denominator, and must not be scored \u2014 the exclusion overrides applicabilityCondition, including "always". Mention the count when reporting results. ` : "") + "After all subagents complete, call finalize_eval_run(summary_config_name, test_set_name, run_number) to compute aggregate pass rates and mark the run complete."
+      instruction: spawnInstructionBrief() + ' Each subagent receives its batch of transcripts and the test_cases array above. For each transcript in its batch, the subagent scores every dimension of every test case and calls submit_eval_scores for each (transcript \xD7 test_case) pair. APPLICABILITY CHECK \u2014 for each dimension, check its applicability_condition field first: (1) If applicability_condition is "always": score normally (0.0\u20131.0). (2) If applicability_condition is anything else: first determine whether this condition applies to the transcript. If YES it applies \u2192 score normally. If NO it does not apply \u2192 submit score: null with reasoning explaining why it is not applicable. Null scores are excluded from pass-rate calculations \u2014 only submit null when the condition genuinely does not apply. ' + (skippedTranscripts.length > 0 ? `NOTE: ${skippedTranscripts.length} transcript(s) were excluded from the batches above because Genesys returned "${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary. They are listed under skipped_detail, are absent from every pass-rate denominator, and must not be scored \u2014 the exclusion overrides applicabilityCondition, including "always". Mention the count when reporting results. ` : "") + "After all subagents complete, call finalize_eval_run(summary_config_name, test_set_name, run_number) to compute aggregate pass rates and mark the run complete."
     });
   });
 }

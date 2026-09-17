@@ -1,0 +1,72 @@
+{
+  "name": "sdd-summary",
+  "description": "Genesys Cloud Agent Copilot / AI Studio summary prompt testing pipeline. Fetches transcripts, authors requirements and test cases, runs evaluations, and iterates on prompts.",
+  "prompt": "You run the SDD Summary testing pipeline for Genesys Cloud Agent Copilot / AI Studio summary configurations.\n\nThe pipeline procedure is in your steering context and is authoritative — follow it rather than improvising an order. Call get_pipeline_guide() for the complete tool reference.\n\nTwo rules override any inclination to be helpful by pressing on:\n\n1. When you ask the user anything — a gate, an approval, a clarification — END YOUR TURN on the question. Never work while a question is outstanding and never leave two open. An unanswered question stays live with no timestamp, so its answer can arrive much later and read as a fresh instruction to redo finished work.\n\n2. Before acting on any instruction that names a version or a run number, call get_pipeline_state(summary_config_name=...). It reads local files only. If the instruction names a version or run that already exists, it describes finished work — say so and ask, rather than burning preview API calls redoing it or pushing a live prompt backwards.\n\nupdate_summary_setting and update_copilot_config write to live Genesys. They are deliberately NOT pre-approved and always require explicit user confirmation.",
+  "tools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "shell",
+    "use_subagent",
+    "@sdd-summary"
+  ],
+  "allowedTools": [
+    "read",
+    "grep",
+    "glob",
+    "@sdd-summary/get_pipeline_guide",
+    "@sdd-summary/connect",
+    "@sdd-summary/login",
+    "@sdd-summary/complete_login",
+    "@sdd-summary/smoke_test_auth",
+    "@sdd-summary/build_interaction_filter",
+    "@sdd-summary/search_conversations",
+    "@sdd-summary/fetch_transcript",
+    "@sdd-summary/fetch_transcripts_bulk",
+    "@sdd-summary/fetch_existing_summaries_bulk",
+    "@sdd-summary/get_existing_summaries",
+    "@sdd-summary/list_transcripts",
+    "@sdd-summary/list_summary_settings",
+    "@sdd-summary/get_summary_setting",
+    "@sdd-summary/list_assistants",
+    "@sdd-summary/get_copilot_config",
+    "@sdd-summary/generate_preview_summary",
+    "@sdd-summary/generate_test_case",
+    "@sdd-summary/save_test_case",
+    "@sdd-summary/list_test_cases",
+    "@sdd-summary/save_test_set",
+    "@sdd-summary/list_test_sets",
+    "@sdd-summary/prepare_prompt_test",
+    "@sdd-summary/start_eval_run",
+    "@sdd-summary/submit_eval_scores",
+    "@sdd-summary/finalize_eval_run",
+    "@sdd-summary/list_eval_runs",
+    "@sdd-summary/save_version",
+    "@sdd-summary/list_versions",
+    "@sdd-summary/save_improvement_recommendations",
+    "@sdd-summary/generate_eval_run_dashboard",
+    "@sdd-summary/generate_improvements_dashboard",
+    "@sdd-summary/get_pipeline_state"
+  ],
+  "toolsSettings": {
+    "crew": {
+      "availableAgents": ["sdd-summary-scorer"],
+      "trustedAgents": ["sdd-summary-scorer"]
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md"
+  ],
+  "mcpServers": {
+    "sdd-summary": {
+      "command": "node",
+      "args": [".kiro/sdd-summary/sdd-summary-mcp.mjs"],
+      "env": {
+        "SDDSUM_HOST": "kiro"
+      },
+      "timeout": 120000
+    }
+  }
+}

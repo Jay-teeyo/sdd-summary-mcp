@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { saveGenesysConfig, getGenesysConfig, loadConfig, SUMMARY_MODEL_NAME } from "../config.js";
 import { FULL_PIPELINE_GUIDE } from "../pipelineGuide.js";
+import { spawnInstructionBrief } from "../host.js";
 import type { GenesysConfig } from "../types.js";
 import { clearTokenCache, clearUserToken, startLoginFlow, preparePkceLogin, completePkceLogin, getUserToken, TokenExpiredError } from "../genesys/auth.js";
 import * as storage from "../storage.js";
@@ -2415,7 +2416,7 @@ export async function start_eval_run(args: Args) {
       test_cases: testCaseSummary,
       batches,
       instruction:
-        "Spawn one subagent per batch using a fast model (composer-2.5-fast). " +
+        spawnInstructionBrief() + " " +
         "Each subagent receives its batch of transcripts and the test_cases array above. " +
         "For each transcript in its batch, the subagent scores every dimension of every test case " +
         "and calls submit_eval_scores for each (transcript × test_case) pair. " +

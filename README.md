@@ -1,40 +1,40 @@
 # SDD Summary — Genesys Cloud Summary Prompt Testing Pipeline
 
-A **Cursor plugin** for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**.
+A tooling bundle for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**. It works in **Kiro** and in **Cursor**.
 
-It bundles an MCP server with the pipeline guidance Cursor needs to orchestrate the whole workflow — fetching transcripts, authoring requirements and test cases, running evaluations, generating dashboards, and iterating on prompts — through natural language.
+It ships an MCP server plus the pipeline guidance the agent needs to orchestrate the whole workflow — fetching transcripts, authoring requirements and test cases, running evaluations, generating dashboards, and iterating on prompts — through natural language.
 
 ---
 
 ## Install
 
-Everything ships **pre-built and self-contained**. There is no `npm install` and no build step — you need only Node.js 18+ and Cursor.
+Everything ships **pre-built and self-contained**. There is no `npm install` and no build step — you need only Node.js 18+ and either Kiro or Cursor.
+
+The deploy script asks which editor you use and writes only that editor's configuration.
 
 Choose a scope first, because it determines which projects the tooling is active in.
 
 | | Project scope *(recommended)* | User scope |
 |---|---|---|
 | Active in | One project only | Every workspace you open |
-| Mechanism | `.cursor/` files in the target project | Cursor plugin |
+| Mechanism | `.kiro/` or `.cursor/` files in the target project | Global config / Cursor plugin |
 | Use when | Normal use — this is a specialised tool | You genuinely want Genesys tooling everywhere |
 
-**Project scope is the default recommendation.** This server exposes 42 Genesys tools and an always-applied pipeline rule. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~488 lines of guidance into every request. Cursor has no documented way to disable a user-scoped plugin per project, so scope is chosen at install time.
+**Project scope is the default recommendation.** This server exposes 42 Genesys tools and always-applied pipeline guidance. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~490 lines of guidance into every request.
 
 ### Option A — Project scope (recommended)
 
-Everything happens inside Cursor, starting from an empty project folder.
+Everything happens inside your editor, starting from an empty project folder.
 
 **1. Create and open your project folder**
 
-In Cursor, go to **File → Open Folder**. In the dialog, click **New Folder**, name it — say `my-summary-project` — then create and open it.
+Open the editor, then **File → Open Folder**. In the dialog, click **New Folder**, name it — say `my-summary-project` — then create and open it.
 
-Cursor now has that folder as your workspace root, which is exactly where the tooling needs to land.
+The editor now has that folder as your workspace root, which is exactly where the tooling needs to land.
 
 **2. Open the built-in terminal**
 
-From the menu bar: **View → Terminal**.
-
-It opens in the workspace root, so there is no need to change directory.
+From the menu bar: **View → Terminal**. It opens in the workspace root, so there is no need to change directory.
 
 **3. Clone and deploy — one command**
 
@@ -52,38 +52,83 @@ node sdd-summary-mcp/deploy.js
 
 Run it from the project root. `deploy.js` deploys into the current directory by default, which is exactly where you want it.
 
-**4. Reload Cursor**
+It will ask which editor you use:
 
-**View → Command Palette**, then run **Developer: Reload Window**.
+```
+  Which editor will you use this in?
 
-**5. Turn the server on**
+    1) Kiro
+    2) Cursor
 
-This step is manual and easy to miss — **writing the config does not enable the server**, and Cursor has no setting that can pre-enable it.
+  Enter 1 or 2:
+```
 
-Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **42 tools**.
+To skip the question — useful in a script — pass the host directly:
 
-If the entry isn't there at all, the config wasn't found — check that step 1 opened the project folder itself and not something above or below it.
+```bash
+node sdd-summary-mcp/deploy.js --kiro
+node sdd-summary-mcp/deploy.js --cursor
+```
 
-**6. Start**
+**4. Finish setup — this differs by editor**
+
+<table>
+<tr><th>Kiro</th><th>Cursor</th></tr>
+<tr valign="top"><td>
+
+Nothing to do. Kiro starts the server on demand and hot-reloads config changes, so there is no toggle and no window reload.
+
+To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`sdd-summary`** with **42 tools**.
+
+</td><td>
+
+Two manual steps:
+
+1. **View → Command Palette → "Developer: Reload Window"**
+2. Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **42 tools**.
+
+**Writing the config does not enable the server** and Cursor has no setting to pre-enable it, so this toggle is required. If the entry is missing entirely the config wasn't found — check step 1 opened the project folder itself.
+
+</td></tr>
+</table>
+
+**5. Start**
 
 Open a new chat and say **"begin"**. The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
 
-You end up with:
+On Kiro the pipeline agent is set as the project's default agent, so no `--agent` flag is needed. To be explicit: `kiro-cli chat --agent sdd-summary`.
+
+You end up with one of these:
 
 ```
-my-summary-project/            ← your workspace root
-├── .cursor/
-│   ├── mcp.json               ← server definition
-│   ├── permissions.json       ← pre-approved tools, so eval runs don't stall
-│   ├── rules/                 ← pipeline guidance
-│   ├── skills/                ← pipeline skills (when present)
+my-summary-project/                    ← Kiro
+├── .kiro/
+│   ├── agents/
+│   │   ├── sdd-summary.json           ← server + 32 pre-approved tools + steering
+│   │   └── sdd-summary-scorer.json    ← eval scoring subagent
+│   ├── settings/cli.json              ← makes sdd-summary this project's default agent
+│   ├── steering/
+│   │   └── sdd-summary-pipeline.md    ← pipeline guidance
 │   └── sdd-summary/
-│       └── sdd-summary-mcp.mjs  ← the vendored server bundle
-├── .gitignore                 ← written/extended for you
-└── sdd-summary-mcp/           ← this repo, gitignored
+│       └── sdd-summary-mcp.mjs        ← the vendored server bundle
+├── .gitignore                         ← written/extended for you
+└── sdd-summary-mcp/                   ← this repo, gitignored
 ```
 
-The config uses `${workspaceFolder}` and contains **no absolute paths**, so the project keeps working if it's moved, renamed, or handed to a colleague. If the project already has a `.cursor/mcp.json` or `.cursor/permissions.json`, the script merges into them and preserves anything else you had configured.
+```
+my-summary-project/                    ← Cursor
+├── .cursor/
+│   ├── mcp.json                       ← server definition
+│   ├── permissions.json               ← pre-approved tools, so eval runs don't stall
+│   ├── rules/                         ← pipeline guidance
+│   ├── skills/                        ← pipeline skills (when present)
+│   └── sdd-summary/
+│       └── sdd-summary-mcp.mjs        ← the vendored server bundle
+├── .gitignore                         ← written/extended for you
+└── sdd-summary-mcp/                   ← this repo, gitignored
+```
+
+Neither config contains an **absolute path**, so the project keeps working if it's moved, renamed, or handed to a colleague. Cursor gets there via `${workspaceFolder}`; Kiro doesn't expand that placeholder, so it uses a workspace-relative path instead — Kiro launches the server with the workspace root as its working directory, which makes a relative path resolve correctly. If the project already has config files of its own, the script merges into them and preserves anything else you had configured.
 
 To update later, from the project root:
 
@@ -97,26 +142,28 @@ In Windows PowerShell:
 cd sdd-summary-mcp; git pull; cd ..; node sdd-summary-mcp/deploy.js
 ```
 
-The vendored bundle is a snapshot, so re-running `deploy.js` is what actually applies a server change. Reload the window afterwards.
+The vendored bundle is a snapshot, so re-running `deploy.js` is what actually applies a server change. On Cursor, reload the window afterwards; on Kiro the change is hot-reloaded.
 
-### Option B — User scope (Cursor plugin)
+### Option B — User scope
 
-Installs once and applies to every workspace.
+Installs once and applies to every workspace. Not recommended — see the scope table above.
+
+**Kiro:** copy the two agent files to `~/.kiro/agents/`, the steering file to `~/.kiro/steering/`, and the bundle somewhere stable, then edit the agents' `args` to that absolute path. Note global steering loads in **every** workspace, which is the cost.
+
+**Cursor:**
 
 ```bash
 # Local install — works offline, no git or network needed
 ln -s /path/to/SDD-Summary ~/.cursor/plugins/local/sdd-summary
 ```
 
-Or in Cursor, open **Customize → Plugins** and paste this repository's URL into the plugin search. Marketplace installs additionally offer a project-scope choice at install time.
-
-Then run **Developer: Reload Window**.
+Or in Cursor, open **Customize → Plugins** and paste this repository's URL into the plugin search. Marketplace installs additionally offer a project-scope choice at install time. Then run **Developer: Reload Window**.
 
 > On Enterprise plans, local plugin imports are disabled by default. An admin must enable **Allow Local Plugin Imports** under Dashboard → Settings → Security & Identity.
 
 ### Where data goes
 
-Under both options, working data is written to **the workspace you have open**, never to the install location:
+Under every option, working data is written to **the workspace you have open**, never to the install location:
 
 - `.summaryconfig-lifecycle/` — transcripts, test cases, eval runs, version history
 - `.sdd-summary/` — credentials and tokens
@@ -221,10 +268,17 @@ Full reference: ask the agent to call `get_pipeline_guide()`, or see [`docs/work
 
 ```
 SDD-Summary/
-├── deploy.js                      ← project-scoped deploy (Option A)
-├── .cursor-plugin/plugin.json     ← plugin manifest (Option B)
-├── mcp.json                       ← MCP server definition (plugin-relative)
-├── rules/                         ← pipeline guidance shipped to users
+├── deploy.js                      ← project-scoped deploy (asks Kiro or Cursor)
+├── deploy/
+│   ├── shared.js                  ← common deploy helpers
+│   ├── cursor.js                  ← Cursor target (.cursor/…)
+│   └── kiro.js                    ← Kiro target (.kiro/…)
+├── kiro/
+│   ├── agents/                    ← Kiro agent configs (pipeline + eval scorer)
+│   └── eval-orchestration.md      ← Kiro's parallel-scoring instructions
+├── .cursor-plugin/plugin.json     ← Cursor plugin manifest (Option B)
+├── mcp.json                       ← MCP server definition + canonical tool allowlist
+├── rules/                         ← pipeline guidance (source of truth for both hosts)
 ├── docs/                          ← methodology guides
 │   ├── setup.md
 │   ├── oauth-setup.md
@@ -239,6 +293,14 @@ SDD-Summary/
     │   └── sdd-summary-mcp.mjs    ← COMMITTED single-file server
     └── dist/                      ← local tsc output (gitignored)
 ```
+
+### How one source serves two hosts
+
+The server bundle is byte-identical for both editors; only the wiring differs.
+
+- **`mcp.json`** holds the canonical pre-approved tool list under `alwaysAllow`. That key is not in either host's schema — each deploy target translates it into what the host actually reads (Cursor: `permissions.json` → `mcpAllowlist`; Kiro: `allowedTools` in the agent config). Add a tool there once and both hosts pick it up.
+- **`rules/sdd-summary-pipeline.mdc`** is the single guidance source. Cursor consumes it verbatim. The Kiro target rewrites the frontmatter (`alwaysApply: true` → `inclusion: always`) and swaps the region between the `<!-- HOST-SPECIFIC:EVAL-ORCHESTRATION -->` markers for `kiro/eval-orchestration.md`. If those markers are missing the deploy **fails loudly**, rather than shipping Cursor's instructions to a Kiro user.
+- **`SDDSUM_HOST`** is set by each target, so the server's own `get_pipeline_guide()` output names the right parallel-agent mechanism. See `mcp-server/src/host.ts`.
 
 Per-config working data lives in the **consuming workspace**, not here:
 
@@ -257,7 +319,7 @@ Per-config working data lives in the **consuming workspace**, not here:
 
 ## Developing the Server
 
-The committed bundle is what Cursor actually runs, so **any source change requires a rebundle and a commit**.
+The committed bundle is what the editor actually runs, so **any source change requires a rebundle and a commit**.
 
 ```bash
 cd mcp-server
@@ -266,16 +328,18 @@ npm run typecheck    # verify types
 npm run bundle       # regenerate bundle/sdd-summary-mcp.mjs
 ```
 
-Then reload Cursor to pick up the new bundle.
+Then re-run `deploy.js` against your test project to refresh its vendored copy. On Cursor, reload the window afterwards; on Kiro the change is hot-reloaded.
 
-To develop against a live copy, symlink the repo as a local plugin (Option B above) — edits become active on the next rebundle plus window reload.
+To develop against a live copy on Cursor, symlink the repo as a local plugin (Option B above) — edits become active on the next rebundle plus window reload.
+
+`SDDSUM_HOST` selects the host-specific guidance the server emits (`cursor`, `kiro`, or unset for neutral wording). To check what a host will actually see, set it when running the server by hand.
 
 ---
 
 ## Security
 
-- **Never commit credentials.** `.sdd-summary/` and `.cursor/mcp.json` are gitignored.
+- **Never commit credentials.** `.sdd-summary/` is gitignored, as is `.cursor/mcp.json`.
 - **Never commit customer data.** `.summaryconfig-lifecycle/` contains transcripts with PII and is gitignored in full.
 - Tokens are user-scoped and expire in roughly 30 minutes; any API call reopens the browser on expiry.
-- `update_summary_setting` and `update_copilot_config` write to live Genesys and are deliberately **not** pre-approved — they always require explicit confirmation.
+- `update_summary_setting` and `update_copilot_config` write to live Genesys and are deliberately **not** pre-approved on either host — they always require explicit confirmation. On Kiro the eval scoring subagent has them removed outright via `disabledTools`, so a scoring stage cannot reach live Genesys even by mistake.
 - See `.env.example` for the full list of environment variables.

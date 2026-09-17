@@ -1,8 +1,8 @@
 # Setup Guide
 
-How to install the SDD Summary plugin in Cursor and verify it works.
+How to install the SDD Summary tooling in **Kiro** or **Cursor** and verify it works.
 
-The plugin targets **Cursor only**. It ships a pre-built, self-contained server bundle, so there is no dependency install and no build step — Node.js 18+ and Cursor are the only prerequisites.
+It ships a pre-built, self-contained server bundle, so there is no dependency install and no build step — Node.js 18+ and one of the two editors are the only prerequisites. The same bundle runs on both; only the wiring around it differs, and `deploy.js` asks which editor you use and writes only that one's configuration.
 
 ---
 
@@ -27,21 +27,24 @@ This decision comes first, because it determines which projects the tooling is a
 | | Project scope *(recommended)* | User scope |
 |---|---|---|
 | Active in | One project only | Every workspace you open |
-| Mechanism | `.cursor/` files in the target project | Cursor plugin |
+| Mechanism | `.kiro/` or `.cursor/` files in the target project | Global config directory / Cursor plugin |
 
-The server exposes 42 Genesys tools and an always-applied pipeline rule. At user scope, those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 488 lines of guidance injected into every request.
+The server exposes 42 Genesys tools and always-applied pipeline guidance. At user scope those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 490 lines of guidance injected into every request.
 
-Cursor documents **no way to disable a user-scoped plugin for individual projects**, so this is decided at install time rather than adjusted later. Note also that the plugin scope picker ("Install and choose a project or user scope") is documented only for **marketplace** installs — the local-directory install path is inherently user-global.
+Host-specific caveats at user scope:
+
+- **Kiro** — global steering in `~/.kiro/steering/` loads in *every* workspace, and a global agent in `~/.kiro/agents/` needs an absolute path to the bundle, so the install stops being portable.
+- **Cursor** — Cursor documents **no way to disable a user-scoped plugin for individual projects**, so this is decided at install time rather than adjusted later. The plugin scope picker ("Install and choose a project or user scope") is documented only for **marketplace** installs; the local-directory install path is inherently user-global.
 
 ---
 
 ## Option A — Project scope (recommended)
 
-Every step happens inside Cursor. You create an empty project folder, open it as your workspace, then clone and deploy from its own terminal.
+Every step happens inside your editor. You create an empty project folder, open it as your workspace, then clone and deploy from its own terminal.
 
-The order matters. Opening the folder *first* means Cursor's workspace root is already correct when the files land in it, which removes the single most common way this install goes wrong.
+The order matters. Opening the folder *first* means the workspace root is already correct when the files land in it, which removes the single most common way this install goes wrong.
 
-### 1. Create and open the project folder in Cursor
+### 1. Create and open the project folder
 
 From the menu bar: **File → Open Folder**.
 
@@ -52,13 +55,13 @@ In the dialog:
 3. Name it — `my-summary-project` works, or anything that suits the job.
 4. Create it, then open it.
 
-Cursor now shows that empty folder in the Explorer. It is your **workspace root**, and it is where all the tooling will be installed.
+The editor now shows that empty folder in the Explorer. It is your **workspace root**, and it is where all the tooling will be installed.
 
 ### 2. Open the built-in terminal
 
 From the menu bar: **View → Terminal**.
 
-The terminal opens in the workspace root, so you are already in the right directory. If you have customised `terminal.integrated.cwd`, confirm with `pwd` before continuing.
+The terminal opens in the workspace root, so you are already in the right directory. If you have customised the terminal's working directory, confirm with `pwd` before continuing.
 
 ### 3. Clone and deploy
 
@@ -90,64 +93,126 @@ which would leave `deploy.js` looking for a directory that isn't there.
 
 `deploy.js` deploys into the current working directory when given no argument, which is why this works from the project root with no path to pass and no `cd`.
 
+It then asks which editor you use:
+
+```
+  Which editor will you use this in?
+
+    1) Kiro
+    2) Cursor
+
+  Enter 1 or 2:
+```
+
+Only that editor's configuration is written — you do not end up with stray files for the other one. To skip the question in a script, pass the host directly as `--kiro` or `--cursor`. A non-interactive run with no flag **refuses** rather than guessing, because writing a whole config tree for the wrong editor looks like a broken install rather than a wrong choice.
+
 Cloning *inside* the project keeps everything in one place: the deployed tooling and the server it came from travel together, and re-deploying later doesn't require hunting for wherever the repo was put.
 
 > If you prefer to run it from inside the clone, pass the target explicitly:
 > `cd sdd-summary-mcp && node deploy.js ..` (PowerShell: `cd sdd-summary-mcp; node deploy.js ..`)
 > — the `..` is what points it at the project rather than at the clone itself.
 
-### 4. Reload Cursor
+### 4. Activate — this differs by editor
 
-**View → Command Palette**, then run **Developer: Reload Window**.
+#### Kiro
 
-Because you opened the project folder back in step 1, there is nothing to re-open — the workspace root is already correct. Reloading is only needed so Cursor picks up the newly written `.cursor/mcp.json`.
+**Nothing to do.** Kiro starts the server on demand and hot-reloads configuration changes, so there is no toggle to switch on and no window to reload. A later re-run of `deploy.js` is picked up the same way.
 
-### 5. Enable the server — manual step
+The deploy also sets `chat.defaultAgent` in the project's `.kiro/settings/cli.json`, so the pipeline agent is this project's default and no `--agent` flag is needed. That setting is workspace-scoped — every other project you open is untouched.
 
-**Reloading does not enable the server.** The config is now in place, but Cursor treats "configured" and "active" as separate things, and there is no documented setting that can pre-enable a server. It has to be switched on by hand, once per project.
+To confirm the install, run `/mcp` in a chat or `kiro-cli mcp list`. You should see `sdd-summary` with **42 tools**.
+
+#### Cursor
+
+Two manual steps.
+
+**Reload:** **View → Command Palette**, then run **Developer: Reload Window**. Because you opened the project folder back in step 1, there is nothing to re-open — the workspace root is already correct. Reloading is only needed so Cursor picks up the newly written `.cursor/mcp.json`.
+
+**Enable:** reloading does *not* enable the server. The config is in place, but Cursor treats "configured" and "active" as separate things, and there is no documented setting that can pre-enable a server. It has to be switched on by hand, once per project:
 
 Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on.
 
 It should then report **42 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
 
-### 6. Start the pipeline
+### 5. Start the pipeline
 
 Open a new chat and say **"begin"**. The agent asks whether you already have a Genesys OAuth client, and only walks you through creating one if you don't. See [First Run](#verify) below.
 
 ### Resulting layout
 
+On **Kiro**:
+
 ```
-my-summary-project/            ← Cursor workspace root
-├── .cursor/
-│   ├── mcp.json               ← server definition
-│   ├── permissions.json       ← pre-approved tool list (mcpAllowlist)
-│   ├── rules/                 ← pipeline guidance
-│   ├── skills/                ← pipeline skills (when present in the repo)
+my-summary-project/                    ← Kiro workspace root
+├── .kiro/
+│   ├── agents/
+│   │   ├── sdd-summary.json           ← server + 32 pre-approved tools + steering
+│   │   └── sdd-summary-scorer.json    ← eval scoring subagent
+│   ├── settings/cli.json              ← chat.defaultAgent → sdd-summary
+│   ├── steering/
+│   │   └── sdd-summary-pipeline.md    ← pipeline guidance (inclusion: always)
 │   └── sdd-summary/
-│       └── sdd-summary-mcp.mjs  ← vendored server bundle (~727 KB)
-├── .gitignore                 ← created or extended by deploy.js
-├── .sdd-summary/              ← created at first login (tokens)
-├── .summaryconfig-lifecycle/  ← created on first fetch (transcripts, evals)
-└── sdd-summary-mcp/           ← this repo, gitignored
+│       └── sdd-summary-mcp.mjs        ← vendored server bundle
+├── .gitignore                         ← created or extended by deploy.js
+├── .sdd-summary/                      ← created at first login (tokens)
+├── .summaryconfig-lifecycle/          ← created on first fetch (transcripts, evals)
+└── sdd-summary-mcp/                   ← this repo, gitignored
 ```
+
+On **Cursor**:
+
+```
+my-summary-project/                    ← Cursor workspace root
+├── .cursor/
+│   ├── mcp.json                       ← server definition
+│   ├── permissions.json               ← pre-approved tool list (mcpAllowlist)
+│   ├── rules/                         ← pipeline guidance
+│   ├── skills/                        ← pipeline skills (when present in the repo)
+│   └── sdd-summary/
+│       └── sdd-summary-mcp.mjs        ← vendored server bundle
+├── .gitignore                         ← created or extended by deploy.js
+├── .sdd-summary/                      ← created at first login (tokens)
+├── .summaryconfig-lifecycle/          ← created on first fetch (transcripts, evals)
+└── sdd-summary-mcp/                   ← this repo, gitignored
+```
+
+### Why Kiro needs two agent files
+
+Kiro's tool pre-approval (`allowedTools`) exists **only** in an agent configuration — `.kiro/settings/mcp.json` has no such key. So pre-approving the tool list requires shipping an agent, not merely an MCP config. Without it, a full eval suite prompts on every one of its hundreds of `submit_eval_scores` calls.
+
+The second file, `sdd-summary-scorer.json`, is not optional either. A Kiro subagent loads MCP servers from its *own* agent configuration, so scoring stages would have no `submit_eval_scores` tool at all unless a dedicated agent declares this server. That failure is silent — the stage improvises rather than erroring — which is why the deploy always writes both.
+
+It also explains the `resources` entry in `sdd-summary.json`: custom Kiro agents do **not** inherit steering files automatically (only the built-in default agent does), so the agent must declare `file://.kiro/steering/**/*.md` explicitly or the pipeline guidance silently vanishes.
 
 ### The nested clone is gitignored deliberately
 
-A folder you create this way is not a git repo yet, but most projects become one. The moment yours does, the clone sitting inside it would be committed as an *embedded repository* — dragging the full server source and the 727 KB bundle into your history, and confusing git along the way. So `deploy.js` gets ahead of it: on detecting that it is running from inside its own target, it adds the clone's folder name to the project's `.gitignore`.
+A folder you create this way is not a git repo yet, but most projects become one. The moment yours does, the clone sitting inside it would be committed as an *embedded repository* — dragging the full server source and the ~880 KB bundle into your history, and confusing git along the way. So `deploy.js` gets ahead of it: on detecting that it is running from inside its own target, it adds the clone's folder name to the project's `.gitignore`.
 
 The comparison is made on resolved real paths, so a symlink above either location cannot hide the nesting.
 
-Only `.cursor/` and `.gitignore` are left for you to commit.
+Only `.kiro/` (or `.cursor/`) and `.gitignore` are left for you to commit.
 
 ### Why the bundle is vendored into the project
 
-Copying the server in means `.cursor/mcp.json` can reference `${workspaceFolder}` and contain **no absolute paths at all**. The project therefore survives being moved, renamed, or handed to a colleague, and does not depend on this repo staying where it is.
+Copying the server in is what keeps the deployed configuration free of **absolute paths**, so the project survives being moved, renamed, or handed to a colleague, and does not depend on this repo staying where it is.
 
-This also avoids the failure that made the old `setup.js` approach fragile. That broke when the *server repo* sat inside a *different* Cursor workspace, so its `.cursor/mcp.json` was silently ignored. Here the config lands at the root of the target project, which **is** the workspace root — correct by construction.
+The two editors reach that same result differently, and the difference is worth knowing:
+
+- **Cursor** expands `${workspaceFolder}`, so `.cursor/mcp.json` refers to the bundle through that placeholder.
+- **Kiro** does *not* expand `${workspaceFolder}` — the placeholder would reach the server verbatim. Instead Kiro launches an MCP server with the **workspace root as its working directory**, so the agent config uses a plain workspace-relative path and it resolves correctly.
+
+The same asymmetry decides where your data lands. On Cursor the deploy pins `SDDSUM_STORAGE_PATH` and `SDDSUM_LIFECYCLE_PATH` to `${workspaceFolder}` paths. On Kiro it sets **neither**: the server's own defaults already resolve to the project root, which it locates by walking up for a `.kiro/`, `.cursor/` or `.git/` marker. That anchoring matters — it means starting a chat from a subdirectory still writes to the one project root, rather than quietly creating a second `.summaryconfig-lifecycle/` further down and splitting your transcripts and eval runs across two trees.
+
+Vendoring also avoids the failure that made the old `setup.js` approach fragile. That broke when the *server repo* sat inside a *different* workspace, so its config was silently ignored. Here the config lands at the root of the target project, which **is** the workspace root — correct by construction.
 
 ### Merging with existing configuration
 
-If the target already has a `.cursor/mcp.json`, the script merges into it: it adds or replaces only the `sdd-summary` entry and preserves every other MCP server. It refuses to proceed if the existing file is not valid JSON rather than overwriting it.
+If the target already has configuration of its own, the script merges into it rather than overwriting:
+
+- **Cursor** — adds or replaces only the `sdd-summary` entry in `.cursor/mcp.json` and preserves every other MCP server. In `.cursor/permissions.json` it preserves unrelated allowlist entries and other keys such as `terminalAllowlist` and `autoRun`.
+- **Kiro** — writes its own two agent files, and merges `chat.defaultAgent` into any existing `.kiro/settings/cli.json` while leaving your other settings intact. If a different default agent was already set, the deploy says so in its output rather than changing it silently.
+
+In both cases it refuses to proceed if an existing file is not valid JSON, rather than clobbering it.
 
 ### Updating
 
@@ -157,11 +222,29 @@ git pull
 node deploy.js ..
 ```
 
-The vendored copy is a snapshot, so `git pull` alone changes nothing that Cursor loads — the `deploy.js` re-run is what applies the update. Reload the window afterwards.
+The vendored copy is a snapshot, so `git pull` alone changes nothing the editor loads — the `deploy.js` re-run is what applies the update. On Cursor, reload the window afterwards; on Kiro the change is hot-reloaded, so there is nothing further to do.
+
+After updating, run `regenerate_reports` for each summary config to bring historical runs onto the new report templates. Nothing is re-scored and no Genesys calls are made.
 
 ---
 
-## Option B — User scope (Cursor plugin)
+## Option B — User scope
+
+Installs once and applies to every workspace you open. Not recommended — see [Choosing a scope](#choosing-a-scope) above.
+
+### Kiro
+
+Kiro has no plugin-marketplace equivalent, so a user-scope install is done by hand:
+
+1. Copy both agent files from `kiro/agents/` to `~/.kiro/agents/`.
+2. Copy the bundle (`mcp-server/bundle/sdd-summary-mcp.mjs`) somewhere stable, then edit each agent's `mcpServers.sdd-summary.args` to that **absolute** path. The workspace-relative path used at project scope will not resolve from an arbitrary workspace.
+3. Build the steering file as the deploy would — rewrite the frontmatter to `inclusion: always` and substitute `kiro/eval-orchestration.md` into the `HOST-SPECIFIC:EVAL-ORCHESTRATION` region — and place it in `~/.kiro/steering/`.
+
+Two costs to be aware of. Global steering loads in **every** workspace, so those ~490 lines are injected into unrelated work. And step 2 reintroduces an absolute path, so the install no longer survives moving the bundle.
+
+Running `node deploy.js --kiro <some-project>` per project is almost always the better answer.
+
+### Cursor
 
 Installs once and is active in every workspace. Use only if you want that.
 
@@ -202,28 +285,45 @@ Developers installing from Customize can choose project scope, which is the way 
 
 ## What gets registered
 
-Both options register the same three components from the same sources — only the location and scope differ.
+Every option registers the same three components from the same sources — only the location, the file format and the scope differ.
 
 | Component | Source in repo | Effect |
 |---|---|---|
-| MCP server | `mcp.json` → the bundled server | Registered on reload, then enabled manually |
+| MCP server | `mcp.json` → the bundled server | Kiro: starts on demand. Cursor: registered on reload, then enabled manually |
 | Pipeline guidance | `rules/sdd-summary-pipeline.mdc` | Injected into agent sessions |
-| Pre-approved tools | `alwaysAllow` list in `mcp.json` | Translated into `.cursor/permissions.json` at deploy time |
+| Pre-approved tools | `alwaysAllow` list in `mcp.json` | Translated to each host's own mechanism at deploy time |
 
-| | Project scope | User scope |
+Where each lands, at project scope:
+
+| | Kiro | Cursor |
 |---|---|---|
-| Server path | `${workspaceFolder}/.cursor/sdd-summary/…` | `${CURSOR_PLUGIN_ROOT}/mcp-server/bundle/…` |
-| Config location | `.cursor/mcp.json` in the project | Managed by Cursor |
-| Guidance location | `.cursor/rules/` in the project | `rules/` in the plugin |
-| Tool pre-approval | `.cursor/permissions.json` | Not available — see below |
+| Server path | `.kiro/sdd-summary/…` (workspace-relative) | `${workspaceFolder}/.cursor/sdd-summary/…` |
+| Config location | `.kiro/agents/sdd-summary.json` | `.cursor/mcp.json` |
+| Guidance location | `.kiro/steering/sdd-summary-pipeline.md` | `.cursor/rules/sdd-summary-pipeline.mdc` |
+| Guidance frontmatter | `inclusion: always` | `alwaysApply: true` |
+| Tool pre-approval | `allowedTools` in the agent config | `.cursor/permissions.json` → `mcpAllowlist` |
+| Scoring subagent | `.kiro/agents/sdd-summary-scorer.json` | No separate config needed |
+| Entry point | `chat.defaultAgent` in `.kiro/settings/cli.json` | The MCP toggle under Customize |
 
-`mcp.json` at the repo root is the single source of truth for the server definition and the tool list. `deploy.js` reads it and rewrites only the server path, so the two options cannot drift apart.
+`mcp.json` at the repo root is the single source of truth for the server definition and the tool list. Each deploy target reads it and rewrites only what that host needs, so the two cannot drift apart — add a tool to `alwaysAllow` once and both hosts pick it up.
+
+The pipeline guidance has one source too. `rules/sdd-summary-pipeline.mdc` is used verbatim by Cursor; the Kiro target rewrites its frontmatter and swaps the region between the `<!-- HOST-SPECIFIC:EVAL-ORCHESTRATION -->` markers for `kiro/eval-orchestration.md`, because that is the one passage where the two editors genuinely need different instructions. If those markers are ever removed, the Kiro deploy **fails loudly** rather than shipping Cursor's orchestration text to a Kiro user.
 
 ### Approval suppression
 
-This matters more than it sounds. A full test suite issues hundreds of `submit_eval_scores` calls; without pre-approval, Cursor prompts on each one and the run stalls.
+This matters more than it sounds. A full test suite issues hundreds of `submit_eval_scores` calls; without pre-approval the editor prompts on each one and the run stalls.
 
-The mechanism is `.cursor/permissions.json`:
+On **Kiro** the mechanism is `allowedTools` in the agent config, using the `@server/tool` form:
+
+```json
+{
+  "allowedTools": ["@sdd-summary/submit_eval_scores", "..."]
+}
+```
+
+Note this exists **only** in an agent configuration. `.kiro/settings/mcp.json` has no equivalent key, which is why the Kiro deploy ships an agent rather than just an MCP config.
+
+On **Cursor** the mechanism is `.cursor/permissions.json`:
 
 ```json
 {
@@ -231,10 +331,12 @@ The mechanism is `.cursor/permissions.json`:
 }
 ```
 
-Two tools are deliberately **excluded** because they write to live Genesys and must always be confirmed explicitly:
+Under both, two tools are deliberately **excluded** because they write to live Genesys and must always be confirmed explicitly:
 
 - `update_summary_setting`
 - `update_copilot_config`
+
+On Kiro they are additionally removed outright from the scoring subagent via `disabledTools`, so a scoring stage cannot reach live Genesys even by mistake.
 
 > **`alwaysAllow` inside `mcp.json` does not work.** It is not part of Cursor's
 > documented schema and is ignored. This repo keeps the list under that key
@@ -252,21 +354,26 @@ Two caveats on `permissions.json`:
 
 ## Where data is written
 
-Storage is pinned to the **workspace you have open**, using `${workspaceFolder}`, not the plugin directory:
+Storage is pinned to the **workspace you have open**, never the install location:
 
 | Path | Contents |
 |---|---|
 | `{workspace}/.summaryconfig-lifecycle/` | Transcripts, requirements, test cases, eval runs, version history |
 | `{workspace}/.sdd-summary/` | OAuth config and tokens |
 
-This keeps user data outside the install location under both options, so re-deploying or reinstalling never destroys work. It also means each project gets its own independent lifecycle data.
+Each host gets there by a different route. Cursor pins both paths explicitly using `${workspaceFolder}`. Kiro cannot — it does not expand that placeholder — so the deploy sets neither variable and the server resolves them itself, locating the project root by walking up for a `.kiro/`, `.cursor/` or `.git/` marker.
+
+Either way user data stays outside the install location, so re-deploying or reinstalling never destroys work, and each project gets its own independent lifecycle data.
 
 ---
 
 ## Verify
 
-1. Check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 42 tools.
-2. Open a new chat in the project and say **"begin"**.
+**Kiro:** run `/mcp` in a chat, or `kiro-cli mcp list`. You should see `sdd-summary` with 42 tools. There is no enable step. `kiro-cli agent list` should also show `sdd-summary` and `sdd-summary-scorer` as workspace agents, with `sdd-summary` marked as the default.
+
+**Cursor:** check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 42 tools.
+
+Then open a new chat in the project and say **"begin"**.
 
 The agent asks whether you already have a Genesys OAuth client:
 
@@ -287,50 +394,72 @@ On later sessions `login()` takes no argument, since the Authorization URL is st
 
 ### If the server does not appear
 
-**First: is it toggled on?** A freshly deployed server is listed but inactive until you enable it under **Customize → MCPs**. This is the most common cause and it looks exactly like a broken install.
+**On Cursor, first: is it toggled on?** A freshly deployed server is listed but inactive until you enable it under **Customize → MCPs**. This is the most common cause and it looks exactly like a broken install. Kiro has no such toggle, so this step does not apply there.
 
-Then:
+Common to every option:
 
-Common to both options:
-
-- Confirm `node --version` is 18+ and that `node` is on the PATH Cursor sees.
+- Confirm `node --version` is 18+ and that `node` is on the PATH your editor sees.
 - Run the bundle directly to check it is intact. It should print
   `SDD Summary MCP server running (stdio)` and wait; Ctrl+C to exit.
 
   ```bash
-  # Project scope — run from the project root
+  # Kiro, project scope — run from the project root
+  node .kiro/sdd-summary/sdd-summary-mcp.mjs
+
+  # Cursor, project scope — run from the project root
   node .cursor/sdd-summary/sdd-summary-mcp.mjs
 
-  # User scope
+  # Cursor, user scope
   node ~/.cursor/plugins/local/sdd-summary/mcp-server/bundle/sdd-summary-mcp.mjs
   ```
 
-Project scope specifically:
+Project scope, either editor:
 
-- Confirm `.cursor/mcp.json` sits at the **top level of the Explorer**, beside
+- Confirm the config directory sits at the **top level of the Explorer**, beside
   `sdd-summary-mcp/`. If it is nested inside `sdd-summary-mcp/` instead, the deploy ran
   with the wrong target — see the next point.
 - If you ran `node deploy.js` from *inside* the clone without `..`, it deployed into the
-  clone rather than the project. Delete `sdd-summary-mcp/.cursor/`, then re-run from the
-  project root: `node sdd-summary-mcp/deploy.js`.
+  clone rather than the project. Delete the stray `sdd-summary-mcp/.kiro/` or
+  `sdd-summary-mcp/.cursor/`, then re-run from the project root:
+  `node sdd-summary-mcp/deploy.js`.
 - Confirm the workspace root is the project folder, not the `sdd-summary-mcp/` clone.
   Following the steps above makes this correct by default, but it can drift if you later
-  reopen the clone directly from Cursor's recent-projects list.
-- Confirm `.cursor/mcp.json` is valid JSON.
+  reopen the clone directly from a recent-projects list.
+- Confirm the written JSON is valid.
 
-User scope specifically:
+Kiro specifically:
+
+- `kiro-cli agent list` only discovers workspace agents when run from a directory containing
+  `.kiro/`. If the agents are missing, you are probably not in the project root.
+- If tools work but every call prompts for approval, `allowedTools` is not being read — check
+  the agent file is valid JSON and that you are on the `sdd-summary` agent rather than the
+  built-in default. Note `kiro-cli agent validate` is permissive: it returns success even for
+  an unrecognised field, so it will not catch a typo in `allowedTools`. Confirm with a real
+  tool call instead.
+- If eval scoring stages report they cannot record scores, or the crew tool answers
+  *"Agents not available for crew stages"*, `sdd-summary-scorer.json` is missing — re-run the
+  deploy.
+- If the agent seems unaware of the pipeline, check `.kiro/steering/sdd-summary-pipeline.md`
+  exists and that the agent's `resources` still lists `file://.kiro/steering/**/*.md`. Custom
+  agents do not load steering implicitly.
+
+Cursor, user scope specifically:
 
 - Confirm the plugin is listed and enabled under **Customize → Plugins**.
 - If the server is listed but fails to start, the `${CURSOR_PLUGIN_ROOT}` placeholder may not
   resolve on your Cursor version — official docs also use `${PLUGIN_ROOT}` for this. Try
-  swapping it in `mcp.json`. Project scope avoids this entirely, since it uses
-  `${workspaceFolder}`.
+  swapping it in `mcp.json`. Project scope avoids this entirely.
 
 ---
 
 ## Eval runs
 
-Cursor supports parallel subagent spawning via the Task tool. Spawn one subagent per batch using the `composer-2.5-fast` model. See [`eval-guide.md`](./eval-guide.md).
+Scoring is fanned out one subagent per batch. The mechanism differs by editor:
+
+- **Kiro** — the `use_subagent` tool, one stage per batch, each with `role: "sdd-summary-scorer"` and `model: "claude-haiku-4.5"`. The role is what grants the stage its `submit_eval_scores` tool.
+- **Cursor** — the Task tool with the `composer-2.5-fast` model.
+
+See [`eval-guide.md`](./eval-guide.md) for the full flow and each host's failure modes.
 
 ---
 
@@ -340,11 +469,14 @@ Credentials normally come from `login()`, which stores them under `.sdd-summary/
 
 | Variable | Required | Description |
 |---|---|---|
-| `SDDSUM_STORAGE_PATH` | Set by the plugin | Path for `.sdd-summary/` (OAuth config and tokens). Defaults to `.sdd-summary/` relative to the server's working directory. |
-| `SDDSUM_LIFECYCLE_PATH` | Set by the plugin | Path for `.summaryconfig-lifecycle/`. Defaults to the server's working directory. |
+| `SDDSUM_HOST` | Set by the deploy | `cursor` or `kiro`. Selects the host-specific guidance the server emits — chiefly how the agent should spawn parallel scoring subagents. Unset gives host-neutral wording. |
+| `SDDSUM_STORAGE_PATH` | Set by the deploy on Cursor only | Path for `.sdd-summary/` (OAuth config and tokens). Left unset on Kiro. Defaults to `.sdd-summary/` at the project root. |
+| `SDDSUM_LIFECYCLE_PATH` | Set by the deploy on Cursor only | Path for `.summaryconfig-lifecycle/`. Left unset on Kiro. Defaults to the project root. |
 | `GENESYS_CLIENT_ID` | **Avoid** | Shadows the stored config and causes logins against the wrong org. Let `login()` manage this instead. |
 | `GENESYS_REGION` | **Avoid** | Extracted from the Authorization URL automatically. |
 | `GENESYS_CLIENT_SECRET` | No | Only for the vestigial machine-to-machine fallback. Not used by the standard PKCE user login. |
+
+The project root is found by walking up from the server's working directory looking for a `.kiro/`, `.cursor/` or `.git/` marker. That is what makes the Kiro defaults land correctly even when a chat is started from a subdirectory.
 
 ---
 
@@ -359,3 +491,5 @@ Before committing or sharing this repo:
 - [ ] No credentials hardcoded in any committed file
 
 All of the above are already covered by the root `.gitignore`. Note that `mcp-server/bundle/` **is** committed by design — it contains only compiled server code, no credentials.
+
+The deployed configuration files themselves are safe to commit under either host: they hold no credentials, and neither contains an absolute path, so a colleague can clone the project and use it as-is.

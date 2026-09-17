@@ -292,7 +292,7 @@ finalize_eval_run(
 
 Results are saved to `eval-runs/Sprint 1/0001/`, and both reports are written automatically — the run report at `eval-runs/Sprint 1/0001/dashboard.html` and the rolling improvements report at `eval-runs/Sprint 1/improvements.html`. Each is a single self-contained file: open it in a browser, or send it to someone who has neither the project nor Genesys access.
 
-Read the run report before writing `improvements.md`. Its findings already rank the failing dimensions by weighted impact and quote the evaluator's reasoning, and the requirements pivot shows which business requirements are failing or untested. Call `generate_eval_run_dashboard` or `generate_improvements_dashboard` only to re-render; never write report HTML by hand. After pulling a newer version of the plugin, `regenerate_reports` brings historical runs into the current templates without re-scoring anything.
+Read the run report before writing `improvements.md`. Its findings already rank the failing dimensions by weighted impact and quote the evaluator's reasoning, and the requirements pivot shows which business requirements are failing or untested. Call `generate_eval_run_dashboard` or `generate_improvements_dashboard` only to re-render; never write report HTML by hand. After deploying a newer version of the server, `regenerate_reports` brings historical runs into the current templates without re-scoring anything.
 
 Always follow `finalize_eval_run` with `save_improvement_recommendations(...)`. Its response carries the prompt under test and a per-dimension failure analysis, which is the raw material for the recommendations write-up.
 
