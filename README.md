@@ -119,7 +119,15 @@ The agent checks whether you already have a Genesys OAuth client and walks you t
 
 > **On Kiro, a chat on any other agent has none of the tools** — including a KiroCrew dashboard session, or an assistant you open on the same folder. The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that one agent. This is the pre-approval mechanism working as designed, not a broken install: Kiro puts `allowedTools` only in an agent config, so a tool and its approval have to travel together.
 >
-> To drive the pipeline from **KiroCrew's dashboard** instead of a terminal, copy both agent files from this project's `.kiro/agents/` into `~/.kiro/agents/`. They then appear under **Agent Capabilities → Agent Templates**, and you pick `sdd-summary` from the agent selector in the chat topbar. **Bind that tab to this project directory** — the config uses project-relative paths, so the agent only works on a tab whose working directory is this project. Elsewhere the vendored bundle is simply not there and the server does not start. See [`docs/setup.md`](docs/setup.md) for the detail.
+> To drive the pipeline from **KiroCrew's dashboard** instead of a terminal, re-run the deploy with `--kirocrew`:
+>
+> ```bash
+> node sdd-summary-mcp/deploy.js --kiro --kirocrew
+> ```
+>
+> That additionally installs the two agent configs into `~/.kiro/agents/`, so they appear under **Agent Capabilities → Agent Templates** and you can pick `sdd-summary` from the agent selector in the chat topbar. **Bind that tab to this project directory** — the configs use project-relative paths, so the agent only works on a tab whose working directory is a deployed project. Elsewhere the vendored bundle is not there and the server does not start.
+>
+> Those two files are the **only** thing the deploy writes outside the target project, which is why it is opt-in and reported as such in the output. See [`docs/setup.md`](docs/setup.md) for the detail.
 
 You end up with one of these:
 

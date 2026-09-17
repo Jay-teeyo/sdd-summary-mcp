@@ -41,6 +41,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const S = require('./shared');
 
 const VENDOR_REL = path.join('.kiro', 'sdd-summary');
@@ -192,7 +193,66 @@ function writeAgent(target, agentName, allowTools) {
   return agent;
 }
 
-function deployKiro(target) {
+/**
+ * Install the deployed agent configs into the user's GLOBAL agent directory, so
+ * they appear in KiroCrew's dashboard under Agent Capabilities → Agent Templates
+ * and can be picked from a chat tab's agent selector.
+ *
+ * OPT-IN ONLY, and the one thing this script writes outside the target project.
+ * Everything else it does is project-scoped, which is the basis of the whole
+ * design; this breaks that, so it never runs unless asked for by --kirocrew and
+ * it reports each write as leaving the project.
+ *
+ * WHY COPYING THE DEPLOYED FILES IS SAFE
+ * --------------------------------------
+ * The deployed agent configs carry NO absolute paths — the bundle arg and the
+ * steering glob are both project-relative, and the allowlist is static. They are
+ * therefore byte-identical for every project this is deployed into, and they
+ * resolve against whichever project a dashboard tab is bound to. So a single
+ * global copy serves every deployed project, and re-running this for a second
+ * project cannot corrupt the first.
+ *
+ * The corollary, which the docs state: because those paths are relative, the
+ * agent only works on a tab bound to a project that has been deployed into. On
+ * any other tab the vendored bundle is simply absent and the server does not
+ * start — a visible failure, and nothing is written anywhere wrong because the
+ * server never comes up.
+ *
+ * Copied from the just-written files under the target rather than from
+ * kiro/agents/, so the global copy carries the same resolved allowlist and
+ * cannot drift from what the project got.
+ */
+function installGlobalAgents(target) {
+  const destDir = path.join(os.homedir(), '.kiro', 'agents');
+  fs.mkdirSync(destDir, { recursive: true });
+
+  const results = [];
+  for (const agentName of [MAIN_AGENT, SCORER_AGENT]) {
+    const src = path.join(target, '.kiro', 'agents', `${agentName}.json`);
+    const dest = path.join(destDir, `${agentName}.json`);
+    if (!fs.existsSync(src)) {
+      S.err(`Cannot install globally: ${agentName}.json was not written to the project.`);
+      process.exit(1);
+    }
+    const next = fs.readFileSync(src, 'utf8');
+    const prev = fs.existsSync(dest) ? fs.readFileSync(dest, 'utf8') : null;
+    if (prev === next) {
+      results.push({ agentName, state: 'already current' });
+      continue;
+    }
+    fs.copyFileSync(src, dest);
+    results.push({ agentName, state: prev === null ? 'installed' : 'replaced (content changed)' });
+  }
+
+  // Print with ~ so it is obvious these land outside the project.
+  const shown = path.join('~', '.kiro', 'agents');
+  for (const r of results) {
+    S.ok(`${S.yellow('outside the project')} → ${shown}/${r.agentName}.json (${r.state})`);
+  }
+  return results;
+}
+
+function deployKiro(target, opts = {}) {
   const { allowTools } = S.readServerDefinition();
 
   // ─── 1. Vendor the bundle ───────────────────────────────────────────────────
@@ -247,13 +307,26 @@ function deployKiro(target) {
   // ─── 6. Protect generated data ──────────────────────────────────────────────
   const { sourceIsNested } = S.protectGitignore(target);
 
-  return { sourceIsNested };
+  // ─── 7. OPTIONAL: make the agent selectable in the KiroCrew dashboard ───────
+  // Opt-in via --kirocrew. This is the ONLY step that writes outside the target.
+  let globalInstalled = false;
+  if (opts.kirocrew) {
+    installGlobalAgents(target);
+    globalInstalled = true;
+  }
+
+  return { sourceIsNested, globalInstalled };
 }
 
-function printKiroNextSteps(target, sourceIsNested) {
+function printKiroNextSteps(target, sourceIsNested, globalInstalled) {
   console.log(`
   Scope: this project only. The agents, steering and pre-approved tools live
-  under ${target}/.kiro/, so they are inactive in every other workspace.
+  under ${target}/.kiro/, so they are inactive in every other workspace.${
+    globalInstalled
+      ? `\n  ${S.yellow('Except')} the two agent files just copied to ~/.kiro/agents/, which are
+  global by design so the dashboard can see them.`
+      : ''
+  }
 
   Next steps:
     1. Open ${S.bold(path.basename(target))} as your Kiro workspace.${
@@ -276,13 +349,29 @@ function printKiroNextSteps(target, sourceIsNested) {
 
        ${S.yellow('It must be kiro-cli chat, started in this directory.')} The server is
        declared in .kiro/agents/${MAIN_AGENT}.json, so ONLY that agent has the
-       tools. A chat on any other agent — including a KiroCrew dashboard
-       session — sees no @${S.SERVER_KEY}/* tools at all. That is the
-       pre-approval design, not a broken install.
+       tools. A chat on any other agent sees no @${S.SERVER_KEY}/* tools at
+       all. That is the pre-approval design, not a broken install.
 
        ${S.dim(`This project's default agent is already ${MAIN_AGENT}, so no --agent`)}
        ${S.dim(`flag is needed. To be explicit: kiro-cli chat --agent ${MAIN_AGENT}`)}
+${
+  globalInstalled
+    ? `
+    4. ${S.bold('Or drive it from the KiroCrew dashboard:')} the agents now appear
+       under ${S.bold('Agent Capabilities → Agent Templates')}. Open a chat tab,
+       ${S.bold('bind the tab to this project directory')}, then pick
+       "${MAIN_AGENT}" from the agent selector in the chat topbar.
 
+       ${S.yellow('The tab MUST be bound to a deployed project.')} The agent config uses
+       project-relative paths, so on an unbound tab — or one bound elsewhere —
+       the vendored bundle is not there and the server will not start.
+`
+    : `
+    ${S.dim('To drive it from the KiroCrew dashboard instead, re-run with --kirocrew,')}
+    ${S.dim('which also installs these agents to ~/.kiro/agents/ so the dashboard')}
+    ${S.dim('can see them. That is the one thing written outside this project.')}
+`
+}
     To verify the install: ${S.bold('/mcp')} in chat, or ${S.bold('kiro-cli mcp list')}.
     It should report the ${S.bold('sdd-summary')} server with ${S.bold('44 tools')}.
 

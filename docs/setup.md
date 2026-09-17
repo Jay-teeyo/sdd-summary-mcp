@@ -156,17 +156,27 @@ On Kiro it must be `kiro-cli chat` **started in the project directory**. The dep
 
 #### Driving it from the KiroCrew dashboard instead
 
-If you would rather work in the dashboard than a terminal, KiroCrew calls this an **agent template**, and the mechanism is its own documented one: custom agents are JSON files in `~/.kiro/agents/`, and a file dropped there appears automatically.
+If you would rather work in the dashboard than a terminal, re-run the deploy with `--kirocrew`:
 
-1. Copy **both** agent files from this project's `.kiro/agents/` into `~/.kiro/agents/` — `sdd-summary.json` and `sdd-summary-scorer.json`. The second is needed for eval scoring subagents.
-2. They appear under **Agent Capabilities → Agent Templates**, which lists each agent's tools and MCP servers. No restart.
-3. In a chat tab, **bind the tab to this project directory**, then select `sdd-summary` from the agent selector dropdown in the chat topbar.
+```bash
+node sdd-summary-mcp/deploy.js --kiro --kirocrew
+```
 
-Step 3 is what makes it work. A dashboard tab bound to a project runs with that project as its working directory, so the workspace-relative bundle path resolves, the steering glob resolves, storage anchors to the project root, and all pre-approvals come along because they live in the agent config.
+KiroCrew calls these **agent templates**, and its documented mechanism is that custom agents are JSON files in `~/.kiro/agents/` which appear automatically. So the flag installs both agent configs there — `sdd-summary.json` and `sdd-summary-scorer.json`, the second being what eval scoring subagents need.
 
-The corollary is the limitation: because those paths are project-relative, this agent only works on a tab bound to **this** project. On a different project or an unbound tab, `.kiro/sdd-summary/sdd-summary-mcp.mjs` does not exist and the server does not start. That is a visible failure rather than a silent one — nothing is written to the wrong place, because the server never comes up.
+Then, in the dashboard:
 
-If you want the pipeline available across several projects, deploy into each one rather than trying to make one global agent serve them all.
+1. They appear under **Agent Capabilities → Agent Templates**, listing each agent's tools and MCP servers. No restart.
+2. Open a chat tab and **bind the tab to a deployed project directory**.
+3. Select `sdd-summary` from the agent selector dropdown in the chat topbar.
+
+Step 2 is what makes it work. A dashboard tab bound to a project runs with that project as its working directory, so the workspace-relative bundle path resolves, the steering glob resolves, storage anchors to the project root, and all pre-approvals come along because they live in the agent config.
+
+**One global copy serves every project you deploy into.** The agent configs contain no absolute paths — the bundle argument and the steering glob are both project-relative and the allowlist is static — so they are byte-identical whichever project produced them, and they resolve per tab. Deploying into a second project cannot corrupt the first, and a re-run reports `already current` rather than churning the file.
+
+The corollary is the limitation: because those paths are relative, the agent only works on a tab bound to a project that has been deployed into. On an unbound tab, or one bound elsewhere, `.kiro/sdd-summary/sdd-summary-mcp.mjs` does not exist and the server does not start. That is a visible failure, not a silent one — nothing is written to the wrong place, because the server never comes up.
+
+These two files are **the only thing this script writes outside the target project**, which is why the flag is opt-in rather than default, and why each write is reported as `outside the project` in the output. `--kirocrew` is refused with `--cursor`, which has no equivalent, rather than being silently ignored.
 
 **What to avoid:** adding the `sdd-summary` server to KiroCrew's own `kirocrew` agent. That would work, and it would put 44 Genesys tools and ~490 lines of pipeline guidance into every unrelated dashboard chat you ever open — the exact cost project scope exists to avoid.
 
