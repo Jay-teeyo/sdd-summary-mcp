@@ -53,6 +53,7 @@ const HOSTS = {
 
 let host = null;
 let targetArg = null;
+let kirocrew = false;
 
 for (const arg of process.argv.slice(2)) {
   const m = /^--host[=:](.+)$/.exec(arg);
@@ -60,6 +61,8 @@ for (const arg of process.argv.slice(2)) {
     host = m[1].toLowerCase();
   } else if (arg === '--cursor' || arg === '--kiro') {
     host = arg.slice(2);
+  } else if (arg === '--kirocrew') {
+    kirocrew = true;
   } else if (arg === '-h' || arg === '--help') {
     console.log(`
   SDD Summary — project-scoped deploy
@@ -67,6 +70,13 @@ for (const arg of process.argv.slice(2)) {
     node deploy.js [target]           ask which editor, then deploy
     node deploy.js --kiro [target]    deploy for Kiro
     node deploy.js --cursor [target]  deploy for Cursor
+
+    --kirocrew                        Kiro only. ALSO install the two agent
+                                      configs into ~/.kiro/agents/, so they
+                                      appear in KiroCrew's dashboard under
+                                      Agent Capabilities → Agent Templates.
+                                      This is the only thing written OUTSIDE
+                                      the target project.
 
   target defaults to the current directory.
 `);
@@ -83,6 +93,24 @@ for (const arg of process.argv.slice(2)) {
 if (host && !HOSTS[host]) {
   S.err(`Unknown host "${host}". Expected "cursor" or "kiro".`);
   process.exit(1);
+}
+
+// --kirocrew installs Kiro agent configs, so it only means anything for Kiro.
+// Refuse rather than silently ignore it: a user who passed it and got nothing
+// would have no way to tell the flag had no effect.
+if (kirocrew && host === 'cursor') {
+  S.err('--kirocrew applies to the Kiro target only.');
+  console.log(
+    '    It installs Kiro agent configs so KiroCrew\'s dashboard can see them.\n' +
+    '    Cursor has no equivalent. Drop the flag, or deploy with --kiro.\n',
+  );
+  process.exit(1);
+}
+
+// Passing it with no host at all is unambiguous: only Kiro can use it.
+if (kirocrew && !host) {
+  host = 'kiro';
+  S.warn('--kirocrew implies the Kiro target; deploying for Kiro.');
 }
 
 const target = S.resolveTarget(targetArg);
@@ -146,19 +174,21 @@ async function main() {
   console.log(`
   Editor: ${S.bold(chosen.label)}
   Source: ${S.dim(S.ROOT)}
-  Target: ${S.bold(target)}
+  Target: ${S.bold(target)}${
+    kirocrew ? `\n  Extra:  ${S.bold('--kirocrew')} — also installing agents to ~/.kiro/agents/` : ''
+  }
 `);
 
   S.ensureBundle();
 
-  const { sourceIsNested } = chosen.deploy(target);
+  const { sourceIsNested, globalInstalled } = chosen.deploy(target, { kirocrew });
 
   console.log('\n');
   S.hr();
   console.log(S.bold(`  Deployed for ${chosen.label}`));
   S.hr();
 
-  chosen.next(target, sourceIsNested);
+  chosen.next(target, sourceIsNested, globalInstalled);
 }
 
 main().catch((e) => {

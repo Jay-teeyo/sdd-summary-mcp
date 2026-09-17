@@ -136,11 +136,49 @@ It should then report **44 tools**. If the entry is absent entirely, the config 
 
 ### 5. Start the pipeline
 
-Open a new chat and say **"begin"**. The agent asks whether you already have a Genesys OAuth client, and only walks you through creating one if you don't. See [First Run](#verify) below.
+**On Kiro**, open a terminal in the project directory and run:
 
-**On Kiro, start that chat as `kiro-cli chat` from the project directory.** The deploy sets the pipeline agent as this project's default, but `chat.defaultAgent` is a *workspace* setting — it only applies when the CLI starts inside the project. Be explicit if you prefer: `kiro-cli chat --agent sdd-summary`.
+```bash
+kiro-cli chat
+```
 
-> **A chat that is not this project's Kiro CLI agent has none of the tools**, and that is by design rather than a broken install. The `sdd-summary` server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent only. Any other agent — including one belonging to a separate assistant running in the same repository — sees no `@sdd-summary/*` tools. This follows directly from Kiro putting `allowedTools` only in an agent config: the tools and their pre-approvals have to travel together, so declaring the server per-agent is what makes a full eval suite run without hundreds of prompts. If you want the pipeline reachable from somewhere else, that is a second, separate agent registration — not a change to this one.
+**On Cursor**, open a new chat in the editor.
+
+Then say **"begin"**. The agent asks whether you already have a Genesys OAuth client, and only walks you through creating one if you don't. See [First Run](#verify) below.
+
+On Kiro it must be `kiro-cli chat` **started in the project directory**. The deploy sets the pipeline agent as this project's default, but `chat.defaultAgent` is a *workspace* setting — it only applies when the CLI starts inside the project. Be explicit if you prefer: `kiro-cli chat --agent sdd-summary`.
+
+> **A chat on any other agent has none of the tools, and that is by design.** The `sdd-summary` server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent only. Any other agent sees no `@sdd-summary/*` tools — a different CLI agent, an assistant opened on the same folder, or a **KiroCrew dashboard session**, which runs its own agent (`kiro_agent: "kirocrew"`) and therefore loads that agent's MCP servers rather than this one's.
+>
+> Note what is *not* the reason: a dashboard session bound to this project does run with the project as its working directory, so the project's agent config is perfectly discoverable. The tools are absent because a different agent is selected, not because the directory is out of reach.
+>
+> This follows from Kiro putting `allowedTools` only in an agent config: the tools and their pre-approvals have to travel together, which is what lets a full eval suite run without hundreds of prompts. The cost is that reach is per-agent by construction.
+
+#### Driving it from the KiroCrew dashboard instead
+
+If you would rather work in the dashboard than a terminal, re-run the deploy with `--kirocrew`:
+
+```bash
+node sdd-summary-mcp/deploy.js --kiro --kirocrew
+```
+
+KiroCrew calls these **agent templates**, and its documented mechanism is that custom agents are JSON files in `~/.kiro/agents/` which appear automatically. So the flag installs both agent configs there — `sdd-summary.json` and `sdd-summary-scorer.json`, the second being what eval scoring subagents need.
+
+Then, in the dashboard:
+
+1. They appear under **Agent Capabilities → Agent Templates**, listing each agent's tools and MCP servers. No restart.
+2. Open a chat tab and **bind the tab to a deployed project directory**.
+3. Select `sdd-summary` from the agent selector dropdown in the chat topbar.
+
+Step 2 is what makes it work. A dashboard tab bound to a project runs with that project as its working directory, so the workspace-relative bundle path resolves, the steering glob resolves, storage anchors to the project root, and all pre-approvals come along because they live in the agent config.
+
+**One global copy serves every project you deploy into.** The agent configs contain no absolute paths — the bundle argument and the steering glob are both project-relative and the allowlist is static — so they are byte-identical whichever project produced them, and they resolve per tab. Deploying into a second project cannot corrupt the first, and a re-run reports `already current` rather than churning the file.
+
+The corollary is the limitation: because those paths are relative, the agent only works on a tab bound to a project that has been deployed into. On an unbound tab, or one bound elsewhere, `.kiro/sdd-summary/sdd-summary-mcp.mjs` does not exist and the server does not start. That is a visible failure, not a silent one — nothing is written to the wrong place, because the server never comes up.
+
+These two files are **the only thing this script writes outside the target project**, which is why the flag is opt-in rather than default, and why each write is reported as `outside the project` in the output. `--kirocrew` is refused with `--cursor`, which has no equivalent, rather than being silently ignored.
+
+**What to avoid:** adding the `sdd-summary` server to KiroCrew's own `kirocrew` agent. That would work, and it would put 44 Genesys tools and ~490 lines of pipeline guidance into every unrelated dashboard chat you ever open — the exact cost project scope exists to avoid.
 
 ### Resulting layout
 

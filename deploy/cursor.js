@@ -27,7 +27,10 @@ const S = require('./shared');
 
 const VENDOR_REL = path.join('.cursor', 'sdd-summary');
 
-function deployCursor(target) {
+// eslint-disable-next-line no-unused-vars -- opts is part of the shared target
+// signature; Cursor has no options of its own. --kirocrew is refused upstream in
+// deploy.js rather than ignored here, so there is nothing to branch on.
+function deployCursor(target, opts = {}) {
   const { serverDef, allowTools } = S.readServerDefinition();
 
   // ─── 1. Vendor the bundle ───────────────────────────────────────────────────
