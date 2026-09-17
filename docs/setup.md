@@ -156,13 +156,19 @@ On Kiro it must be `kiro-cli chat` **started in the project directory**. The dep
 
 #### Driving it from the KiroCrew dashboard instead
 
-If you would rather work in the dashboard's sessions UI than a terminal, the supported route is a **KiroCrew crew** whose `kiro_agent` is `sdd-summary`, used on a session bound to this project directory.
+If you would rather work in the dashboard than a terminal, KiroCrew calls this an **agent template**, and the mechanism is its own documented one: custom agents are JSON files in `~/.kiro/agents/`, and a file dropped there appears automatically.
 
-That works cleanly precisely because the working directory is already correct: the workspace agent is discovered, the relative bundle path resolves, the steering glob resolves, storage anchors to the project root, and all pre-approvals come along because they live in that agent config. Nothing needs an absolute path and nothing leaks into unrelated workspaces.
+1. Copy **both** agent files from this project's `.kiro/agents/` into `~/.kiro/agents/` — `sdd-summary.json` and `sdd-summary-scorer.json`. The second is needed for eval scoring subagents.
+2. They appear under **Agent Capabilities → Agent Templates**, which lists each agent's tools and MCP servers. No restart.
+3. In a chat tab, **bind the tab to this project directory**, then select `sdd-summary` from the agent selector dropdown in the chat topbar.
 
-Crews are configured on the KiroCrew side, not by anything in this repository. Two things must both be true: the crew's `kiro_agent` is `sdd-summary`, and the session is opened on this project directory.
+Step 3 is what makes it work. A dashboard tab bound to a project runs with that project as its working directory, so the workspace-relative bundle path resolves, the steering glob resolves, storage anchors to the project root, and all pre-approvals come along because they live in the agent config.
 
-**Do not reach for the alternatives.** Adding the server to KiroCrew's own global agent would put 44 Genesys tools and ~490 lines of guidance into every unrelated chat. Copying the agent to `~/.kiro/agents/` globally is worse: the working directory would then be the KiroCrew workspace rather than this project, so the relative bundle path would not resolve and — more seriously — the storage anchor would walk up to `~/.kiro/` and write OAuth tokens and customer transcripts outside the project entirely.
+The corollary is the limitation: because those paths are project-relative, this agent only works on a tab bound to **this** project. On a different project or an unbound tab, `.kiro/sdd-summary/sdd-summary-mcp.mjs` does not exist and the server does not start. That is a visible failure rather than a silent one — nothing is written to the wrong place, because the server never comes up.
+
+If you want the pipeline available across several projects, deploy into each one rather than trying to make one global agent serve them all.
+
+**What to avoid:** adding the `sdd-summary` server to KiroCrew's own `kirocrew` agent. That would work, and it would put 44 Genesys tools and ~490 lines of pipeline guidance into every unrelated dashboard chat you ever open — the exact cost project scope exists to avoid.
 
 ### Resulting layout
 
