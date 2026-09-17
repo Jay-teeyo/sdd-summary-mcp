@@ -117,7 +117,9 @@ Open a new chat in Cursor and say **"begin"**.
 
 The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
 
-> **On Kiro, a chat on any other agent has none of the tools** — including a KiroCrew dashboard session, or an assistant you open on the same folder. The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that one agent. This is the pre-approval mechanism working as designed, not a broken install: Kiro puts `allowedTools` only in an agent config, so a tool and its approval have to travel together. Making the pipeline reachable from somewhere else is a separate agent registration, and at user scope it would load 44 Genesys tools into every unrelated chat.
+> **On Kiro, a chat on any other agent has none of the tools** — including a KiroCrew dashboard session, or an assistant you open on the same folder. The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that one agent. This is the pre-approval mechanism working as designed, not a broken install: Kiro puts `allowedTools` only in an agent config, so a tool and its approval have to travel together.
+>
+> To drive the pipeline from **KiroCrew's sessions UI** instead of a terminal, register a KiroCrew crew whose `kiro_agent` is `sdd-summary` and open its session on this project directory. That works without any absolute paths, because a project-bound dashboard session already runs with the project as its working directory. Avoid the shortcut of installing the agent globally — the working directory then is not the project, so storage would anchor outside it and write tokens and transcripts to the wrong tree. See [`docs/setup.md`](docs/setup.md) for the detail.
 
 You end up with one of these:
 

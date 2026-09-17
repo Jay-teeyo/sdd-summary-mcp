@@ -148,11 +148,21 @@ Then say **"begin"**. The agent asks whether you already have a Genesys OAuth cl
 
 On Kiro it must be `kiro-cli chat` **started in the project directory**. The deploy sets the pipeline agent as this project's default, but `chat.defaultAgent` is a *workspace* setting — it only applies when the CLI starts inside the project. Be explicit if you prefer: `kiro-cli chat --agent sdd-summary`.
 
-> **A chat on any other agent has none of the tools, and that is by design.** The `sdd-summary` server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent only. Any other agent sees no `@sdd-summary/*` tools — a different CLI agent, an assistant opened on the same folder, or a **KiroCrew dashboard session**, which runs its own agent with its own MCP servers and never reads a project's `.kiro/agents/`.
+> **A chat on any other agent has none of the tools, and that is by design.** The `sdd-summary` server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent only. Any other agent sees no `@sdd-summary/*` tools — a different CLI agent, an assistant opened on the same folder, or a **KiroCrew dashboard session**, which runs its own agent (`kiro_agent: "kirocrew"`) and therefore loads that agent's MCP servers rather than this one's.
 >
-> This follows directly from Kiro putting `allowedTools` only in an agent config: the tools and their pre-approvals have to travel together, which is what lets a full eval suite run without hundreds of prompts. The cost is that reach is per-agent by construction.
+> Note what is *not* the reason: a dashboard session bound to this project does run with the project as its working directory, so the project's agent config is perfectly discoverable. The tools are absent because a different agent is selected, not because the directory is out of reach.
 >
-> Making the pipeline reachable from another agent is a **second, separate registration** — not a change to this one. Think before doing it at user scope: it loads 44 Genesys tools and ~490 lines of pipeline guidance into every unrelated chat, which is the exact cost project scope exists to avoid.
+> This follows from Kiro putting `allowedTools` only in an agent config: the tools and their pre-approvals have to travel together, which is what lets a full eval suite run without hundreds of prompts. The cost is that reach is per-agent by construction.
+
+#### Driving it from the KiroCrew dashboard instead
+
+If you would rather work in the dashboard's sessions UI than a terminal, the supported route is a **KiroCrew crew** whose `kiro_agent` is `sdd-summary`, used on a session bound to this project directory.
+
+That works cleanly precisely because the working directory is already correct: the workspace agent is discovered, the relative bundle path resolves, the steering glob resolves, storage anchors to the project root, and all pre-approvals come along because they live in that agent config. Nothing needs an absolute path and nothing leaks into unrelated workspaces.
+
+Crews are configured on the KiroCrew side, not by anything in this repository. Two things must both be true: the crew's `kiro_agent` is `sdd-summary`, and the session is opened on this project directory.
+
+**Do not reach for the alternatives.** Adding the server to KiroCrew's own global agent would put 44 Genesys tools and ~490 lines of guidance into every unrelated chat. Copying the agent to `~/.kiro/agents/` globally is worse: the working directory would then be the KiroCrew workspace rather than this project, so the relative bundle path would not resolve and — more seriously — the storage anchor would walk up to `~/.kiro/` and write OAuth tokens and customer transcripts outside the project entirely.
 
 ### Resulting layout
 
