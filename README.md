@@ -94,11 +94,30 @@ Two manual steps:
 
 **5. Start**
 
-Open a new chat and say **"begin"**. The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
+<table>
+<tr><th>Kiro</th><th>Cursor</th></tr>
+<tr valign="top"><td>
 
-On **Kiro**, run that chat as `kiro-cli chat` **from the project directory**. The pipeline agent is set as the project's default agent, so no `--agent` flag is needed — but that default is a *workspace* setting, so it only applies when the CLI starts inside the project. To be explicit: `kiro-cli chat --agent sdd-summary`.
+Open a **terminal** in the project directory and run:
 
-> A chat that is not this project's Kiro CLI agent will not have the tools. The `sdd-summary` MCP server is declared in `.kiro/agents/sdd-summary.json`, so it loads for that agent only — a different agent, or a session started outside the project, sees no `@sdd-summary/*` tools at all. That is the pre-approval mechanism working as intended, not a broken install: `allowedTools` exists only in an agent config, so the tools and their approvals travel together.
+```bash
+kiro-cli chat
+```
+
+Then say **"begin"**.
+
+It must be `kiro-cli chat`, started in this directory. `chat.defaultAgent` resolves to `sdd-summary` there, and no `--agent` flag is needed.
+
+</td><td>
+
+Open a new chat in Cursor and say **"begin"**.
+
+</td></tr>
+</table>
+
+The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
+
+> **On Kiro, a chat on any other agent has none of the tools** — including a KiroCrew dashboard session, or an assistant you open on the same folder. The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that one agent. This is the pre-approval mechanism working as designed, not a broken install: Kiro puts `allowedTools` only in an agent config, so a tool and its approval have to travel together. Making the pipeline reachable from somewhere else is a separate agent registration, and at user scope it would load 44 Genesys tools into every unrelated chat.
 
 You end up with one of these:
 

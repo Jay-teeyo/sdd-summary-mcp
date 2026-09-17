@@ -266,11 +266,22 @@ function printKiroNextSteps(target, sourceIsNested) {
        toggle to switch on — Kiro starts the server on demand and hot-reloads
        config changes, so a re-run of this script is picked up without a restart.
 
-    3. Start a chat and just say ${S.bold('"begin"')}. The agent will check whether
-       your Genesys OAuth client exists and walk you through it if not.
+    3. ${S.bold('Start the pipeline from a terminal in this directory:')}
 
-       ${S.dim(`The pipeline agent is this project's default, so no --agent flag is`)}
-       ${S.dim(`needed. To be explicit: kiro-cli chat --agent ${MAIN_AGENT}`)}
+         ${S.bold(`cd ${target}`)}
+         ${S.bold('kiro-cli chat')}
+
+       Then say ${S.bold('"begin"')}. The agent checks whether your Genesys OAuth
+       client exists and walks you through it if not.
+
+       ${S.yellow('It must be kiro-cli chat, started in this directory.')} The server is
+       declared in .kiro/agents/${MAIN_AGENT}.json, so ONLY that agent has the
+       tools. A chat on any other agent — including a KiroCrew dashboard
+       session — sees no @${S.SERVER_KEY}/* tools at all. That is the
+       pre-approval design, not a broken install.
+
+       ${S.dim(`This project's default agent is already ${MAIN_AGENT}, so no --agent`)}
+       ${S.dim(`flag is needed. To be explicit: kiro-cli chat --agent ${MAIN_AGENT}`)}
 
     To verify the install: ${S.bold('/mcp')} in chat, or ${S.bold('kiro-cli mcp list')}.
     It should report the ${S.bold('sdd-summary')} server with ${S.bold('44 tools')}.
