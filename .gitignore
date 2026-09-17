@@ -1,10 +1,21 @@
-# ─── Machine-specific MCP config ──────────────────────────────────────────────
-# Only produced by the setup.js fallback; the plugin route needs no such file.
-# Contains absolute paths, and historically contained credentials.
+# ─── Local editor state — never committed ─────────────────────────────────────
+# Deployed/editor-local configuration for THIS repo, produced either by running
+# deploy.js against the repo itself or just by opening it in the editor. It is
+# machine-specific, can contain absolute paths, and historically contained
+# credentials.
 #
-# NOTE: the repo-root mcp.json is the PLUGIN's server definition. It is
-# intentionally committed — it holds only placeholders, never credentials.
-.cursor/mcp.json
+# Patterns are ANCHORED with a leading slash, which matters here:
+#   /.kiro/          ignores local Kiro state  — but NOT `kiro/`, which holds the
+#                    agent templates and eval-orchestration text the Kiro deploy
+#                    reads and which MUST stay committed.
+#   /.cursor/        ignores local Cursor state — but NOT `.cursor-plugin/`,
+#                    which is the plugin manifest and MUST stay committed.
+#
+# NOTE: the repo-root mcp.json is the canonical server definition and tool
+# allowlist. It is intentionally committed — it holds only placeholders, never
+# credentials.
+/.kiro/
+/.cursor/
 .env
 .env.local
 
@@ -17,9 +28,10 @@ mcp-server/.sdd-summary/
 
 # ─── Node build output and dependencies ───────────────────────────────────────
 # dist/ is the local tsc output, used for type-checking and debugging only.
-# mcp-server/bundle/ is deliberately NOT ignored: Cursor installs a plugin by
-# cloning the repo without running a build, so the bundled server must be
-# committed or the plugin has nothing to run.
+# mcp-server/bundle/ is deliberately NOT ignored: nothing on the consuming side
+# ever runs a build — deploy.js vendors the bundle straight into the target
+# project, and a Cursor plugin install clones the repo without building — so the
+# bundled server must be committed or there is nothing to run.
 mcp-server/dist/
 mcp-server/node_modules/
 

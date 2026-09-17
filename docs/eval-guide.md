@@ -122,7 +122,7 @@ The run directory is created on disk immediately at `eval-runs/{test_set_name}/{
 
 ### Step 2 — Subagents: `submit_eval_scores`
 
-Spawn **one subagent per batch** using a fast model (`composer-2.5-fast`). Each subagent:
+Spawn **one subagent per batch** on a fast, cheap model. The mechanism differs by editor — see [Subagent Configuration](#3-subagent-configuration) below for the exact call, and note that on Kiro the subagent's **role** is what grants it the `submit_eval_scores` tool at all. Each subagent:
 
 1. Reads its batch of transcripts (each with `plain_text` and `summary`)
 2. For each transcript, scores every dimension of every test case:
@@ -172,14 +172,44 @@ finalize_eval_run(
 
 ## 3. Subagent Configuration
 
-Each subagent handling one batch should be spawned with:
+One subagent handles one batch. What that subagent *is* differs by editor, and the difference is not cosmetic — on Kiro, getting it wrong means scores are never recorded and nothing reports an error.
+
+### Kiro
+
+Scoring stages are spawned with the **`use_subagent`** tool — one stage per batch:
 
 | Setting | Value |
 |---------|-------|
+| Tool | `use_subagent` |
+| `role` | `sdd-summary-scorer` |
+| `model` | `claude-haiku-4.5` |
+| Task | Score each transcript × test case in its batch and call `submit_eval_scores` for each |
+
+Three Kiro-specific rules:
+
+- **The `role` is load-bearing.** A Kiro subagent loads MCP servers from its *own* agent configuration, so only the `sdd-summary-scorer` agent has `submit_eval_scores`. A stage given any other role cannot record scores and will not say so — it will improvise or report success having written nothing. `deploy.js` installs that agent at `.kiro/agents/sdd-summary-scorer.json`; if the crew tool refuses the role (*"Agents not available for crew stages"*), the deploy did not run or did not complete.
+- **Every stage must call the `summary` tool before ending.** A stage that finishes with plain text delivers nothing back to the parent, so its batch appears unscored even though its `submit_eval_scores` calls succeeded.
+- **The crew is fail-fast.** If one stage errors, its still-running siblings are cancelled, so a single bad batch can leave the run started with only some batches submitted. Never call `finalize_eval_run` assuming everything landed — call `get_pipeline_state(summary_config_name=...)` to see which run is open and what was recorded, re-run only the missing batches, then finalize once.
+
+The scorer agent also has the live-Genesys and run-lifecycle tools removed via `disabledTools`, so a scoring stage cannot reach production or finalize its own run even by mistake.
+
+### Cursor
+
+| Setting | Value |
+|---------|-------|
+| Tool | Task tool |
 | Model | `composer-2.5-fast` |
 | Task | Score each transcript × test case in its batch and call `submit_eval_scores` for each |
 
-The subagent prompt should include:
+Pre-approval comes from `.cursor/permissions.json`, which the deploy writes — without it, a full suite prompts on every one of its hundreds of `submit_eval_scores` calls.
+
+### On the choice of scoring model
+
+Both defaults are the cheapest fast tier available on that host. Note that on Kiro, `claude-haiku-4.5` is the **same model Genesys AI Studio uses to generate the summaries**, so the judge shares the generator's family. The rubric is mostly verifiable checks and the scorer is required to quote its evidence, which limits the risk — but if you want to rule out same-family bias, run the identical test set twice in `mode: "existing"` with different scoring models and compare pass rates per dimension. That mode makes no Genesys API calls and generates nothing new, so the only variable is the judge.
+
+### Shared prompt requirements
+
+Whichever host, the subagent prompt must include:
 - The batch contents (`transcript_id`, `plain_text`, `summary`, `transcript_label`)
 - The full `test_cases` array (dimensions, pass/fail criteria, pass thresholds)
 - The `run_number`, `summary_config_name`, `test_set_name` to pass to `submit_eval_scores`
@@ -263,7 +293,7 @@ For `Acme_CallSummary-Full-Test-Suite` (for a suite of ~50 transcripts × 8 test
 | Setting | Recommendation |
 |---------|----------------|
 | `batch_size` (subagents) | 5 (default) → ~20 subagents |
-| Subagent model | `composer-2.5-fast` |
+| Subagent model | Kiro: `claude-haiku-4.5` · Cursor: `composer-2.5-fast` |
 | Mode 1 wall time | ~3–6 minutes (no API calls, pure LLM evaluation) |
 | Mode 2 — preview generation | ~10–15 calls to `prepare_prompt_test` at `batch_size=8`; ~15–25 minutes total |
 | Mode 2 — scoring (after cache) | Same as Mode 1 once `start_eval_run` reads from cache |
@@ -282,7 +312,7 @@ For smaller smoke tests, use a reduced test set of 5–10 transcripts and a sing
 
 `finalize_eval_run` writes both reports automatically. Open either in any browser — no server, no network, nothing to install. Each file embeds its own data, so it can be copied, attached to an email, or committed for review and it still works.
 
-Both are rendered from templates that ship inside the plugin, so every report from every project looks and behaves the same, and pulling a newer version of the plugin gives you newer reports.
+Both are rendered from templates that ship inside the server bundle, so every report from every project looks and behaves the same, and deploying a newer version of the server gives you newer reports.
 
 ### Run report — `{NNNN}/dashboard.html`
 

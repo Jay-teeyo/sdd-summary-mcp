@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { exec } from "child_process";
 import type { GenesysConfig, OAuthToken, UserToken } from "../types.js";
 import { loadConfig, saveConfig } from "../config.js";
+import { hostDisplayName } from "../host.js";
 
 export function getBaseUrl(region: string): string {
   return `https://api.${region}`;
@@ -235,7 +236,7 @@ export function preparePkceLogin(config: GenesysConfig): { authUrl: string } {
     if (error) {
       state.error = `OAuth2 error: ${error} — ${url.searchParams.get("error_description") ?? ""}`;
       res.writeHead(400, { "Content-Type": "text/html" });
-      res.end(`<html><body style="font-family:sans-serif;padding:2em"><h2 style="color:#c62828">Login failed: ${error}</h2><p>You can close this tab and return to Cursor.</p></body></html>`);
+      res.end(`<html><body style="font-family:sans-serif;padding:2em"><h2 style="color:#c62828">Login failed: ${error}</h2><p>You can close this tab and return to ${hostDisplayName()}.</p></body></html>`);
       server.close();
       return;
     }
@@ -253,7 +254,7 @@ export function preparePkceLogin(config: GenesysConfig): { authUrl: string } {
     res.end(
       `<html><body style="font-family:sans-serif;padding:2em">` +
       `<h2 style="color:#2e7d32">&#10003; Logged in to Genesys Cloud</h2>` +
-      `<p>You can close this tab and return to Cursor.</p>` +
+      `<p>You can close this tab and return to ${hostDisplayName()}.</p>` +
       `</body></html>`,
     );
     server.close();

@@ -717,7 +717,8 @@ export const TOOL_DEFINITIONS: Tool[] = [
       "from every pass-rate denominator. The exclusion overrides applicabilityCondition, including \"always\". " +
       "Report the skipped count alongside the results so a small denominator is never mistaken for a full run.\n\n" +
       "AFTER THIS CALL:\n" +
-      "Spawn one subagent per batch using model composer-2.5-fast. " +
+      "Spawn one subagent per batch — the response's `instruction` field names the exact mechanism " +
+      "and model to use on this host; follow it rather than assuming one. " +
       "Each subagent scores every dimension of every test case for its transcripts and calls submit_eval_scores once per transcript × test case. " +
       "After all subagents finish, call finalize_eval_run.",
     inputSchema: {
@@ -1066,7 +1067,7 @@ export const TOOL_DEFINITIONS: Tool[] = [
     description:
       "Rebuild every HTML report for a summary configuration from the results already on disk.\n\n" +
       "Reports are derived artefacts, never the record — the JSON in eval-runs/ is. So after " +
-      "pulling a newer version of this plugin, run this once to bring historical runs into the " +
+      "deploying a newer version of this server, run this once to bring historical runs into the " +
       "current report templates. Nothing is re-scored and no Genesys calls are made.\n\n" +
       "Also use it after editing requirements.md (to refresh requirement coverage and the " +
       "untested-requirement warnings) or after a report failed to generate during finalization.",

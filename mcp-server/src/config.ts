@@ -4,6 +4,49 @@ import path from "path";
 import type { AppConfig, GenesysConfig } from "./types.js";
 
 /**
+ * Directory markers that identify a project root, in priority order.
+ *
+ * Used only by the fallback path below. `.kiro` and `.cursor` come first because
+ * an installed deploy always creates one of them, making them the most precise
+ * signal. `.git` is the backstop for a project that has been checked out but not
+ * yet deployed into.
+ */
+const PROJECT_MARKERS = [".kiro", ".cursor", ".git"];
+
+/**
+ * Walk up from `start` looking for a project marker and return that directory.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * Kiro does not expand ${workspaceFolder} (verified: the placeholder arrives at
+ * the server verbatim), so the Kiro deploy deliberately sets NO storage env vars
+ * and relies on the CWD fallback instead. Kiro launches an stdio MCP server with
+ * the workspace root as its working directory, so that fallback is correct — but
+ * only for as long as the user launches from the workspace root. Start the CLI
+ * from a subdirectory and an unanchored fallback would silently create a second
+ * `.summaryconfig-lifecycle/` down there, splitting transcripts and eval runs
+ * across two trees with no error.
+ *
+ * Anchoring on a marker makes the fallback correct from anywhere inside the
+ * project. If nothing is found we return `start` unchanged, which reproduces the
+ * previous behaviour exactly rather than guessing.
+ */
+function findProjectRoot(start: string): string {
+  let dir = path.resolve(start);
+  const { root } = path.parse(dir);
+
+  while (true) {
+    for (const marker of PROJECT_MARKERS) {
+      if (fs.existsSync(path.join(dir, marker))) return dir;
+    }
+    if (dir === root) return path.resolve(start);
+    const parent = path.dirname(dir);
+    if (parent === dir) return path.resolve(start);
+    dir = parent;
+  }
+}
+
+/**
  * Turn a configured directory into an absolute path.
  *
  * Cursor can expand ${workspaceFolder} to a tilde-prefixed path such as
@@ -13,11 +56,13 @@ import type { AppConfig, GenesysConfig } from "./types.js";
  * tilde ourselves and resolve, so the path lands where the user expects.
  *
  * If a `${...}` placeholder survived unexpanded there is no sane path to derive,
- * so fall back to the CWD (which is the project root for a Cursor-launched
- * server) rather than creating a directory named after the placeholder.
+ * so fall back to the project root rather than creating a directory named after
+ * the placeholder. Kiro leaves both placeholders unexpanded by design, and the
+ * Kiro deploy omits these variables entirely, so the fallback is the NORMAL path
+ * there rather than an error case.
  */
 function resolveConfiguredDir(value: string | undefined, fallbackName: string): string {
-  const fallback = path.join(process.cwd(), fallbackName);
+  const fallback = path.join(findProjectRoot(process.cwd()), fallbackName);
   if (!value) return fallback;
 
   if (value.includes("${")) {
@@ -39,7 +84,7 @@ function resolveConfiguredDir(value: string | undefined, fallbackName: string): 
 
 /**
  * Resolve the .sdd-summary storage directory (global config + legacy data).
- * Priority: SDDSUM_STORAGE_PATH env var → CWD/.sdd-summary
+ * Priority: SDDSUM_STORAGE_PATH env var → <project root>/.sdd-summary
  */
 export function getStorageDir(): string {
   return resolveConfiguredDir(process.env.SDDSUM_STORAGE_PATH, ".sdd-summary");
@@ -48,7 +93,7 @@ export function getStorageDir(): string {
 /**
  * Resolve the .summaryconfig-lifecycle root directory.
  * Each summary configuration gets its own subdirectory here.
- * Priority: SDDSUM_LIFECYCLE_PATH env var → CWD/.summaryconfig-lifecycle
+ * Priority: SDDSUM_LIFECYCLE_PATH env var → <project root>/.summaryconfig-lifecycle
  */
 export function getLifecycleDir(): string {
   return resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, ".summaryconfig-lifecycle");

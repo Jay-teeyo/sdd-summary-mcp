@@ -3,8 +3,14 @@
  * Kept concise (~400 tokens) so it stays within normal context budgets.
  *
  * FULL_PIPELINE_GUIDE — returned on demand by the get_pipeline_guide tool.
- * Complete reference mirroring the workspace cursor rule.
+ * Complete reference mirroring the workspace pipeline rule / steering doc.
+ *
+ * Both interpolate the host-specific subagent spawn instruction from host.ts,
+ * because that is the one part of this guidance that differs between Cursor and
+ * Kiro. See host.ts for why naming the wrong mechanism fails silently.
  */
+
+import { spawnInstructionBrief, spawnInstructionFull } from "./host.js";
 
 export const SERVER_INSTRUCTIONS = `
 SDD Summary MCP Server — Genesys Cloud AI Studio / Agent Copilot summary configuration testing pipeline.
@@ -38,7 +44,7 @@ Two modes — use the same three-tool flow for both:
 - mode: "existing"      → scores production summaries already stored (no API calls)
 - mode: "prompt_test"   → generates new summaries from a candidate prompt via Genesys preview API
 
-Spawn one subagent per batch in parallel using the Task tool with model composer-2.5-fast.
+${spawnInstructionBrief()}
 ALWAYS call save_improvement_recommendations after finalize_eval_run — do not skip this.
 
 ## Version Management — CRITICAL RULES
@@ -48,10 +54,10 @@ ALWAYS call save_improvement_recommendations after finalize_eval_run — do not 
 - To deploy after approval: update_summary_setting → then save_version with status="deployed" to record it.
 
 ## Report Rules
-- NEVER write report HTML manually or via file tools. The templates ship inside the plugin.
+- NEVER write report HTML manually or via file tools. The templates ship inside this server.
 - finalize_eval_run auto-generates both reports (run report + improvements report).
 - To re-render one: generate_eval_run_dashboard or generate_improvements_dashboard.
-- After pulling a newer plugin version, or after editing requirements.md: regenerate_reports.
+- After deploying a newer server version, or after editing requirements.md: regenerate_reports.
 - Once the user accepts a version and it is live: generate_rollup_report — the closing account of
   the cycle, with the narrative (executive summary, themes, next steps) you supply. Never hand-write it.
 
@@ -411,7 +417,7 @@ start_eval_run(summary_config_name=..., test_set_name=..., mode="prompt_test", v
 
 ### Subagent setup
 - \`start_eval_run\` returns \`run_number\`, \`total_batches\`, \`batches\`, and \`test_cases\`
-- Spawn **one subagent per batch** using model \`composer-2.5-fast\`
+${spawnInstructionFull()}
 
 **Scores may ONLY be submitted by calling the \`submit_eval_scores\` tool.** Never start a second copy
 of this server (\`node\`/\`npx\`/\`tsx\`/\`python\`, the MCP client SDK, or any script), and never write score
@@ -646,13 +652,13 @@ Also call it when **resuming a session** (never infer state from your own memory
 | Improvements report | auto via \`finalize_eval_run\` | \`eval-runs/{testSet}/improvements.html\` |
 | Both, rebuilt for every run | \`regenerate_reports\` | as above |
 
-- **NEVER generate report HTML manually.** The templates live inside the plugin, so hand-written
+- **NEVER generate report HTML manually.** The templates live inside this server, so hand-written
   or hand-patched HTML is overwritten on the next run and is inconsistent with every other report.
 - Both reports are written automatically by \`finalize_eval_run\` — call the generate tools only to
   re-render without re-scoring.
 - Reports are **derived artefacts**: they are rebuilt from the JSON in \`eval-runs/\`, so nothing is
   lost by deleting them. \`regenerate_reports\` rebuilds every report for a config, which is what to
-  run after pulling a newer plugin version (to pick up template changes) or after editing
+  run after deploying a newer server version (to pick up template changes) or after editing
   \`requirements.md\` (to refresh requirement coverage).
 
 ### What the run report contains
