@@ -29,7 +29,7 @@ This decision comes first, because it determines which projects the tooling is a
 | Active in | One project only | Every workspace you open |
 | Mechanism | `.kiro/` or `.cursor/` files in the target project | Global config directory / Cursor plugin |
 
-The server exposes 44 Genesys tools and always-applied pipeline guidance. At user scope those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 490 lines of guidance injected into every request.
+The server exposes 45 Genesys tools and always-applied pipeline guidance. At user scope those load into every project you open — unrelated work gets Genesys tooling in scope and roughly 490 lines of guidance injected into every request.
 
 Host-specific caveats at user scope:
 
@@ -120,7 +120,7 @@ Cloning *inside* the project keeps everything in one place: the deployed tooling
 
 The deploy also sets `chat.defaultAgent` in the project's `.kiro/settings/cli.json`, so the pipeline agent is this project's default and no `--agent` flag is needed. That setting is workspace-scoped — every other project you open is untouched.
 
-To confirm the install, run `/mcp` in a chat or `kiro-cli mcp list`. You should see `sdd-summary` with **44 tools**.
+To confirm the install, run `/mcp` in a chat or `kiro-cli mcp list`. You should see `sdd-summary` with **45 tools**.
 
 #### Cursor
 
@@ -132,7 +132,7 @@ Two manual steps.
 
 Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on.
 
-It should then report **44 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
+It should then report **45 tools**. If the entry is absent entirely, the config was not found — see troubleshooting below.
 
 ### 5. Start the pipeline
 
@@ -174,7 +174,7 @@ Things that are true but are *not* the cause, since each one looks like a likely
 
 Use `kiro-cli chat` from the project directory. That is the supported route, it needs no extra configuration, and it is what the deploy sets up.
 
-**What to avoid:** adding the `sdd-summary` server to KiroCrew's own `kirocrew` agent to force it into the dashboard. That would put 44 Genesys tools and ~490 lines of pipeline guidance into every unrelated dashboard chat you ever open — the exact cost project scope exists to avoid — and it couples a Genesys prompt-testing tool to another product's internal configuration.
+**What to avoid:** adding the `sdd-summary` server to KiroCrew's own `kirocrew` agent to force it into the dashboard. That would put 45 Genesys tools and ~490 lines of pipeline guidance into every unrelated dashboard chat you ever open — the exact cost project scope exists to avoid — and it couples a Genesys prompt-testing tool to another product's internal configuration.
 
 ### Resulting layout
 
@@ -184,7 +184,7 @@ On **Kiro**:
 my-summary-project/                    ← Kiro workspace root
 ├── .kiro/
 │   ├── agents/
-│   │   ├── sdd-summary.json           ← server + 32 pre-approved tools + steering
+│   │   ├── sdd-summary.json           ← server + 36 pre-approved tools + steering
 │   │   └── sdd-summary-scorer.json    ← eval scoring subagent
 │   ├── settings/cli.json              ← chat.defaultAgent → sdd-summary
 │   ├── steering/
@@ -407,9 +407,9 @@ Either way user data stays outside the install location, so re-deploying or rein
 
 ## Verify
 
-**Kiro:** run `/mcp` in a chat, or `kiro-cli mcp list`. You should see `sdd-summary` with 44 tools. There is no enable step. `kiro-cli agent list` should also show `sdd-summary` and `sdd-summary-scorer` as workspace agents, with `sdd-summary` marked as the default.
+**Kiro:** run `/mcp` in a chat, or `kiro-cli mcp list`. You should see `sdd-summary` with 45 tools. There is no enable step. `kiro-cli agent list` should also show `sdd-summary` and `sdd-summary-scorer` as workspace agents, with `sdd-summary` marked as the default.
 
-**Cursor:** check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 44 tools.
+**Cursor:** check **Customize → MCPs** lists `sdd-summary`, toggled **on**, with 45 tools.
 
 Then open a new chat in the project and say **"begin"**.
 

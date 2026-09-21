@@ -151,8 +151,8 @@ function writeAgent(target, agentName, allowTools) {
   }
 
   // The main agent's allowlist is generated; the scorer's is deliberately
-  // hand-scoped to submit_eval_scores only and must NOT be widened to the full
-  // pipeline list.
+  // hand-scoped to fetching its own batch and submitting scores, and must NOT be
+  // widened to the full pipeline list.
   if (agentName === MAIN_AGENT && allowTools.length) {
     const mcpEntries = allowTools.map((t) => `@${S.SERVER_KEY}/${t}`);
 
@@ -284,7 +284,7 @@ function printKiroNextSteps(target, sourceIsNested) {
        ${S.dim(`flag is needed. To be explicit: kiro-cli chat --agent ${MAIN_AGENT}`)}
 
     To verify the install: ${S.bold('/mcp')} in chat, or ${S.bold('kiro-cli mcp list')}.
-    It should report the ${S.bold('sdd-summary')} server with ${S.bold('44 tools')}.
+    It should report the ${S.bold('sdd-summary')} server with ${S.bold('45 tools')}.
 
   Re-run this script after any server change to refresh the vendored copy.
 `);

@@ -1,5 +1,9 @@
 - Spawn **one subagent per batch** with the `use_subagent` tool — one stage per batch, each with
   `role: "sdd-summary-scorer"` and `model: "claude-haiku-4.5"`.
+- Each stage prompt carries only the `summary_config_name`, `test_set_name`, `run_number` and that
+  stage's `transcript_ids` — the scorer calls `get_eval_batch` for the rest. A stage given inlined
+  summaries and rubrics is large enough to time out part-way through its batch, which is how a
+  full suite ends up half-scored.
 - **The role is load-bearing, and getting it wrong fails silently.** A Kiro subagent loads MCP
   servers from its OWN agent config, so only the `sdd-summary-scorer` agent has `submit_eval_scores`.
   A stage given any other role cannot record scores at all and will not report that as an error — it

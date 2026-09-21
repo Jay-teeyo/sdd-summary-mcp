@@ -35,6 +35,7 @@
         "list_test_sets",
         "prepare_prompt_test",
         "start_eval_run",
+        "get_eval_batch",
         "submit_eval_scores",
         "finalize_eval_run",
         "list_eval_runs",

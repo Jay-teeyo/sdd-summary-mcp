@@ -20,7 +20,7 @@ Choose a scope first, because it determines which projects the tooling is active
 | Mechanism | `.kiro/` or `.cursor/` files in the target project | Global config / Cursor plugin |
 | Use when | Normal use — this is a specialised tool | You genuinely want Genesys tooling everywhere |
 
-**Project scope is the default recommendation.** This server exposes 44 Genesys tools and always-applied pipeline guidance. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~490 lines of guidance into every request.
+**Project scope is the default recommendation.** This server exposes 45 Genesys tools and always-applied pipeline guidance. At user scope those load into unrelated work, putting irrelevant tools in scope and injecting ~490 lines of guidance into every request.
 
 ### Option A — Project scope (recommended)
 
@@ -78,14 +78,14 @@ node sdd-summary-mcp/deploy.js --cursor
 
 Nothing to do. Kiro starts the server on demand and hot-reloads config changes, so there is no toggle and no window reload.
 
-To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`sdd-summary`** with **44 tools**.
+To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`sdd-summary`** with **45 tools**.
 
 </td><td>
 
 Two manual steps:
 
 1. **View → Command Palette → "Developer: Reload Window"**
-2. Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **44 tools**.
+2. Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **45 tools**.
 
 **Writing the config does not enable the server** and Cursor has no setting to pre-enable it, so this toggle is required. If the entry is missing entirely the config wasn't found — check step 1 opened the project folder itself.
 
@@ -127,7 +127,7 @@ You end up with one of these:
 my-summary-project/                    ← Kiro
 ├── .kiro/
 │   ├── agents/
-│   │   ├── sdd-summary.json           ← server + 32 pre-approved tools + steering
+│   │   ├── sdd-summary.json           ← server + 36 pre-approved tools + steering
 │   │   └── sdd-summary-scorer.json    ← eval scoring subagent
 │   ├── settings/cli.json              ← makes sdd-summary this project's default agent
 │   ├── steering/
