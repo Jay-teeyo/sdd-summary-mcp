@@ -193,7 +193,7 @@ my-summary-project/                    ← Kiro workspace root
 │       └── sdd-summary-mcp.mjs        ← vendored server bundle
 ├── .gitignore                         ← created or extended by deploy.js
 ├── .sdd-summary/                      ← created at first login (tokens)
-├── .summaryconfig-lifecycle/          ← created on first fetch (transcripts, evals)
+├── summaryconfig-lifecycle/          ← created on first fetch (transcripts, evals)
 └── sdd-summary-mcp/                   ← this repo, gitignored
 ```
 
@@ -210,7 +210,7 @@ my-summary-project/                    ← Cursor workspace root
 │       └── sdd-summary-mcp.mjs        ← vendored server bundle
 ├── .gitignore                         ← created or extended by deploy.js
 ├── .sdd-summary/                      ← created at first login (tokens)
-├── .summaryconfig-lifecycle/          ← created on first fetch (transcripts, evals)
+├── summaryconfig-lifecycle/          ← created on first fetch (transcripts, evals)
 └── sdd-summary-mcp/                   ← this repo, gitignored
 ```
 
@@ -239,7 +239,7 @@ The two editors reach that same result differently, and the difference is worth 
 - **Cursor** expands `${workspaceFolder}`, so `.cursor/mcp.json` refers to the bundle through that placeholder.
 - **Kiro** does *not* expand `${workspaceFolder}` — the placeholder would reach the server verbatim. Instead Kiro launches an MCP server with the **workspace root as its working directory**, so the agent config uses a plain workspace-relative path and it resolves correctly.
 
-The same asymmetry decides where your data lands. On Cursor the deploy pins `SDDSUM_STORAGE_PATH` and `SDDSUM_LIFECYCLE_PATH` to `${workspaceFolder}` paths. On Kiro it sets **neither**: the server's own defaults already resolve to the project root, which it locates by walking up for a `.kiro/`, `.cursor/` or `.git/` marker. That anchoring matters — it means starting a chat from a subdirectory still writes to the one project root, rather than quietly creating a second `.summaryconfig-lifecycle/` further down and splitting your transcripts and eval runs across two trees.
+The same asymmetry decides where your data lands. On Cursor the deploy pins `SDDSUM_STORAGE_PATH` and `SDDSUM_LIFECYCLE_PATH` to `${workspaceFolder}` paths. On Kiro it sets **neither**: the server's own defaults already resolve to the project root, which it locates by walking up for a `.kiro/`, `.cursor/` or `.git/` marker. That anchoring matters — it means starting a chat from a subdirectory still writes to the one project root, rather than quietly creating a second `summaryconfig-lifecycle/` further down and splitting your transcripts and eval runs across two trees.
 
 Vendoring also avoids the failure that made the old `setup.js` approach fragile. That broke when the *server repo* sat inside a *different* workspace, so its config was silently ignored. Here the config lands at the root of the target project, which **is** the workspace root — correct by construction.
 
@@ -396,7 +396,7 @@ Storage is pinned to the **workspace you have open**, never the install location
 
 | Path | Contents |
 |---|---|
-| `{workspace}/.summaryconfig-lifecycle/` | Transcripts, requirements, test cases, eval runs, version history |
+| `{workspace}/summaryconfig-lifecycle/` | Transcripts, requirements, test cases, eval runs, version history |
 | `{workspace}/.sdd-summary/` | OAuth config and tokens |
 
 Each host gets there by a different route. Cursor pins both paths explicitly using `${workspaceFolder}`. Kiro cannot — it does not expand that placeholder — so the deploy sets neither variable and the server resolves them itself, locating the project root by walking up for a `.kiro/`, `.cursor/` or `.git/` marker.
@@ -509,7 +509,7 @@ Credentials normally come from `login()`, which stores them under `.sdd-summary/
 |---|---|---|
 | `SDDSUM_HOST` | Set by the deploy | `cursor` or `kiro`. Selects the host-specific guidance the server emits — chiefly how the agent should spawn parallel scoring subagents. Unset gives host-neutral wording. |
 | `SDDSUM_STORAGE_PATH` | Set by the deploy on Cursor only | Path for `.sdd-summary/` (OAuth config and tokens). Left unset on Kiro. Defaults to `.sdd-summary/` at the project root. |
-| `SDDSUM_LIFECYCLE_PATH` | Set by the deploy on Cursor only | Path for `.summaryconfig-lifecycle/`. Left unset on Kiro. Defaults to the project root. |
+| `SDDSUM_LIFECYCLE_PATH` | Set by the deploy on Cursor only | Path for `summaryconfig-lifecycle/`. Left unset on Kiro. Defaults to the project root. |
 | `GENESYS_CLIENT_ID` | **Avoid** | Shadows the stored config and causes logins against the wrong org. Let `login()` manage this instead. |
 | `GENESYS_REGION` | **Avoid** | Extracted from the Authorization URL automatically. |
 | `GENESYS_CLIENT_SECRET` | No | Only for the vestigial machine-to-machine fallback. Not used by the standard PKCE user login. |
@@ -523,7 +523,7 @@ The project root is found by walking up from the server's working directory look
 Before committing or sharing this repo:
 
 - [ ] `.sdd-summary/` is gitignored (contains OAuth tokens)
-- [ ] `.summaryconfig-lifecycle/` is gitignored (contains customer transcripts with PII)
+- [ ] `summaryconfig-lifecycle/` is gitignored (contains customer transcripts with PII)
 - [ ] `.cursor/mcp.json` is gitignored
 - [ ] `.env` is gitignored
 - [ ] No credentials hardcoded in any committed file

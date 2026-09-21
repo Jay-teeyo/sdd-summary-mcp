@@ -7,7 +7,7 @@ alwaysApply: true
 
 The `sdd-summary` MCP server tests and iterates on Genesys Cloud summary configurations (Agent Copilot / AI Studio summaries). Call `get_pipeline_guide()` for the full tool reference.
 
-Working data is written to the **currently open workspace**, under `.summaryconfig-lifecycle/` and `.sdd-summary/` — not to the plugin directory.
+Working data is written to the **currently open workspace**, under `summaryconfig-lifecycle/` and `.sdd-summary/` — not to the plugin directory.
 
 ## Pipeline Order
 
@@ -122,7 +122,7 @@ build_interaction_filter(copilot_name="Acme_Copilot")
 - Fetches queues via `GET /api/v2/assistants/{assistantId}/queues` (direct association endpoint — do NOT use routing queues API with `assistantId` filter, that returns all org queues).
 - Resolves queue display names via routing API (requires `routing:readonly` scope).
 - Names the working directory after the **summary config name** (fetched from `getSummarySetting`), NOT the copilot name.
-- Saves to `.summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json`.
+- Saves to `summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json`.
 - If the copilot has multiple summary settings (multi-language), it will ask which one to use — re-call with `summary_setting_id=...`.
 
 ---
@@ -201,7 +201,7 @@ Full methodology: the plugin's `docs/requirements-guide.md` and `docs/test-case-
 
 Requirements are gathered **with the user**, in this order, waiting for a reply at each step. Never derive them silently and never start test cases before step 4 is answered.
 
-1. **Invite artefacts first.** Tell the user the folder exists, give the real path `.summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/`, and explain what belongs there: emails from the customer, example transcripts, agent notes, existing business requirement documents, QA feedback, complaint logs, screenshots of bad summaries. Ask them to add what they have and say when they're done. Wait.
+1. **Invite artefacts first.** Tell the user the folder exists, give the real path `summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/`, and explain what belongs there: emails from the customer, example transcripts, agent notes, existing business requirement documents, QA feedback, complaint logs, screenshots of bad summaries. Ask them to add what they have and say when they're done. Wait.
 2. **Read whatever landed there, and filter hard.** Treat it as a primary source. Artefacts outrank the prompt — they describe what the business wants, while the prompt only describes what it currently asks for. If the folder is empty, say so plainly.
    - Expect most of it to be noise. A requirements document may cover a whole programme of work; an email thread wanders. **Only extract requirements that constrain the interaction summary or agent notes** — content, exclusions, structure, wording, formatting, accuracy.
    - Out of scope however firmly stated: routing and queueing, IVR, telephony, CRM or order-system fields, workforce management, agent conduct on the call, reporting and dashboards, SLAs, security and access control.
@@ -574,7 +574,7 @@ The Genesys preview summary API has two relevant limits:
 ## Lifecycle Folder Structure
 
 ```
-.summaryconfig-lifecycle/
+summaryconfig-lifecycle/
 └── {summaryConfigName}/
     ├── interaction-filter.json
     ├── requirements/

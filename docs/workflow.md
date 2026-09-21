@@ -98,7 +98,7 @@ Re-call build_interaction_filter with summary_setting_id set to your chosen ID.
 2. Looks up the summary setting's name (used as the working directory name)
 3. Queries `GET /api/v2/assistants/{assistantId}/queues` — the **direct** queue association endpoint — to find queues the copilot is deployed on
 4. Resolves queue names via the routing API
-5. Saves everything to `.summaryconfig-lifecycle/{summary_config_name}/interaction-filter.json`
+5. Saves everything to `summaryconfig-lifecycle/{summary_config_name}/interaction-filter.json`
 
 ```
 build_interaction_filter(copilot_name="Acme_Copilot")
@@ -152,7 +152,7 @@ fetch_transcripts_bulk(
    - **All conversations:** Try STA/S3 transcript first (`GET /speechandtextanalytics/.../transcriptUrls` → S3 download) — works for both voice and messaging when Genesys transcription is enabled
    - **Messaging fallback:** If STA fails, use the Conversations Messages bulk API (`GET /conversations/messages/{id}` → `POST .../messages/bulk`) — for orgs without STA on messaging queues
 3. Fetches the existing production summary for each conversation (best-effort)
-4. Saves both to `.summaryconfig-lifecycle/{config}/transcripts/static/`
+4. Saves both to `summaryconfig-lifecycle/{config}/transcripts/static/`
 5. Skips conversations already saved — safe to re-run incrementally
 
 ### Output
@@ -357,7 +357,7 @@ Never call `update_summary_setting` without prompt_test evidence and explicit ap
 ## Folder Structure Reference
 
 ```
-.summaryconfig-lifecycle/
+summaryconfig-lifecycle/
 └── Acme_CallSummary/                        ← named after the summary config, not the copilot
     ├── interaction-filter.json            ← copilot dependency map + queue IDs
     ├── version-history/

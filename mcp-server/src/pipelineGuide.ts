@@ -164,7 +164,7 @@ build_interaction_filter(copilot_name="Acme_Copilot")
 
 - Takes the **Agent Copilot name** (from Genesys Admin → Agent Copilot), not the summary config name.
 - Names the working directory after the **summary config name** (fetched from \`getSummarySetting\`).
-- Saves to \`.summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json\`.
+- Saves to \`summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json\`.
 - If the copilot has multiple summary settings (multi-language), re-call with \`summary_setting_id=...\`.
 
 ---
@@ -240,7 +240,7 @@ test cases because the user has not answered yet.
 what it is for, giving the real path:
 
 \`\`\`
-.summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/
+summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/
 \`\`\`
 
 Explain that anything describing what a good summary looks like belongs there — emails from the
@@ -709,7 +709,7 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... — waiting 12
 ## Lifecycle Folder Structure
 
 \`\`\`
-.summaryconfig-lifecycle/
+summaryconfig-lifecycle/
 └── {summaryConfigName}/
     ├── interaction-filter.json
     ├── requirements/

@@ -8,7 +8,7 @@
       "env": {
         "SDDSUM_HOST": "cursor",
         "SDDSUM_STORAGE_PATH": "${workspaceFolder}/.sdd-summary",
-        "SDDSUM_LIFECYCLE_PATH": "${workspaceFolder}/.summaryconfig-lifecycle"
+        "SDDSUM_LIFECYCLE_PATH": "${workspaceFolder}/summaryconfig-lifecycle"
       },
       "alwaysAllow": [
         "get_pipeline_guide",

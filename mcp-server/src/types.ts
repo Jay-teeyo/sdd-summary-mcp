@@ -217,7 +217,7 @@ export interface PreviewSummaryResponse {
 
 /**
  * A test case defines the evaluation criteria (rubric) for one scenario.
- * Stored as {name}.json in .summaryconfig-lifecycle/{configName}/test-cases/
+ * Stored as {name}.json in summaryconfig-lifecycle/{configName}/test-cases/
  */
 export interface TestCase {
   name: string;
@@ -231,7 +231,7 @@ export interface TestCase {
 
 /**
  * A test set is a named playlist of test cases and the transcripts to run them against.
- * Stored as {name}.json in .summaryconfig-lifecycle/{configName}/test-sets/
+ * Stored as {name}.json in summaryconfig-lifecycle/{configName}/test-sets/
  */
 export interface TestSet {
   name: string;
