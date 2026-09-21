@@ -123,21 +123,66 @@ function requirementsArtefactsDir(configName: string) { return lcDir(configName,
 function requirementsFinalDir(configName: string) { return lcDir(configName, "requirements/final"); }
 
 /**
+ * What each scaffolded directory is for, written as a README.md inside it.
+ *
+ * WHY EVERY DIRECTORY GETS A FILE
+ * -------------------------------
+ * The scaffold is created up front so the shape of the pipeline is visible
+ * before it has produced anything. But an editor file tree built from a file
+ * listing cannot show a directory with no files in it — Kiro's omits them
+ * entirely — so the empty half of the scaffold was invisible exactly when the
+ * user most needed to see where their output was going to land.
+ *
+ * A README rather than a dot-prefixed sentinel: it shows up, it renders, and it
+ * answers the question the empty folder raises. Every directory scan in this
+ * file filters on `.json` or on isDirectory(), so these files are inert.
+ */
+const LIFECYCLE_DIR_READMES: Array<[(c: string) => string, string]> = [
+  [staticTranscriptsDir,
+    "Conversation transcripts fetched from Genesys, one JSON file per interaction.\n" +
+    "Written by `fetch_transcript` and `fetch_transcripts_bulk`."],
+  [dynamicTranscriptsDir,
+    "Transcripts captured live during a run, as opposed to the fixed set in `../static/`."],
+  [testCasesDir,
+    "One JSON file per test case: a transcript paired with the summary it should produce.\n" +
+    "Written by `save_test_case`."],
+  [testSetsDir,
+    "Named groups of test cases that an eval run executes against.\n" +
+    "Written by `save_test_set`."],
+  [evalRunsBaseDir,
+    "Eval run results, as `{test-set}/{run-number}/`. Holds the per-test-case scores\n" +
+    "and the generated HTML reports. Run numbers increment automatically."],
+  [versionHistoryDir,
+    "Point-in-time snapshots of the summary configuration, as\n" +
+    "`summary-configuration-{n}.json`. Version 0 is captured on the first run so\n" +
+    "there is always a baseline to compare against."],
+  [requirementsArtefactsDir,
+    "PUT YOUR SOURCE MATERIAL HERE — emails, QA feedback, complaint logs, anything\n" +
+    "describing what the summaries need to do. Raw and unedited is fine; the\n" +
+    "pipeline distils these into `../final/requirements.md`."],
+  [requirementsFinalDir,
+    "The agreed requirements, as `requirements.md`, using IDs in the form\n" +
+    "`BR-{SummaryConfigName}-{NNN}`. Anything deliberately excluded is recorded in\n" +
+    "`ignored.md`. Review this before any test cases are written."],
+];
+
+/**
  * Creates the full lifecycle workspace for a summary configuration in one shot:
  *   transcripts/static, transcripts/dynamic
  *   test-cases, test-sets, eval-runs
  *   version-history
  *   requirements/artefacts, requirements/final
+ *
+ * Each directory gets a README.md describing its purpose. Existing READMEs are
+ * left alone, so a user's own notes survive the next call.
  */
 export function ensureAllLifecycleDirs(configName: string): void {
-  staticTranscriptsDir(configName);
-  dynamicTranscriptsDir(configName);
-  testCasesDir(configName);
-  testSetsDir(configName);
-  evalRunsBaseDir(configName);
-  versionHistoryDir(configName);
-  requirementsArtefactsDir(configName);
-  requirementsFinalDir(configName);
+  for (const [dirFn, description] of LIFECYCLE_DIR_READMES) {
+    const dir = dirFn(configName);
+    const readme = path.join(dir, "README.md");
+    if (fs.existsSync(readme)) continue;
+    fs.writeFileSync(readme, `# ${path.basename(dir)}\n\n${description}\n`, "utf-8");
+  }
 }
 
 /**

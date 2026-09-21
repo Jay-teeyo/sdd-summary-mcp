@@ -16346,15 +16346,50 @@ function requirementsArtefactsDir(configName) {
 function requirementsFinalDir(configName) {
   return lcDir(configName, "requirements/final");
 }
+var LIFECYCLE_DIR_READMES = [
+  [
+    staticTranscriptsDir,
+    "Conversation transcripts fetched from Genesys, one JSON file per interaction.\nWritten by `fetch_transcript` and `fetch_transcripts_bulk`."
+  ],
+  [
+    dynamicTranscriptsDir,
+    "Transcripts captured live during a run, as opposed to the fixed set in `../static/`."
+  ],
+  [
+    testCasesDir,
+    "One JSON file per test case: a transcript paired with the summary it should produce.\nWritten by `save_test_case`."
+  ],
+  [
+    testSetsDir,
+    "Named groups of test cases that an eval run executes against.\nWritten by `save_test_set`."
+  ],
+  [
+    evalRunsBaseDir,
+    "Eval run results, as `{test-set}/{run-number}/`. Holds the per-test-case scores\nand the generated HTML reports. Run numbers increment automatically."
+  ],
+  [
+    versionHistoryDir,
+    "Point-in-time snapshots of the summary configuration, as\n`summary-configuration-{n}.json`. Version 0 is captured on the first run so\nthere is always a baseline to compare against."
+  ],
+  [
+    requirementsArtefactsDir,
+    "PUT YOUR SOURCE MATERIAL HERE \u2014 emails, QA feedback, complaint logs, anything\ndescribing what the summaries need to do. Raw and unedited is fine; the\npipeline distils these into `../final/requirements.md`."
+  ],
+  [
+    requirementsFinalDir,
+    "The agreed requirements, as `requirements.md`, using IDs in the form\n`BR-{SummaryConfigName}-{NNN}`. Anything deliberately excluded is recorded in\n`ignored.md`. Review this before any test cases are written."
+  ]
+];
 function ensureAllLifecycleDirs(configName) {
-  staticTranscriptsDir(configName);
-  dynamicTranscriptsDir(configName);
-  testCasesDir(configName);
-  testSetsDir(configName);
-  evalRunsBaseDir(configName);
-  versionHistoryDir(configName);
-  requirementsArtefactsDir(configName);
-  requirementsFinalDir(configName);
+  for (const [dirFn, description] of LIFECYCLE_DIR_READMES) {
+    const dir = dirFn(configName);
+    const readme = path2.join(dir, "README.md");
+    if (fs2.existsSync(readme)) continue;
+    fs2.writeFileSync(readme, `# ${path2.basename(dir)}
+
+${description}
+`, "utf-8");
+  }
 }
 function saveInitialVersionSnapshot(configName, setting) {
   const d = versionHistoryDir(configName);
@@ -21981,6 +22016,7 @@ async function get_pipeline_state(args) {
       note: `No lifecycle workspace exists for "${configName}". Existing configs: ` + (listLifecycleConfigs().join(", ") || "(none)")
     });
   }
+  ensureAllLifecycleDirs(configName);
   const versions = listVersionSnapshots(configName);
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
   const latestDeployed = [...versions].reverse().find((v) => (v.status ?? "deployed") === "deployed") ?? null;
