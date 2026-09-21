@@ -15170,6 +15170,24 @@ Spawn one subagent per batch \u2014 the response's \`instruction\` field names t
     }
   },
   {
+    name: "get_eval_batch",
+    description: "Fetch the data for a scoring batch: the summary being scored for each transcript, plus the full rubric of every test case in the run. Call this FIRST as a scoring subagent, passing the transcript ids your parent assigned you.\n\nUse this instead of expecting the summaries in your prompt. The parent passes ids only, so the text you score is the same frozen text submit_eval_scores records \u2014 which also means you never need to pass summary_text back.\n\nOmit transcript_ids to get every transcript in the run. Ids outside the run are rejected rather than silently ignored, so a mistyped id fails loudly instead of scoring nothing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string" },
+        test_set_name: { type: "string" },
+        run_number: { type: "number", description: "run_number returned by start_eval_run" },
+        transcript_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "The transcript ids assigned to this batch. Omit for the whole run."
+        }
+      },
+      required: ["summary_config_name", "test_set_name", "run_number"]
+    }
+  },
+  {
     name: "submit_eval_scores",
     description: `Save evaluation scores for one transcript \xD7 one test case. Called by each subagent after scoring. Stateless \u2014 only needs run_number, no in-memory state. Pass/fail per dimension is determined automatically by comparing the score against each dimension's passThreshold.
 
@@ -15191,7 +15209,10 @@ Call once per (transcript_id \xD7 test_case_name) combination.`,
         transcript_id: { type: "string" },
         test_case_name: { type: "string" },
         transcript_label: { type: "string", description: "Optional human-readable label for the transcript" },
-        summary_text: { type: "string", description: "The summary that was evaluated (for record-keeping)" },
+        summary_text: {
+          type: "string",
+          description: "Ignored when the run already holds the summary, which is the normal case \u2014 the run freezes the exact text being scored, and that is what gets recorded. Only needed for a prompt_test run created before summaries were frozen."
+        },
         dimension_scores: {
           type: "array",
           description: "One entry per dimension in the test case",
@@ -15972,8 +15993,17 @@ or result files directly. A separately spawned server does not receive the confi
 its writes land somewhere else and are invisible to \`finalize_eval_run\` \u2014 silently splitting the run.
 If a tool response shows a storage path that looks wrong, STOP and report it rather than working around
 it: a wrong path is a server configuration bug, not something for a subagent to route around.
-- Each subagent calls \`submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)\` once per transcript \xD7 test case
+- **Give each subagent identifiers, not data.** A stage prompt needs only \`summary_config_name\`,
+  \`test_set_name\`, \`run_number\` and that stage's \`transcript_ids\`. The subagent calls
+  \`get_eval_batch\` to fetch the summary for each transcript plus the full rubric of every test case.
+  Inlining the summaries and dimensions makes the prompt large enough to time the stage out part-way
+  through its batch, which is how a full suite ends up half-scored.
+- Each subagent calls \`submit_eval_scores(run_number, transcript_id, test_case_name, dimension_scores)\` once per transcript \xD7 test case. \`summary_text\` is not needed: the run freezes the exact text being scored when it starts, and that frozen text is what gets recorded
 - Scores: decimal 0\u20131 (0 = total failure, 0.5 = half pass, 1 = perfect); submit \`score: null\` when a dimension's \`applicabilityCondition\` is not met for the transcript \u2014 null scores are excluded from all aggregation
+- **Never score a batch yourself, and never hand-patch a gap.** Re-spawn a stage that failed or was
+  cut off. This session uses a different model from the scorer, so a partly hand-scored run mixes two
+  judges; and a summary reconstructed from memory records a description of the summary rather than the
+  summary, which is exactly what the report quotes as its evidence.
 - After all subagents complete, call \`finalize_eval_run(run_number)\`
 
 ### Post-eval
@@ -16554,6 +16584,13 @@ function getPendingEvalRun(configName, testSetName, runNumber) {
   const p = path2.join(evalRunDir(configName, testSetName, runNumber), "_pending.json");
   if (!fs2.existsSync(p)) return null;
   return readJson(p);
+}
+function saveRunSummaries(configName, testSetName, runNumber, summaries) {
+  writeJson(path2.join(evalRunDir(configName, testSetName, runNumber), "_summaries.json"), summaries);
+}
+function loadRunSummaries(configName, testSetName, runNumber) {
+  const p = path2.join(evalRunDir(configName, testSetName, runNumber), "_summaries.json");
+  return fs2.existsSync(p) ? readJson(p) : {};
 }
 function saveEvalScore(configName, testSetName, runNumber, result) {
   const dir = evalRunDir(configName, testSetName, runNumber);
@@ -21568,6 +21605,12 @@ These interactions are too brief for the summary engine to act on. Add longer in
       promptVersionStatus,
       previewStructure
     });
+    saveRunSummaries(
+      configName,
+      testSetName,
+      pendingMeta.runNumber,
+      Object.fromEntries(transcriptPayloads.map((t) => [t.transcriptId, t.summary]))
+    );
     const batches = [];
     for (let i = 0; i < transcriptPayloads.length; i += batchSize) {
       batches.push({
@@ -21616,6 +21659,63 @@ These interactions are too brief for the summary engine to act on. Add longer in
     });
   });
 }
+async function get_eval_batch(args) {
+  const configName = str(args, "summary_config_name");
+  const testSetName = str(args, "test_set_name");
+  const runNumber = Number(args.run_number);
+  const requested = Array.isArray(args.transcript_ids) ? args.transcript_ids.map(String) : null;
+  const pending = getPendingEvalRun(configName, testSetName, runNumber);
+  if (!pending) {
+    throw new Error(
+      `Eval run ${runNumber} not found for "${testSetName}". The parent must call start_eval_run first.`
+    );
+  }
+  const summaries = loadRunSummaries(configName, testSetName, runNumber);
+  const ids = requested ?? pending.transcriptIds;
+  const unknown2 = ids.filter((id) => !pending.transcriptIds.includes(id));
+  if (unknown2.length > 0) {
+    throw new Error(
+      `Not part of run ${runNumber}: ${unknown2.join(", ")}. Score only the transcript ids your parent assigned you. ` + (pending.skippedTranscripts?.some((s) => unknown2.includes(s.transcriptId)) ? "At least one of these was excluded for being too short to summarise." : "")
+    );
+  }
+  const testCases = pending.testCaseNames.map((name) => {
+    const tc = getTestCase(configName, name);
+    if (!tc) throw new Error(`Test case not found: ${name}`);
+    return {
+      name: tc.name,
+      description: tc.description,
+      dimensions: tc.dimensions.map((d) => ({
+        name: d.name,
+        description: d.description,
+        weight: d.weight,
+        applicability_condition: d.applicabilityCondition ?? "always",
+        pass_criteria: d.passCriteria,
+        fail_criteria: d.failCriteria,
+        pass_threshold: d.passThreshold ?? 0.8
+      }))
+    };
+  });
+  const transcripts = ids.map((id) => {
+    const stored = getLifecycleTranscript(configName, id);
+    return {
+      transcript_id: id,
+      transcript_label: stored?.label ?? id,
+      summary: summaries[id] ?? stored?.existingSummary ?? ""
+    };
+  });
+  const missing = transcripts.filter((t) => !t.summary).map((t) => t.transcript_id);
+  return json({
+    run_number: runNumber,
+    summary_config_name: configName,
+    test_set_name: testSetName,
+    mode: pending.useExistingSummaries ? "existing" : "prompt_test",
+    transcripts,
+    test_cases: testCases,
+    expected_submissions: transcripts.length * testCases.length,
+    missing_summaries: missing.length > 0 ? missing : void 0,
+    note: `Score every one of these ${transcripts.length} transcripts against all ${testCases.length} test cases, then call submit_eval_scores once per pair (${transcripts.length * testCases.length} calls). You do not need to pass summary_text \u2014 the run already holds the exact text being scored.` + (missing.length > 0 ? ` STOP and report instead of scoring: no stored summary for ${missing.join(", ")}.` : "")
+  });
+}
 async function submit_eval_scores(args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
@@ -21623,7 +21723,7 @@ async function submit_eval_scores(args) {
   const transcriptId = str(args, "transcript_id");
   const testCaseName = str(args, "test_case_name");
   const transcriptLabel = optStr(args, "transcript_label") ?? transcriptId;
-  const summaryText = optStr(args, "summary_text") ?? "";
+  const callerSummary = optStr(args, "summary_text") ?? "";
   const rawScores = Array.isArray(args.dimension_scores) ? args.dimension_scores : [];
   const pending = getPendingEvalRun(configName, testSetName, runNumber);
   if (!pending) {
@@ -21631,10 +21731,21 @@ async function submit_eval_scores(args) {
       `Eval run ${runNumber} not found for "${testSetName}". Call start_eval_run first to create the run.`
     );
   }
+  const runSummaries = loadRunSummaries(configName, testSetName, runNumber);
+  let summaryText = runSummaries[transcriptId] ?? "";
+  if (!summaryText && pending.useExistingSummaries) {
+    summaryText = getLifecycleTranscript(configName, transcriptId)?.existingSummary ?? "";
+  }
+  if (!summaryText) summaryText = callerSummary;
   const skipped = pending.skippedTranscripts?.find((s) => s.transcriptId === transcriptId);
   if (skipped || isTooShortToSummarise(summaryText)) {
     return ok(
       `Not recorded. Transcript ${transcriptLabel} is excluded from run ${runNumber}: Genesys returned "${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary, so there is nothing for a test case to assess. This overrides applicabilityCondition, including "always". Move on to the next transcript.`
+    );
+  }
+  if (!summaryText.trim()) {
+    throw new Error(
+      `No summary to record against ${transcriptLabel} / ${testCaseName}. ` + (pending.useExistingSummaries ? `Run ${runNumber} uses existing summaries, but transcript ${transcriptId} has no stored existingSummary \u2014 it should not have been in a batch. Report this rather than passing summary text yourself.` : `Pass the generated summary as summary_text. A score recorded without the text it judged cannot be reviewed, so it is refused.`)
     );
   }
   const testCase = getTestCase(configName, testCaseName);
@@ -22148,6 +22259,7 @@ var toolHandlers = {
   // Eval runs (parallel / stateless — subagent-compatible)
   prepare_prompt_test,
   start_eval_run,
+  get_eval_batch,
   submit_eval_scores,
   finalize_eval_run,
   // Version history

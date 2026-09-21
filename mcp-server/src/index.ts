@@ -76,6 +76,7 @@ const toolHandlers: Record<string, HandlerFn> = {
   // Eval runs (parallel / stateless — subagent-compatible)
   prepare_prompt_test: handlers.prepare_prompt_test,
   start_eval_run: handlers.start_eval_run,
+  get_eval_batch: handlers.get_eval_batch,
   submit_eval_scores: handlers.submit_eval_scores,
   finalize_eval_run: handlers.finalize_eval_run,
 

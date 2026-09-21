@@ -2362,6 +2362,16 @@ export async function start_eval_run(args: Args) {
       previewStructure,
     });
 
+    // Freeze the exact text this run scores, so submit_eval_scores and get_eval_batch have an
+    // authoritative source rather than trusting whatever a scorer echoes back. Essential for
+    // prompt_test, whose summaries exist nowhere else once the preview cache is cleared below.
+    storage.saveRunSummaries(
+      configName,
+      testSetName,
+      pendingMeta.runNumber,
+      Object.fromEntries(transcriptPayloads.map((t) => [t.transcriptId, t.summary])),
+    );
+
     // Split into batches
     const batches: Array<{
       batchIndex: number;
@@ -2438,6 +2448,96 @@ export async function start_eval_run(args: Args) {
   });
 }
 
+/**
+ * Serves a scoring subagent the data for its own batch.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * Scorers previously received their transcripts and rubrics inlined into the prompt the
+ * parent constructed. For a full suite that is every summary plus every dimension of
+ * every test case in one message, which is slow to assemble, blows out the stage's
+ * budget, and — when a stage timed out and the parent patched the gaps by hand — led to
+ * descriptions being substituted for the real summaries.
+ *
+ * Passing identifiers and letting the scorer fetch is both smaller and safer: the text
+ * it judges is then the same frozen text submit_eval_scores records.
+ */
+export async function get_eval_batch(args: Args) {
+  const configName = str(args, "summary_config_name");
+  const testSetName = str(args, "test_set_name");
+  const runNumber = Number(args.run_number);
+  const requested = Array.isArray(args.transcript_ids) ? args.transcript_ids.map(String) : null;
+
+  const pending = storage.getPendingEvalRun(configName, testSetName, runNumber);
+  if (!pending) {
+    throw new Error(
+      `Eval run ${runNumber} not found for "${testSetName}". The parent must call start_eval_run first.`,
+    );
+  }
+
+  const summaries = storage.loadRunSummaries(configName, testSetName, runNumber);
+  const ids = requested ?? pending.transcriptIds;
+
+  const unknown = ids.filter((id) => !pending.transcriptIds.includes(id));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Not part of run ${runNumber}: ${unknown.join(", ")}. ` +
+      `Score only the transcript ids your parent assigned you. ` +
+      (pending.skippedTranscripts?.some((s) => unknown.includes(s.transcriptId))
+        ? "At least one of these was excluded for being too short to summarise."
+        : ""),
+    );
+  }
+
+  const testCases = pending.testCaseNames.map((name) => {
+    const tc = storage.getTestCase(configName, name);
+    if (!tc) throw new Error(`Test case not found: ${name}`);
+    return {
+      name: tc.name,
+      description: tc.description,
+      dimensions: tc.dimensions.map((d) => ({
+        name: d.name,
+        description: d.description,
+        weight: d.weight,
+        applicability_condition: d.applicabilityCondition ?? "always",
+        pass_criteria: d.passCriteria,
+        fail_criteria: d.failCriteria,
+        pass_threshold: d.passThreshold ?? 0.8,
+      })),
+    };
+  });
+
+  const transcripts = ids.map((id) => {
+    const stored = storage.getLifecycleTranscript(configName, id);
+    return {
+      transcript_id: id,
+      transcript_label: stored?.label ?? id,
+      summary: summaries[id] ?? stored?.existingSummary ?? "",
+    };
+  });
+
+  const missing = transcripts.filter((t) => !t.summary).map((t) => t.transcript_id);
+
+  return json({
+    run_number: runNumber,
+    summary_config_name: configName,
+    test_set_name: testSetName,
+    mode: pending.useExistingSummaries ? "existing" : "prompt_test",
+    transcripts,
+    test_cases: testCases,
+    expected_submissions: transcripts.length * testCases.length,
+    missing_summaries: missing.length > 0 ? missing : undefined,
+    note:
+      `Score every one of these ${transcripts.length} transcripts against all ` +
+      `${testCases.length} test cases, then call submit_eval_scores once per pair ` +
+      `(${transcripts.length * testCases.length} calls). You do not need to pass ` +
+      `summary_text — the run already holds the exact text being scored.` +
+      (missing.length > 0
+        ? ` STOP and report instead of scoring: no stored summary for ${missing.join(", ")}.`
+        : ""),
+  });
+}
+
 export async function submit_eval_scores(args: Args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
@@ -2445,7 +2545,7 @@ export async function submit_eval_scores(args: Args) {
   const transcriptId = str(args, "transcript_id");
   const testCaseName = str(args, "test_case_name");
   const transcriptLabel = optStr(args, "transcript_label") ?? transcriptId;
-  const summaryText = optStr(args, "summary_text") ?? "";
+  const callerSummary = optStr(args, "summary_text") ?? "";
   const rawScores = Array.isArray(args.dimension_scores) ? args.dimension_scores : [];
 
   // Verify run exists
@@ -2457,15 +2557,46 @@ export async function submit_eval_scores(args: Args) {
     );
   }
 
+  // WHY THE SERVER RESOLVES THIS RATHER THAN TRUSTING THE CALLER
+  // ------------------------------------------------------------
+  // The text a run scores is frozen by start_eval_run, so the caller has nothing to
+  // add. Accepting its version instead let a scorer record a placeholder — or an empty
+  // string — as the very evidence the run report quotes, with no error raised. One real
+  // baseline run stored 61 of its 126 records that way, which made every score in it
+  // impossible to review.
+  //
+  // The fallbacks cover runs created before summaries were frozen: existing mode can
+  // re-read the transcript, while a prompt_test run has no other source and has to fall
+  // back to the caller.
+  const runSummaries = storage.loadRunSummaries(configName, testSetName, runNumber);
+  let summaryText = runSummaries[transcriptId] ?? "";
+  if (!summaryText && pending.useExistingSummaries) {
+    summaryText = storage.getLifecycleTranscript(configName, transcriptId)?.existingSummary ?? "";
+  }
+  if (!summaryText) summaryText = callerSummary;
+
   // Reject scores for transcripts with no real summary. start_eval_run keeps these out of the
   // batches, so reaching here means a subagent scored something it was not given — recording it
-  // would put a meaningless result into the pass rate.
+  // would put a meaningless result into the pass rate. Checked before the empty guard below,
+  // since a too-short transcript legitimately has no summary and warrants this reply instead.
   const skipped = pending.skippedTranscripts?.find((s) => s.transcriptId === transcriptId);
   if (skipped || isTooShortToSummarise(summaryText)) {
     return ok(
       `Not recorded. Transcript ${transcriptLabel} is excluded from run ${runNumber}: Genesys returned ` +
       `"${TOO_SHORT_SUMMARY_MESSAGE}" instead of a summary, so there is nothing for a test case to assess. ` +
       "This overrides applicabilityCondition, including \"always\". Move on to the next transcript.",
+    );
+  }
+
+  if (!summaryText.trim()) {
+    throw new Error(
+      `No summary to record against ${transcriptLabel} / ${testCaseName}. ` +
+      (pending.useExistingSummaries
+        ? `Run ${runNumber} uses existing summaries, but transcript ${transcriptId} has no ` +
+          `stored existingSummary — it should not have been in a batch. Report this rather ` +
+          `than passing summary text yourself.`
+        : `Pass the generated summary as summary_text. A score recorded without the text it ` +
+          `judged cannot be reviewed, so it is refused.`),
     );
   }
 

@@ -491,6 +491,41 @@ export function getPendingEvalRun(
 }
 
 /**
+ * The exact summary text each transcript is being scored against, captured when the
+ * run starts.
+ *
+ * WHY THE RUN OWNS A COPY
+ * -----------------------
+ * "existing" mode could re-read `existingSummary` from the transcript, but a
+ * prompt_test run has no such source: its summaries come from preview generation and
+ * start_eval_run clears the preview cache once the run exists. That left the caller
+ * as the only source of the text being judged, so a scorer could record a placeholder
+ * as the evidence a report quotes, and nothing could detect it.
+ *
+ * Held beside the run rather than inside `_pending.json`, which is read on every
+ * pipeline-state check and should stay small.
+ */
+export type RunSummaries = Record<string, string>; // transcriptId → summary scored
+
+export function saveRunSummaries(
+  configName: string,
+  testSetName: string,
+  runNumber: number,
+  summaries: RunSummaries,
+): void {
+  writeJson(path.join(evalRunDir(configName, testSetName, runNumber), "_summaries.json"), summaries);
+}
+
+export function loadRunSummaries(
+  configName: string,
+  testSetName: string,
+  runNumber: number,
+): RunSummaries {
+  const p = path.join(evalRunDir(configName, testSetName, runNumber), "_summaries.json");
+  return fs.existsSync(p) ? readJson<RunSummaries>(p) : {};
+}
+
+/**
  * Saves a single transcript × test case result.
  * File naming: {transcriptId}__{testCaseName}.json — safe for concurrent writes.
  */

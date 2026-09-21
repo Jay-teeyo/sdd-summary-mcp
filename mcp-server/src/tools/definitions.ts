@@ -760,6 +760,32 @@ export const TOOL_DEFINITIONS: Tool[] = [
     },
   },
   {
+    name: "get_eval_batch",
+    description:
+      "Fetch the data for a scoring batch: the summary being scored for each transcript, plus the " +
+      "full rubric of every test case in the run. Call this FIRST as a scoring subagent, passing the " +
+      "transcript ids your parent assigned you.\n\n" +
+      "Use this instead of expecting the summaries in your prompt. The parent passes ids only, so the " +
+      "text you score is the same frozen text submit_eval_scores records — which also means you never " +
+      "need to pass summary_text back.\n\n" +
+      "Omit transcript_ids to get every transcript in the run. Ids outside the run are rejected rather " +
+      "than silently ignored, so a mistyped id fails loudly instead of scoring nothing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary_config_name: { type: "string" },
+        test_set_name: { type: "string" },
+        run_number: { type: "number", description: "run_number returned by start_eval_run" },
+        transcript_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "The transcript ids assigned to this batch. Omit for the whole run.",
+        },
+      },
+      required: ["summary_config_name", "test_set_name", "run_number"],
+    },
+  },
+  {
     name: "submit_eval_scores",
     description:
       "Save evaluation scores for one transcript × one test case. " +
@@ -787,7 +813,13 @@ export const TOOL_DEFINITIONS: Tool[] = [
         transcript_id: { type: "string" },
         test_case_name: { type: "string" },
         transcript_label: { type: "string", description: "Optional human-readable label for the transcript" },
-        summary_text: { type: "string", description: "The summary that was evaluated (for record-keeping)" },
+        summary_text: {
+          type: "string",
+          description:
+            "Ignored when the run already holds the summary, which is the normal case — the run " +
+            "freezes the exact text being scored, and that is what gets recorded. Only needed for " +
+            "a prompt_test run created before summaries were frozen.",
+        },
         dimension_scores: {
           type: "array",
           description: "One entry per dimension in the test case",
