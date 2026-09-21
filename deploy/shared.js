@@ -163,7 +163,10 @@ const realpath = (p) => {
  */
 function protectGitignore(target) {
   const gitignorePath = path.join(target, '.gitignore');
-  const NEEDED = ['.sdd-summary/', '.summaryconfig-lifecycle/'];
+  // Both lifecycle spellings are listed: the directory is now visible, but a
+  // project deployed before the rename keeps writing to the dotted one, and a
+  // re-deploy must not leave that tree committable.
+  const NEEDED = ['.sdd-summary/', 'summaryconfig-lifecycle/', '.summaryconfig-lifecycle/'];
 
   // When this repo has been cloned INSIDE the target project — a common and
   // convenient layout — it must be ignored too, or git treats it as an embedded

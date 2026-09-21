@@ -6964,7 +6964,14 @@ function getStorageDir() {
   return resolveConfiguredDir(process.env.SDDSUM_STORAGE_PATH, ".sdd-summary");
 }
 function getLifecycleDir() {
-  return resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, ".summaryconfig-lifecycle");
+  const resolved = resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, LIFECYCLE_DIR);
+  if (fs.existsSync(resolved)) return resolved;
+  const base = path.basename(resolved);
+  if (!base.startsWith(".")) {
+    const legacy = path.join(path.dirname(resolved), `.${base}`);
+    if (fs.existsSync(legacy)) return legacy;
+  }
+  return resolved;
 }
 function getConfigPath() {
   return path.join(getStorageDir(), CONFIG_FILE);
@@ -7004,11 +7011,12 @@ function saveGenesysConfig(genesys2) {
   config2.genesys = genesys2;
   saveConfig(config2);
 }
-var PROJECT_MARKERS, CONFIG_FILE, SUMMARY_MODEL_NAME;
+var PROJECT_MARKERS, LIFECYCLE_DIR, CONFIG_FILE, SUMMARY_MODEL_NAME;
 var init_config = __esm({
   "src/config.ts"() {
     "use strict";
     PROJECT_MARKERS = [".kiro", ".cursor", ".git"];
+    LIFECYCLE_DIR = "summaryconfig-lifecycle";
     CONFIG_FILE = "config.json";
     SUMMARY_MODEL_NAME = "Claude Haiku 4.5";
   }
@@ -15703,7 +15711,7 @@ build_interaction_filter(copilot_name="Acme_Copilot")
 
 - Takes the **Agent Copilot name** (from Genesys Admin \u2192 Agent Copilot), not the summary config name.
 - Names the working directory after the **summary config name** (fetched from \`getSummarySetting\`).
-- Saves to \`.summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json\`.
+- Saves to \`summaryconfig-lifecycle/{summaryConfigName}/interaction-filter.json\`.
 - If the copilot has multiple summary settings (multi-language), re-call with \`summary_setting_id=...\`.
 
 ---
@@ -15779,7 +15787,7 @@ test cases because the user has not answered yet.
 what it is for, giving the real path:
 
 \`\`\`
-.summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/
+summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/
 \`\`\`
 
 Explain that anything describing what a good summary looks like belongs there \u2014 emails from the
@@ -16248,7 +16256,7 @@ Every retry logs to stderr: \`[rate-limit] 429 on GET /api/v2/... \u2014 waiting
 ## Lifecycle Folder Structure
 
 \`\`\`
-.summaryconfig-lifecycle/
+summaryconfig-lifecycle/
 \u2514\u2500\u2500 {summaryConfigName}/
     \u251C\u2500\u2500 interaction-filter.json
     \u251C\u2500\u2500 requirements/
@@ -20442,7 +20450,7 @@ The queues may have had no activity in this period.`
     }
     lines.push(
       ``,
-      `Saved to: .summaryconfig-lifecycle/${configName}/transcripts/static/`,
+      `Saved to: summaryconfig-lifecycle/${configName}/transcripts/static/`,
       ``,
       `Next: use list_transcripts(summary_config_name="${configName}") to review, or generate_test_case to build a test case from one of the transcripts.`
     );
@@ -21270,7 +21278,7 @@ Queues (${queues.length}):
 ${queueText}
 
 Directory structure:
-  .summaryconfig-lifecycle/${configName}/
+  summaryconfig-lifecycle/${configName}/
   \u251C\u2500\u2500 interaction-filter.json
   \u251C\u2500\u2500 requirements/
   \u2502   \u251C\u2500\u2500 artefacts/   \u2190 drop raw inputs here (emails, docs, screenshots)

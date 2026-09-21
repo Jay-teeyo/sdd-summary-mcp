@@ -24,7 +24,7 @@ const PROJECT_MARKERS = [".kiro", ".cursor", ".git"];
  * the workspace root as its working directory, so that fallback is correct — but
  * only for as long as the user launches from the workspace root. Start the CLI
  * from a subdirectory and an unanchored fallback would silently create a second
- * `.summaryconfig-lifecycle/` down there, splitting transcripts and eval runs
+ * `summaryconfig-lifecycle/` down there, splitting transcripts and eval runs
  * across two trees with no error.
  *
  * Anchoring on a marker makes the fallback correct from anywhere inside the
@@ -90,13 +90,39 @@ export function getStorageDir(): string {
   return resolveConfiguredDir(process.env.SDDSUM_STORAGE_PATH, ".sdd-summary");
 }
 
+/** Current lifecycle directory name. Deliberately visible — see getLifecycleDir(). */
+const LIFECYCLE_DIR = "summaryconfig-lifecycle";
+
 /**
- * Resolve the .summaryconfig-lifecycle root directory.
+ * Resolve the summaryconfig-lifecycle root directory.
  * Each summary configuration gets its own subdirectory here.
- * Priority: SDDSUM_LIFECYCLE_PATH env var → <project root>/.summaryconfig-lifecycle
+ * Priority: SDDSUM_LIFECYCLE_PATH env var → <project root>/summaryconfig-lifecycle
+ *
+ * WHY THIS IS NOT A DOTFILE
+ * -------------------------
+ * This tree is the user's working output — transcripts, test cases, eval runs and
+ * the generated HTML reports — so it is meant to be browsed. A leading dot hid it
+ * from Kiro's file viewer entirely. Secrets live in `.sdd-summary/` instead, which
+ * stays hidden. Both are gitignored by the deploy regardless of visibility, since
+ * transcripts carry customer PII.
+ *
+ * An existing project keeps using the dotted directory it was deployed with: the
+ * rename must not orphan a tree that already holds real runs, and silently
+ * starting a second empty one beside it would look like data loss.
  */
 export function getLifecycleDir(): string {
-  return resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, ".summaryconfig-lifecycle");
+  const resolved = resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, LIFECYCLE_DIR);
+  if (fs.existsSync(resolved)) return resolved;
+
+  // Checked against the RESOLVED path rather than only the default, because the
+  // Cursor deploy always sets SDDSUM_LIFECYCLE_PATH — testing the env var first
+  // would skip this for exactly the installs that need it.
+  const base = path.basename(resolved);
+  if (!base.startsWith(".")) {
+    const legacy = path.join(path.dirname(resolved), `.${base}`);
+    if (fs.existsSync(legacy)) return legacy;
+  }
+  return resolved;
 }
 
 const CONFIG_FILE = "config.json";

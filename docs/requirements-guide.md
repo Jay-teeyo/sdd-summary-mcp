@@ -45,13 +45,13 @@ The separate prefix and sequence mean an ignored entry can be referred to direct
 ## 3. File Location
 
 ```
-.summaryconfig-lifecycle/{SummaryConfigName}/requirements/final/requirements.md
+summaryconfig-lifecycle/{SummaryConfigName}/requirements/final/requirements.md
 ```
 
 Raw source material (emails, feedback, QA reports, etc.) that informed the requirements lives in:
 
 ```
-.summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/
+summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/
 ```
 
 ---
@@ -167,7 +167,7 @@ Artefacts are the better source, because they describe what the business actuall
 
 So the gathering sequence is a conversation, not an inference. Work through it in order, waiting for a reply at each step:
 
-1. Point the user at `.summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/`, explain what belongs there, and ask them to add what they have before you derive anything.
+1. Point the user at `summaryconfig-lifecycle/{SummaryConfigName}/requirements/artefacts/`, explain what belongs there, and ask them to add what they have before you derive anything.
 2. Read everything they added and treat it as a primary source. If the folder is still empty, say so plainly rather than quietly falling back to the prompt.
 3. Ask whether they also want requirements derived from the existing summary prompt. This is optional — valuable as a baseline of current behaviour, but unnecessary when artefacts already define the intended standard.
 4. Present the resulting `requirements.md` for review, and say explicitly that they can add, change or remove requirements before any test cases are written. Wait for approval: reworking test cases afterwards costs far more than editing a requirement now.

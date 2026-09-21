@@ -104,7 +104,7 @@ export function saveDashboard(id: string, html: string): string {
 
 /**
  * Returns (and creates) the root directory for a named summary configuration.
- * e.g. .summaryconfig-lifecycle/Acme_Sandbox/
+ * e.g. summaryconfig-lifecycle/Acme_Sandbox/
  */
 export function lifecycleConfigDir(configName: string): string {
   return ensureDir(path.join(getLifecycleDir(), configName));

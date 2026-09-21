@@ -188,7 +188,7 @@ Or in Cursor, open **Customize → Plugins** and paste this repository's URL int
 
 Under every option, working data is written to **the workspace you have open**, never to the install location:
 
-- `.summaryconfig-lifecycle/` — transcripts, test cases, eval runs, version history
+- `summaryconfig-lifecycle/` — transcripts, test cases, eval runs, version history
 - `.sdd-summary/` — credentials and tokens
 
 Both are workspace-relative, so re-deploying or reinstalling never touches your data. They hold OAuth tokens and customer transcripts, so they must never be committed — `deploy.js` adds them to the project's `.gitignore` for you, along with the nested `sdd-summary-mcp/` clone.
@@ -328,7 +328,7 @@ The server bundle is byte-identical for both editors; only the wiring differs.
 Per-config working data lives in the **consuming workspace**, not here:
 
 ```
-.summaryconfig-lifecycle/{SummaryConfigName}/
+summaryconfig-lifecycle/{SummaryConfigName}/
 ├── interaction-filter.json
 ├── requirements/
 ├── transcripts/static/
@@ -362,7 +362,7 @@ To develop against a live copy on Cursor, symlink the repo as a local plugin (Op
 ## Security
 
 - **Never commit credentials.** `.sdd-summary/` is gitignored, as is `.cursor/mcp.json`.
-- **Never commit customer data.** `.summaryconfig-lifecycle/` contains transcripts with PII and is gitignored in full.
+- **Never commit customer data.** `summaryconfig-lifecycle/` contains transcripts with PII and is gitignored in full.
 - Tokens are user-scoped and expire in roughly 30 minutes; any API call reopens the browser on expiry.
 - `update_summary_setting` and `update_copilot_config` write to live Genesys and are deliberately **not** pre-approved on either host — they always require explicit confirmation. On Kiro the eval scoring subagent has them removed outright via `disabledTools`, so a scoring stage cannot reach live Genesys even by mistake.
 - See `.env.example` for the full list of environment variables.

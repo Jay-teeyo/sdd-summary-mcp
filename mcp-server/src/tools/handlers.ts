@@ -986,7 +986,7 @@ export async function fetch_transcripts_bulk(args: Args) {
 
     lines.push(
       ``,
-      `Saved to: .summaryconfig-lifecycle/${configName}/transcripts/static/`,
+      `Saved to: summaryconfig-lifecycle/${configName}/transcripts/static/`,
       ``,
       `Next: use list_transcripts(summary_config_name="${configName}") to review, ` +
       `or generate_test_case to build a test case from one of the transcripts.`,
@@ -2026,7 +2026,7 @@ export async function build_interaction_filter(args: Args) {
       `Working dir:     ${configName}\n\n` +
       `Queues (${queues.length}):\n${queueText}\n\n` +
       `Directory structure:\n` +
-      `  .summaryconfig-lifecycle/${configName}/\n` +
+      `  summaryconfig-lifecycle/${configName}/\n` +
       `  ├── interaction-filter.json\n` +
       `  ├── requirements/\n` +
       `  │   ├── artefacts/   ← drop raw inputs here (emails, docs, screenshots)\n` +

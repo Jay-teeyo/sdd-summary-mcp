@@ -112,7 +112,7 @@ Credentials normally come from `login()`, which parses the Authorization URL and
 |---|---|
 | `SDDSUM_HOST` | `cursor` or `kiro`. Selects host-specific guidance — chiefly the subagent spawn mechanism. Unset yields host-neutral wording. See `src/host.ts`. |
 | `SDDSUM_STORAGE_PATH` | Path for `.sdd-summary/` (OAuth config + tokens). Cursor deploy sets `${workspaceFolder}/.sdd-summary`; on Kiro it is left unset. |
-| `SDDSUM_LIFECYCLE_PATH` | Path for `.summaryconfig-lifecycle/`. Cursor deploy sets `${workspaceFolder}/.summaryconfig-lifecycle`; on Kiro it is left unset. |
+| `SDDSUM_LIFECYCLE_PATH` | Path for `summaryconfig-lifecycle/`. Cursor deploy sets `${workspaceFolder}/summaryconfig-lifecycle`; on Kiro it is left unset. |
 | `GENESYS_CLIENT_ID` | **Avoid setting.** Shadows the stored config and causes logins against the wrong org. Let `login()` manage it. |
 | `GENESYS_REGION` | **Avoid setting.** Extracted from the Authorization URL automatically. |
 | `GENESYS_CLIENT_SECRET` | Not required. Only for the vestigial machine-to-machine fallback — omit for standard user login. |
@@ -187,7 +187,7 @@ Both hosts end up storing user data in the consuming project rather than the ins
 ├── config.json             ← credentials + OAuth tokens (gitignored)
 └── transcripts/            ← legacy single-transcript storage
 
-.summaryconfig-lifecycle/
+summaryconfig-lifecycle/
 └── {SummaryConfigName}/
     ├── interaction-filter.json
     ├── requirements/
