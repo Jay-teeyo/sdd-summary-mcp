@@ -2984,6 +2984,11 @@ export async function get_pipeline_state(args: Args) {
     });
   }
 
+  // Heals a workspace created before a scaffold directory or its README existed.
+  // build_interaction_filter is the only other caller, and a project already past
+  // that step would otherwise never gain them. Idempotent, and never overwrites.
+  storage.ensureAllLifecycleDirs(configName);
+
   const versions = storage.listVersionSnapshots(configName);
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
   const latestDeployed = [...versions].reverse().find((v) => (v.status ?? "deployed") === "deployed") ?? null;

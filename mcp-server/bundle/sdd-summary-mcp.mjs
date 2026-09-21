@@ -22016,6 +22016,7 @@ async function get_pipeline_state(args) {
       note: `No lifecycle workspace exists for "${configName}". Existing configs: ` + (listLifecycleConfigs().join(", ") || "(none)")
     });
   }
+  ensureAllLifecycleDirs(configName);
   const versions = listVersionSnapshots(configName);
   const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
   const latestDeployed = [...versions].reverse().find((v) => (v.status ?? "deployed") === "deployed") ?? null;
