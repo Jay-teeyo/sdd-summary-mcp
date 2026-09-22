@@ -36,6 +36,7 @@ const readline = require('readline');
 const S = require('./deploy/shared');
 const { deployCursor, printCursorNextSteps } = require('./deploy/cursor');
 const { deployKiro, printKiroNextSteps } = require('./deploy/kiro');
+const { registerWithKiroCrew, verifyKiroCrew } = require('./deploy/kirocrew');
 
 if (parseInt(process.versions.node.split('.')[0], 10) < 18) {
   S.err(`Node.js 18+ required. You have ${process.version}.`);
@@ -53,6 +54,8 @@ const HOSTS = {
 
 let host = null;
 let targetArg = null;
+let kirocrew = false;
+let verifyOnly = false;
 
 for (const arg of process.argv.slice(2)) {
   const m = /^--host[=:](.+)$/.exec(arg);
@@ -60,6 +63,10 @@ for (const arg of process.argv.slice(2)) {
     host = m[1].toLowerCase();
   } else if (arg === '--cursor' || arg === '--kiro') {
     host = arg.slice(2);
+  } else if (arg === '--kirocrew') {
+    kirocrew = true;
+  } else if (arg === '--verify') {
+    verifyOnly = true;
   } else if (arg === '-h' || arg === '--help') {
     console.log(`
   SDD Summary — project-scoped deploy
@@ -67,6 +74,12 @@ for (const arg of process.argv.slice(2)) {
     node deploy.js [target]           ask which editor, then deploy
     node deploy.js --kiro [target]    deploy for Kiro
     node deploy.js --cursor [target]  deploy for Cursor
+
+  Kiro only:
+    --kirocrew                        also register the server with KiroCrew, so
+                                      a dashboard session can host the pipeline
+    --verify                          check an existing KiroCrew registration
+                                      and exit, writing nothing
 
   target defaults to the current directory.
 `);
@@ -82,6 +95,15 @@ for (const arg of process.argv.slice(2)) {
 
 if (host && !HOSTS[host]) {
   S.err(`Unknown host "${host}". Expected "cursor" or "kiro".`);
+  process.exit(1);
+}
+
+// Refused rather than ignored. KiroCrew hosts Kiro agents, so the flag is
+// meaningless for Cursor — and a user who passed it and got nothing would have no
+// way to tell it had been dropped.
+if (kirocrew && host === 'cursor') {
+  S.err('--kirocrew applies to the Kiro install only.');
+  console.log('    KiroCrew runs Kiro agents; there is no Cursor equivalent to register.\n');
   process.exit(1);
 }
 
@@ -140,6 +162,14 @@ async function main() {
   S.hr();
   console.log('');
 
+  // A read-only check of an install that already exists, so it deliberately runs
+  // before the host prompt and writes nothing.
+  if (verifyOnly) {
+    const healthy = await verifyKiroCrew(target);
+    console.log('');
+    process.exit(healthy ? 0 : 1);
+  }
+
   if (!host) host = await askHost();
   const chosen = HOSTS[host];
 
@@ -153,12 +183,40 @@ async function main() {
 
   const { sourceIsNested } = chosen.deploy(target);
 
+  // Opt-in, and the only step that writes outside the target project — so it is
+  // reported separately and the closing output only mentions the dashboard when
+  // the registration actually happened.
+  let crew = null;
+  if (kirocrew) {
+    console.log('');
+    console.log(`  ${S.bold('KiroCrew registration')} ${S.dim('(writes outside this project)')}`);
+    crew = registerWithKiroCrew(target);
+  }
+
   console.log('\n');
   S.hr();
   console.log(S.bold(`  Deployed for ${chosen.label}`));
   S.hr();
 
-  chosen.next(target, sourceIsNested);
+  chosen.next(target, sourceIsNested, crew);
+
+  // Verified immediately, because the failure this catches — a server that cannot
+  // start from KiroCrew's working directory — otherwise surfaces only as an error
+  // badge on a dashboard page, long after the deploy claimed success.
+  if (crew) {
+    S.hr();
+    const healthy = await verifyKiroCrew(target);
+    if (!healthy) {
+      console.log('');
+      S.err('The KiroCrew registration needs attention — see above.');
+      console.log(`    Re-check at any time:  ${S.bold('node deploy.js --verify ' + target)}\n`);
+      process.exitCode = 1;
+    } else {
+      console.log('');
+      S.ok('KiroCrew registration verified.');
+      console.log('');
+    }
+  }
 }
 
 main().catch((e) => {

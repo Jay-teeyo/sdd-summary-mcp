@@ -47,6 +47,41 @@ function findProjectRoot(start: string): string {
 }
 
 /**
+ * Refuse a CWD-derived path that landed at the filesystem root.
+ *
+ * WHY THIS IS A HARD ERROR
+ * ------------------------
+ * The fallback above is only correct when the host launches the server inside the
+ * project. A KiroCrew dashboard session does not: it spawns MCP servers with `/`
+ * as the working directory. `findProjectRoot` finds no marker on the way up from
+ * `/`, returns `/`, and the fallback becomes `/.sdd-summary` — OAuth tokens and
+ * every transcript aimed at the filesystem root.
+ *
+ * macOS would probably turn that into a permission error somewhere further in,
+ * but "probably" is doing too much work: on a host where the write succeeds this
+ * silently starts a second empty data tree, which reads as total data loss. So
+ * name the cause while we still know it, and name the fix.
+ *
+ * Note this guards the DERIVED path only. An explicit SDDSUM_* value is the
+ * user's stated intent and is left alone.
+ */
+function assertNotFilesystemRoot(derived: string, dirName: string): string {
+  const { root } = path.parse(derived);
+  if (path.dirname(derived) !== root) return derived;
+
+  throw new Error(
+    `Refusing to use "${derived}" for ${dirName}: it resolves to the filesystem ` +
+      `root, not a project.\n` +
+      `This server was started from "${process.cwd()}", so there is no project ` +
+      `directory to derive from — a KiroCrew dashboard session does this, as it ` +
+      `launches MCP servers from /.\n` +
+      `Fix: set SDDSUM_STORAGE_PATH and SDDSUM_LIFECYCLE_PATH to absolute paths ` +
+      `in the server's config. "node deploy.js --kiro --kirocrew <project>" ` +
+      `writes both for you.`,
+  );
+}
+
+/**
  * Turn a configured directory into an absolute path.
  *
  * Cursor can expand ${workspaceFolder} to a tilde-prefixed path such as
@@ -63,13 +98,13 @@ function findProjectRoot(start: string): string {
  */
 function resolveConfiguredDir(value: string | undefined, fallbackName: string): string {
   const fallback = path.join(findProjectRoot(process.cwd()), fallbackName);
-  if (!value) return fallback;
+  if (!value) return assertNotFilesystemRoot(fallback, fallbackName);
 
   if (value.includes("${")) {
     process.stderr.write(
       `[sdd-summary] Ignoring unexpanded path "${value}" — falling back to ${fallback}\n`,
     );
-    return fallback;
+    return assertNotFilesystemRoot(fallback, fallbackName);
   }
 
   let expanded = value;

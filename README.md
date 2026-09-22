@@ -70,6 +70,8 @@ node sdd-summary-mcp/deploy.js --kiro
 node sdd-summary-mcp/deploy.js --cursor
 ```
 
+On Kiro, add `--kirocrew` to also register the server with KiroCrew so a dashboard session can host the pipeline, and `--verify` to check an existing registration without writing anything.
+
 **4. Finish setup — this differs by editor**
 
 <table>
@@ -117,9 +119,9 @@ Open a new chat in Cursor and say **"begin"**.
 
 The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
 
-> **On Kiro the pipeline runs from `kiro-cli chat`, not from a KiroCrew dashboard session.** The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent under the CLI. A dashboard session cannot host it: its tool surface is built by the KiroCrew gateway, not from a Kiro agent config's `mcpServers`, so selecting `sdd-summary` there gives the tab the agent's prompt and steering **but none of its tools**. Tested, not assumed — the tab reports the tools as belonging to a different agent.
+> **On Kiro the pipeline runs from `kiro-cli chat`.** The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent under the CLI. A KiroCrew dashboard session runs KiroCrew's own agent instead, so a plain deploy leaves it with none of these tools.
 >
-> Do not work around this by copying the agent into `~/.kiro/agents/`. It changes nothing about the tools and leaves a dashboard agent that reads as able to run the pipeline while being unable to call a single step.
+> To reach the dashboard too, deploy with `--kirocrew` and then enable the server under **Capabilities → MCP Servers → Chat Tools**. Eval scoring still needs the CLI — KiroCrew's agent has no `use_subagent`, so the scorer subagents cannot be spawned there. See [KiroCrew dashboard](docs/setup.md#the-kirocrew-dashboard---kirocrew).
 
 You end up with one of these:
 
@@ -295,7 +297,8 @@ SDD-Summary/
 ├── deploy/
 │   ├── shared.js                  ← common deploy helpers
 │   ├── cursor.js                  ← Cursor target (.cursor/…)
-│   └── kiro.js                    ← Kiro target (.kiro/…)
+│   ├── kiro.js                    ← Kiro target (.kiro/…)
+│   └── kirocrew.js                ← optional KiroCrew registration (--kirocrew)
 ├── kiro/
 │   ├── agents/                    ← Kiro agent configs (pipeline + eval scorer)
 │   └── eval-orchestration.md      ← Kiro's parallel-scoring instructions
