@@ -6942,15 +6942,24 @@ function findProjectRoot(start) {
     dir = parent;
   }
 }
+function assertNotFilesystemRoot(derived, dirName) {
+  const { root } = path.parse(derived);
+  if (path.dirname(derived) !== root) return derived;
+  throw new Error(
+    `Refusing to use "${derived}" for ${dirName}: it resolves to the filesystem root, not a project.
+This server was started from "${process.cwd()}", so there is no project directory to derive from \u2014 a KiroCrew dashboard session does this, as it launches MCP servers from /.
+Fix: set SDDSUM_STORAGE_PATH and SDDSUM_LIFECYCLE_PATH to absolute paths in the server's config. "node deploy.js --kiro --kirocrew <project>" writes both for you.`
+  );
+}
 function resolveConfiguredDir(value, fallbackName) {
   const fallback = path.join(findProjectRoot(process.cwd()), fallbackName);
-  if (!value) return fallback;
+  if (!value) return assertNotFilesystemRoot(fallback, fallbackName);
   if (value.includes("${")) {
     process.stderr.write(
       `[sdd-summary] Ignoring unexpanded path "${value}" \u2014 falling back to ${fallback}
 `
     );
-    return fallback;
+    return assertNotFilesystemRoot(fallback, fallbackName);
   }
   let expanded = value;
   if (expanded === "~") {

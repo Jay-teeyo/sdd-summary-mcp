@@ -151,30 +151,45 @@ On Kiro it must be `kiro-cli chat` **started in the project directory**. The dep
 > **A chat on any other agent has none of the tools, and that is by design.** The `sdd-summary` server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent only. Any other agent sees no `@sdd-summary/*` tools — a different CLI agent, or an assistant opened on the same folder.
 >
 > This follows from Kiro putting `allowedTools` only in an agent config: the tools and their pre-approvals have to travel together, which is what lets a full eval suite run without hundreds of prompts. The cost is that reach is per-agent by construction.
+>
+> A KiroCrew dashboard session is one such other agent. Reaching it takes an extra opt-in step — see [`--kirocrew`](#the-kirocrew-dashboard---kirocrew) below.
 
-#### The KiroCrew dashboard cannot host the pipeline
+#### The KiroCrew dashboard: `--kirocrew`
 
-This was tested rather than reasoned about, and the result is worth stating plainly so nobody spends an afternoon on it.
+A dashboard session does not run your project's agent, so a plain deploy leaves it with no `@sdd-summary/*` tools. To reach the dashboard as well, add the flag:
 
-A KiroCrew dashboard session builds its tool surface from the **KiroCrew gateway**, not from a Kiro agent config's `mcpServers`. Selecting `sdd-summary` in a dashboard tab therefore gives that tab the agent's prompt and its steering, but **none of its tools**. Attempting one returns that the tool may belong to a different agent.
+```bash
+node deploy.js --kiro --kirocrew ..
+```
 
-Two things make this worth a warning rather than a footnote:
+Then, once in the dashboard: **Capabilities → MCP Servers → Chat Tools**, switch `sdd-summary` on, and press **Refresh Tools**.
 
-- **The half that works is the half that does not matter.** The tab loads ~490 lines of pipeline procedure telling the agent to call `login()` and `build_interaction_filter()`, and the agent cannot call either. It looks like a working install right up to the first tool call.
-- **Copying the agent into `~/.kiro/agents/` does not help.** The file is correct and still declares its server; the gateway simply does not use it. All that achieves is making the misleading state reachable from every dashboard tab.
+That click is deliberately yours. It is KiroCrew's consent step for auto-approving a server's tools, and a deploy script should not grant 45 auto-approved tools to every dashboard session on your machine without being asked. Everything up to it is automated.
 
-Things that are true but are *not* the cause, since each one looks like a likely culprit:
+**Leave the page's trust setting on `Normal`.** The pipeline's own per-tool pre-approvals still apply. `YOLO` and `Trust all tools` override the per-tool scoping the pipeline relies on.
 
-| Not the cause | Why not |
-|---|---|
-| Wrong working directory | A project-bound dashboard tab does run with the project as its cwd |
-| Agent config not found | Workspace and global agent configs are both discovered |
-| Missing pre-approvals | `allowedTools` is present and correct in the deployed config |
-| `toolSearch` deferral | The tools are absent, not merely unlisted — `tool_search` cannot find them either |
+> **Eval scoring still needs the terminal.** KiroCrew's agent has no `use_subagent`, so the scorer subagents that a full eval run fans out to cannot be spawned from a dashboard session. Connecting, building an interaction filter, previews and reports all work there; eval runs need `kiro-cli chat`.
 
-Use `kiro-cli chat` from the project directory. That is the supported route, it needs no extra configuration, and it is what the deploy sets up.
+##### Why a flag is needed at all
 
-**What to avoid:** adding the `sdd-summary` server to KiroCrew's own `kirocrew` agent to force it into the dashboard. That would put 45 Genesys tools and ~490 lines of pipeline guidance into every unrelated dashboard chat you ever open — the exact cost project scope exists to avoid — and it couples a Genesys prompt-testing tool to another product's internal configuration.
+A dashboard session runs KiroCrew's own agent, `~/.kiro/agents/kirocrew.json` — not the agent in your project, and not one you select in a tab. KiroCrew pins `includeMcpJson: false` on every agent it owns (its source calls this framework-owned containment), so `kiro-cli` never reads any `settings/mcp.json` for those sessions. Nothing written inside your project can reach them.
+
+What does work is KiroCrew's own MCP registry. It scans `~/.kiro/crew/mcp.json` and `~/.kiro/settings/mcp.json`, and when you enable a server on the MCP Servers page it copies that spec into `kirocrew.json`, mounts `@sdd-summary` in `tools`, and adds the auto-approve grant. `--kirocrew` writes the first file; your click does the rest.
+
+Two details the flag handles that are easy to get wrong by hand:
+
+- **Absolute paths are required.** KiroCrew probes MCP servers with `/` as the working directory, not your project, so the relative bundle path the project install uses cannot resolve. The same applies to `SDDSUM_STORAGE_PATH` and `SDDSUM_LIFECYCLE_PATH`: unset, the server derives them from its working directory and would aim your transcripts and tokens at the filesystem root. The server now refuses that outright rather than trying it.
+- **The agent config wins.** Once you have enabled the server, `kirocrew.json` holds its own copy of the spec, and KiroCrew reads that *before* the registry. Correcting only the registry looks like it does nothing. `--kirocrew` updates both.
+
+Because the paths are absolute, **one registration serves one project**. Re-running `--kirocrew` elsewhere repoints it and tells you so.
+
+##### Checking it
+
+```bash
+node deploy.js --verify ..
+```
+
+Read-only, and writes nothing. It starts the server the way KiroCrew does — from `/` — and reports the tool count, whether the dashboard has it enabled, whether the agent config has drifted from the registry, and whether the vendored bundle is missing any tool the deploy has pre-approved.
 
 ### Resulting layout
 

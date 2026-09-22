@@ -37,6 +37,10 @@
  * `.kiro/settings/mcp.json`. Declaring it in both risks two server processes
  * writing the same tree. `chat.defaultAgent` is what makes the agent the
  * flag-free entry point instead.
+ *
+ * Everything here reaches `kiro-cli chat` only. A KiroCrew dashboard session runs
+ * KiroCrew's own agent and cannot see any of it; deploy/kirocrew.js is the opt-in
+ * bridge for that, and explains why nothing in this file could have served it.
  */
 
 const path = require('path');
@@ -250,10 +254,15 @@ function deployKiro(target) {
   return { sourceIsNested };
 }
 
-function printKiroNextSteps(target, sourceIsNested) {
+function printKiroNextSteps(target, sourceIsNested, crew) {
   console.log(`
   Scope: this project only. The agents, steering and pre-approved tools live
-  under ${target}/.kiro/, so they are inactive in every other workspace.
+  under ${target}/.kiro/, so they are inactive in every other workspace.${
+    crew
+      ? `\n  ${S.yellow('Except')} the KiroCrew registration just written to ~/.kiro/, which is
+  global by design so the dashboard can see it.`
+      : ''
+  }
 
   Next steps:
     1. Open ${S.bold(path.basename(target))} as your Kiro workspace.${
@@ -276,15 +285,47 @@ function printKiroNextSteps(target, sourceIsNested) {
 
        ${S.yellow('It must be kiro-cli chat, started in this directory.')} The server is
        declared in .kiro/agents/${MAIN_AGENT}.json, so ONLY that agent has the
-       tools. A chat on any other agent — including a KiroCrew dashboard
-       session — sees no @${S.SERVER_KEY}/* tools at all. That is the
-       pre-approval design, not a broken install.
+       tools. A chat on any other agent sees no @${S.SERVER_KEY}/* tools at
+       all. That is the pre-approval design, not a broken install.${
+         crew
+           ? ''
+           : `\n\n       ${S.dim('A KiroCrew dashboard session is one such other agent. To reach the')}
+       ${S.dim('dashboard too, re-run with --kirocrew.')}`
+       }
 
        ${S.dim(`This project's default agent is already ${MAIN_AGENT}, so no --agent`)}
        ${S.dim(`flag is needed. To be explicit: kiro-cli chat --agent ${MAIN_AGENT}`)}
+${
+  crew
+    ? `
+    4. ${S.bold('Or drive it from the KiroCrew dashboard:')}
+${
+  crew.mounted
+    ? `       Already enabled there — the tools are mounted on KiroCrew's agent.
+       Open ${S.bold('Capabilities → MCP Servers → Chat Tools')} and press
+       ${S.bold('Refresh Tools')} to pick up this re-deploy.`
+    : `       Open ${S.bold('Capabilities → MCP Servers → Chat Tools')}, switch
+       ${S.bold(S.SERVER_KEY)} on, then press ${S.bold('Refresh Tools')}.
 
+       ${S.dim("That one click is KiroCrew's consent step for auto-approving these")}
+       ${S.dim('tools, so this script deliberately stops short of doing it for you.')}`
+}
+
+       Leave the page's trust setting on ${S.bold('Normal')}. The pipeline's own
+       pre-approvals still apply; ${S.bold('YOLO')} and ${S.bold('Trust all tools')} would
+       override the per-tool scoping it relies on.
+
+       ${S.yellow('Scoring will not fan out there yet.')} KiroCrew's agent has no
+       use_subagent, so eval runs still need ${S.bold('kiro-cli chat')}.
+`
+    : ''
+}
     To verify the install: ${S.bold('/mcp')} in chat, or ${S.bold('kiro-cli mcp list')}.
-    It should report the ${S.bold('sdd-summary')} server with ${S.bold('45 tools')}.
+    It should report the ${S.bold('sdd-summary')} server with ${S.bold('45 tools')}.${
+      crew
+        ? `\n    For the KiroCrew side: ${S.bold('node deploy.js --verify ' + path.basename(target))}`
+        : ''
+    }
 
   Re-run this script after any server change to refresh the vendored copy.
 `);
