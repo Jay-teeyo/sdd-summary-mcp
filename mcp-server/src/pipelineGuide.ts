@@ -73,11 +73,16 @@ submit_eval_scores accepts score: null for any dimension whose applicabilityCond
 Null scores are excluded from overallScore, overallPassed, pass rates, and failure analysis.
 start_eval_run includes applicability_condition on every dimension in the test_cases payload — check it first before scoring.
 
-## Summary Setting Updates and Previews — structure comes from the live config
-The summary setting is a full object (language, format, participantLabels, maskPII, predefinedInsights, timeoutDuration).
-update_summary_setting reads the live setting and PUTs it back whole, changing only the prompt — Genesys rejects a partial body.
-Preview generation and version snapshots inherit that same structure so previews match production output; only the prompt varies.
-If start_eval_run reports preview_structure as "fallback defaults", the live setting could not be read — say so, because formatting dimensions may then fail for the wrong reason.
+## The prompt is the only input — settingType "Prompt"
+This pipeline only works with summary configurations whose settingType is "Prompt". Under that type the model reads the prompt and nothing else; language selects the output language.
+summaryType, format, maskPII, predefinedInsights and participantLabels are platform metadata. Genesys does not apply them, so never cite them when deriving requirements, authoring test cases, explaining a score or recommending a change.
+This has a consequence worth stating plainly: a formatting, structure or speaker-naming failure is ALWAYS a defect in the prompt. It can never be excused as a config setting or a preview artefact. If the output must use bullet points or call the customer "member", the prompt has to say so — setting format: BulletPoints does nothing.
+If a tool returns a warning that settingType is not "Prompt", stop and tell the user the results describe the wrong input.
+
+## Summary Setting Updates and Previews — every field is preserved, two are read
+update_summary_setting reads the live setting and PUTs it back whole, changing only the prompt — Genesys rejects a partial body, and omitting a field would wipe it from the customer's config.
+Preview generation and version snapshots inherit the same full object for the same reason. Only prompt and language affect what comes back.
+preview_structure reports the language and settingType a run used. "fallback defaults" means the live setting could not be read and language defaulted to en-au — mention it if the config is not English, but do not treat it as a caveat on formatting results.
 
 ## Eval Scoring — interactions with no summary
 A transcript whose summary is "The interaction is too short to create a summary." is skipped entirely, not scored.

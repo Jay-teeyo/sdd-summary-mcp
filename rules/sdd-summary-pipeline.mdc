@@ -422,8 +422,19 @@ Every improvement suggestion must account for how this model processes prompts:
 A summary setting carries `language`, `summaryType`, `format`, `maskPII`, `participantLabels`, `predefinedInsights`, `settingType`, `serviceType` and `timeoutDuration` alongside the prompt. Genesys treats the update endpoint as a **full replace** — a body containing only the prompt is rejected with `Language must not be blank`.
 
 - `update_summary_setting` reads the live setting and sends it back whole, changing only the prompt (and `name` if given). Its response lists what it preserved under `preserved_fields`. Unrecognised fields are passed through untouched, so a field Genesys adds later is not wiped.
-- Preview generation (`prepare_prompt_test`, `start_eval_run` in `prompt_test` mode) and `save_version` snapshots inherit the **live** structure and vary only the prompt. This matters: a config that is `BulletPoints` in production must not be previewed as `TextBlock`, or formatting dimensions fail for a reason no prompt change can fix.
-- `start_eval_run` reports `preview_structure`. If it reads `fallback defaults`, the live setting could not be read — report that alongside the results rather than treating formatting failures as real.
+- Preview generation (`prepare_prompt_test`, `start_eval_run` in `prompt_test` mode) and `save_version` snapshots carry the **live** object for the same reason, varying only the prompt.
+- Preserving those fields is not the same as depending on them. With `settingType: "Prompt"` only `prompt` and `language` change the generated summary — see below.
+- `start_eval_run` reports `preview_structure`: the language and setting type the run used. `fallback defaults` means the live setting could not be read and language defaulted to `en-au`. Worth mentioning for a non-English config; it is **not** grounds for discounting any score.
+
+### Only the prompt shapes the output
+
+`summaryType`, `format`, `maskPII`, `predefinedInsights` and `participantLabels` are metadata for the Genesys UI. Genesys does not apply them when `settingType` is `Prompt`, so:
+
+- Never cite them when deriving requirements, authoring test cases, explaining a score, or recommending a change.
+- **A formatting, structure or speaker-naming failure is always a prompt defect.** It cannot be blamed on a config field or on preview structure. Bullet points, section order, calling the customer "member" — if the prompt does not say it, it does not happen, and `format: BulletPoints` will not make it happen.
+- Anything the business wants in the output has to be expressed as prompt text.
+
+Configs with any other `settingType` are **out of scope**. `get_summary_setting`, `save_version` and `start_eval_run` return a `warning` when they encounter one; the run still completes, but it is describing an input the model does not use. Surface that warning to the user instead of reporting the results as valid.
 
 ### Local candidate versions (do not auto-deploy)
 

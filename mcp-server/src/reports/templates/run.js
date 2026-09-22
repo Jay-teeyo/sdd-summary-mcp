@@ -651,8 +651,10 @@ function renderChrome() {
     chips.push('<span class="chip danger"><b>Untested requirements</b> <strong>' +
       MODEL.coverage.uncoveredRequirementIds.length + "</strong></span>");
   }
+  // Not "danger": a fallback base only means the live language could not be confirmed.
+  // The prompt still drove every summary, so the scores below stand on their own.
   if (r.previewStructure && r.previewStructure.indexOf("fallback") === 0) {
-    chips.push('<span class="chip danger">Preview structure: fallback defaults</span>');
+    chips.push('<span class="chip warn">Preview language unconfirmed \u00b7 defaulted to en-au</span>');
   }
   document.getElementById("chips").innerHTML = chips.join("");
 

@@ -101,10 +101,13 @@ export interface SummarySetting {
   format: SummaryFormat;
   maskPII: { all: boolean };
   /**
-   * How each speaker is named in the generated summary, e.g.
+   * How each speaker is named in the Genesys UI, e.g.
    * { internal: "Customer Service Consultant", external: "Customer" }.
-   * Genesys applies these when generating, so a preview that omits them produces
-   * differently-worded summaries from production.
+   *
+   * IGNORED when settingType is "Prompt" — like every field below except `prompt`
+   * and `language`. Speaker naming that must appear in the output has to be stated
+   * in the prompt itself. Round-tripped on update anyway, because the endpoint is a
+   * full replace; see buildSettingBody in genesys/summaries.ts.
    */
   participantLabels?: { internal?: string; external?: string };
   predefinedInsights: PredefinedInsight[];
@@ -340,10 +343,11 @@ export interface EvalRunPendingMeta {
    */
   promptVersionStatus?: "candidate" | "deployed";
   /**
-   * Where the non-prompt structure of the preview setting came from — the live Genesys
-   * setting, or fallback defaults. Recorded because a run previewed with the wrong format
-   * or missing participant labels can fail formatting dimensions for reasons no prompt
-   * change could fix, and the report has to be able to say so.
+   * Where the preview setting came from — the live Genesys setting, or fallback defaults.
+   * Recorded for `language`, which does change the generated summaries, and `settingType`,
+   * which says whether the prompt is the real input at all. It is not a caveat on
+   * formatting results: with settingType "Prompt" no other field reaches the model, so a
+   * formatting failure is a defect in the prompt regardless of the base used.
    */
   previewStructure?: string;
 }

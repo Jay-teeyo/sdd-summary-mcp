@@ -1121,14 +1121,25 @@ export async function list_transcripts(args: Args) {
 export async function list_summary_settings(_args: Args) {
   return withTokenRefresh(async () => {
     const settings = await listSummarySettings();
-    return json(settings.map((s) => ({ id: s.id, name: s.name, language: s.language, prompt: s.prompt?.slice(0, 100) })));
+    // settingType is listed because it decides whether the pipeline can work with a
+    // config at all — anything other than "Prompt" is driven by fields it never reads.
+    return json(settings.map((s) => ({
+      id: s.id,
+      name: s.name,
+      language: s.language,
+      settingType: s.settingType,
+      prompt: s.prompt?.slice(0, 100),
+    })));
   });
 }
 
 export async function get_summary_setting(args: Args) {
   return withTokenRefresh(async () => {
     const setting = await getSummarySetting(str(args, "summary_setting_id"));
-    return json(setting);
+    // Merged into the setting rather than wrapping it, so the response keeps the same
+    // shape whether or not the warning fires.
+    const warning = unsupportedSettingTypeWarning(setting);
+    return json(warning ? { ...setting, warning } : setting);
   });
 }
 
@@ -1232,9 +1243,11 @@ export async function update_summary_setting(args: Args) {
 // ─── Summary generation ───────────────────────────────────────────────────────
 
 /**
- * Structural fields used for preview generation when the live setting cannot be read.
- * Deliberately minimal — a preview built on these will not match production output,
- * so callers surface which base was used.
+ * Filler for the fields the preview body must carry but the model never reads.
+ *
+ * With settingType "Prompt" only `prompt` and `language` shape the output, so these
+ * values are not a fidelity compromise — they exist because the API requires a
+ * complete body. See buildSettingBody in genesys/summaries.ts.
  */
 const FALLBACK_PREVIEW_STRUCTURE = {
   summaryType: "Concise" as const,
@@ -1248,13 +1261,14 @@ const FALLBACK_PREVIEW_STRUCTURE = {
 /**
  * Read the live summary setting for a config, resolved through its interaction filter.
  *
- * Preview generation must borrow production's structure — format, participant labels,
- * PII masking, predefined insights — and vary only the prompt. Generating previews from
- * hardcoded defaults instead means a bullet-point production config gets evaluated as
- * plain text, so formatting dimensions fail for a reason no prompt change can address.
+ * Worth reading for TWO fields: `language`, which selects the output language and so
+ * does change the summaries, and `settingType`, which says whether this config is one
+ * the pipeline can reason about at all. The rest of the live object is carried into the
+ * preview body unread — see FALLBACK_PREVIEW_STRUCTURE.
  *
- * Returns null rather than throwing: a preview on fallback structure is still more useful
- * than a failed run, and callers report which base they used.
+ * Returns null rather than throwing. A preview that defaults to en-au is still worth
+ * generating, and callers report which base they used so a wrong language is visible
+ * rather than silent.
  */
 async function loadLiveSettingForPreview(configName: string): Promise<SummarySetting | null> {
   const filter = storage.loadInteractionFilter(configName);
@@ -1264,6 +1278,54 @@ async function loadLiveSettingForPreview(configName: string): Promise<SummarySet
   } catch {
     return null;
   }
+}
+
+/**
+ * The one thing the pipeline assumes about a config it is pointed at.
+ *
+ * Every stage downstream — deriving requirements, authoring test cases, scoring a run,
+ * recommending improvements — reads the prompt and nothing else. That is correct for
+ * settingType "Prompt" and wrong for any other type, where behaviour comes from fields
+ * this pipeline never looks at. Such a config would still run: previews would generate,
+ * scores would be recorded, and the whole report would describe a prompt that is not
+ * what production is using.
+ *
+ * Warned rather than refused, so an unfamiliar setting type does not become a dead end
+ * the user cannot inspect. Callers surface this in their response.
+ */
+function unsupportedSettingTypeWarning(setting: SummarySetting | null): string | null {
+  if (!setting || setting.settingType === "Prompt") return null;
+  return (
+    `This summary configuration has settingType "${setting.settingType}", not "Prompt". ` +
+    `The pipeline evaluates the prompt field alone, so for this config it is reasoning ` +
+    `about the wrong input: requirements, test cases and scores will not reflect what ` +
+    `production actually generates. Results are not trustworthy — confirm the setting ` +
+    `type before acting on them.`
+  );
+}
+
+/**
+ * Describe the base a preview or snapshot was built on.
+ *
+ * Reports the two fields that matter (`language` and `settingType`) and nothing else.
+ * It previously listed format, insight count and whether participant labels were set,
+ * which invited exactly the wrong conclusion: that a formatting failure might be an
+ * artefact of preview structure rather than a real defect in the prompt. With
+ * settingType "Prompt" those fields do not reach the model, so a formatting failure is
+ * always about the prompt.
+ */
+function describePreviewBase(base: SummarySetting | null): string {
+  if (!base) {
+    return (
+      "fallback defaults — the live setting could not be read, so language defaults to " +
+      "en-au. Confirm that matches production; every other field is inert for " +
+      'settingType "Prompt".'
+    );
+  }
+  return (
+    `inherited from the live Genesys setting (language: ${base.language}, ` +
+    `settingType: ${base.settingType})`
+  );
 }
 
 /**
@@ -1806,17 +1868,22 @@ export async function save_version(args: Args) {
 
   let setting: SummarySetting;
   let structureSource: string;
+  let settingTypeWarning: string | null = null;
   if (args.summary_setting_id) {
     setting = await getSummarySetting(str(args, "summary_setting_id"));
     structureSource = "read from the live Genesys setting";
+    settingTypeWarning = unsupportedSettingTypeWarning(setting);
   } else if (args.prompt) {
-    // A candidate snapshot must carry the structure it will be deployed into, otherwise
-    // preview generation and the eventual deploy both inherit fabricated defaults.
+    // A snapshot must carry the whole live object so a later deploy replaces the config
+    // with the customer's own metadata rather than fabricated defaults — the update
+    // endpoint is a full replace. Only the prompt is local.
     const liveSetting = await loadLiveSettingForPreview(configName);
     structureSource = liveSetting
       ? "inherited from the live Genesys setting (only the prompt is local)"
-      : "fallback defaults — the live setting could not be read, so format, participant labels, " +
-        "PII masking and predefined insights may not match production. Check the snapshot before deploying.";
+      : "fallback defaults — the live setting could not be read, so the non-prompt fields " +
+        "are placeholders. Harmless for generation, but check the snapshot before deploying " +
+        "it, since a deploy replaces the live config wholesale.";
+    settingTypeWarning = unsupportedSettingTypeWarning(liveSetting);
     setting = {
       ...FALLBACK_PREVIEW_STRUCTURE,
       ...(liveSetting ?? {}),
@@ -1839,6 +1906,7 @@ export async function save_version(args: Args) {
     snapshotAt: snapshot.snapshotAt,
     notes: snapshot.notes,
     structure_source: structureSource,
+    ...(settingTypeWarning ? { warning: settingTypeWarning } : {}),
   });
 }
 
@@ -2335,17 +2403,14 @@ export async function start_eval_run(args: Args) {
 
     transcriptPayloads = scorablePayloads;
 
-    // Recorded on the run so the report can say whether previews matched production
-    // structure. A silent fallback is the failure mode worth surfacing: the summaries look
-    // plausible but are formatted differently from anything the prompt can control.
+    // Recorded on the run so the report can name the language the previews were generated
+    // in, and the setting type they were generated under. It deliberately says nothing
+    // about format or insights: those never reach the model, so mentioning them only
+    // invited the reader to excuse a formatting failure as a preview artefact.
     const previewStructure = mode === "existing"
       ? "n/a — evaluating existing production summaries"
-      : previewBase
-        ? `inherited from the live Genesys setting (format: ${previewBase.format}, ` +
-          `insights: ${previewBase.predefinedInsights?.length ?? 0}, ` +
-          `participant labels: ${previewBase.participantLabels ? "yes" : "no"})`
-        : "fallback defaults — the live setting could not be read, so previews may be " +
-          "structured differently from production output";
+      : describePreviewBase(previewBase);
+    const settingTypeWarning = unsupportedSettingTypeWarning(previewBase);
 
     // Create the disk-backed run (claims the run number atomically)
     const pendingMeta = storage.createPendingEvalRun(configName, testSetName, {
@@ -2414,6 +2479,7 @@ export async function start_eval_run(args: Args) {
       prompt_text: prompt ?? null,
       total_transcripts: transcriptPayloads.length,
       preview_structure: previewStructure,
+      ...(settingTypeWarning ? { warning: settingTypeWarning } : {}),
       skipped_transcripts: skippedTranscripts.length,
       skipped_detail: skippedTranscripts.map((s) => ({
         transcript_id: s.transcriptId,
