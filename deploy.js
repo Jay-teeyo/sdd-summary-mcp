@@ -36,7 +36,11 @@ const readline = require('readline');
 const S = require('./deploy/shared');
 const { deployCursor, printCursorNextSteps } = require('./deploy/cursor');
 const { deployKiro, printKiroNextSteps } = require('./deploy/kiro');
-const { registerWithKiroCrew, verifyKiroCrew } = require('./deploy/kirocrew');
+const {
+  registerWithKiroCrew,
+  verifyKiroCrew,
+  isInstalled: kiroCrewInstalled,
+} = require('./deploy/kirocrew');
 
 if (parseInt(process.versions.node.split('.')[0], 10) < 18) {
   S.err(`Node.js 18+ required. You have ${process.version}.`);
@@ -153,6 +157,43 @@ function askHost() {
   });
 }
 
+/**
+ * Offer the dashboard registration, once the host is known to be Kiro.
+ *
+ * WHY THIS IS A SECOND QUESTION, NOT A THIRD HOST
+ * -----------------------------------------------
+ * KiroCrew is not a host. It is an additional place the Kiro install can reach, and
+ * the difference between the two answers is one file outside the project. Listing
+ * "Kiro" and "Kiro + KiroCrew" side by side in the host menu would present them as
+ * competing installs and put a choice about someone else's product in front of
+ * every user, including the ones who do not have it.
+ *
+ * So it is asked only when KiroCrew is actually installed. Without that check this
+ * would be a question most users cannot act on, which is how a prompt trains people
+ * to hit Enter without reading it.
+ *
+ * Defaults to NO. This is the only step that writes outside the target project, so
+ * a hurried Enter must leave the machine as a plain --kiro run would.
+ */
+function askKiroCrew() {
+  return new Promise((resolve) => {
+    console.log(`
+  ${S.bold('KiroCrew is installed. Register the pipeline with its dashboard too?')}
+
+  ${S.dim('Without this the pipeline runs from kiro-cli chat only: a dashboard')}
+  ${S.dim("session runs KiroCrew's own agent and would see none of its tools.")}
+  ${S.dim('Adding it writes one file outside this project (~/.kiro/crew/mcp.json),')}
+  ${S.dim('then needs one click in the dashboard to switch the server on.')}
+`);
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question('  Register with KiroCrew? [y/N]: ', (answer) => {
+      rl.close();
+      resolve(/^y(es)?$/i.test(answer.trim()));
+    });
+  });
+}
+
 // ─── Run ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -178,6 +219,13 @@ async function main() {
   Source: ${S.dim(S.ROOT)}
   Target: ${S.bold(target)}
 `);
+
+  // Asked here, after the target is on screen, so the answer is given with the
+  // project it applies to in view. Skipped when --kirocrew already said yes, when
+  // stdin cannot answer, and when there is no KiroCrew to register with.
+  if (!kirocrew && host === 'kiro' && process.stdin.isTTY && kiroCrewInstalled()) {
+    kirocrew = await askKiroCrew();
+  }
 
   S.ensureBundle();
 
