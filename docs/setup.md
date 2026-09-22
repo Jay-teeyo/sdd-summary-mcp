@@ -162,6 +162,8 @@ A dashboard session does not run your project's agent, so a plain deploy leaves 
 node deploy.js --kiro --kirocrew ..
 ```
 
+You don't have to remember the flag. If you run `deploy.js` interactively, choose Kiro, and KiroCrew is installed on the machine, it asks — defaulting to no, since this is the one step that writes outside your project. The flag is for scripted runs and for skipping the question.
+
 Then, once in the dashboard: **Capabilities → MCP Servers → Chat Tools**, switch `sdd-summary` on, and press **Refresh Tools**.
 
 That click is deliberately yours. It is KiroCrew's consent step for auto-approving a server's tools, and a deploy script should not grant 45 auto-approved tools to every dashboard session on your machine without being asked. Everything up to it is automated.
