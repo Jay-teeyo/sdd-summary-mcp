@@ -269,12 +269,19 @@ export const TOOL_DEFINITIONS: Tool[] = [
   // ─── Summary config ─────────────────────────────────────────────────────────
   {
     name: "list_summary_settings",
-    description: "List all summary configurations defined in the Genesys org.",
+    description:
+      "List all summary configurations defined in the Genesys org, with each one's settingType. " +
+      "Only settingType 'Prompt' configs are in scope for this pipeline — for any other type the " +
+      "model's behaviour comes from fields the pipeline does not read.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "get_summary_setting",
-    description: "Fetch a specific summary configuration by ID, including its current prompt and all settings.",
+    description:
+      "Fetch a specific summary configuration by ID, including its current prompt and all settings. " +
+      "Only the prompt and language affect generated summaries when settingType is 'Prompt'; " +
+      "summaryType, format, maskPII, predefinedInsights and participantLabels are inert metadata. " +
+      "Returns a 'warning' field if settingType is not 'Prompt' — surface it rather than proceeding silently.",
     inputSchema: {
       type: "object",
       properties: {
@@ -379,12 +386,20 @@ export const TOOL_DEFINITIONS: Tool[] = [
         },
         prompt: { type: "string", description: "Custom prompt to test (required if not using summary_setting_id)" },
         language: { type: "string", description: "Language code (default: en-au)" },
-        summary_type: { type: "string", description: "Summary type (default: Concise)" },
-        format: { type: "string", description: "Output format (default: TextBlock)" },
+        summary_type: {
+          type: "string",
+          description: "Inert metadata, not applied to Prompt settings (default: Concise)",
+        },
+        format: {
+          type: "string",
+          description:
+            "Inert metadata, not applied to Prompt settings (default: TextBlock). " +
+            "To control output format, say so in the prompt.",
+        },
         predefined_insights: {
           type: "array",
           items: { type: "string" },
-          description: "Predefined insights to include",
+          description: "Inert metadata, not applied to Prompt settings",
         },
       },
     },

@@ -9,9 +9,18 @@ import type { SummarySetting, PreviewSummaryResponse } from "../types.js";
 /**
  * Build the summarySetting body fragment (fields only, no session/transcript).
  *
- * Everything here influences the generated summary, so a field dropped from this body
- * makes previews diverge from production output — which then shows up as a test-case
- * failure that no prompt change can fix.
+ * WHY EVERY FIELD IS SENT WHEN ONLY TWO ARE READ
+ * ----------------------------------------------
+ * With settingType "Prompt" the model is driven by `prompt` alone, with `language`
+ * selecting the output language. `summaryType`, `format`, `maskPII`,
+ * `predefinedInsights` and `participantLabels` are platform metadata that Genesys
+ * does not apply — anything they appear to describe has to be stated in the prompt
+ * to actually take effect.
+ *
+ * They are still sent verbatim because the endpoint is a full replace: a partial body
+ * is rejected ("Language must not be blank"), and omitting a field would wipe it from
+ * the customer's configuration. So this body preserves them rather than relying on
+ * them.
  */
 function buildSettingBody(setting: SummarySetting) {
   return {

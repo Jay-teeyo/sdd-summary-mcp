@@ -558,7 +558,7 @@ export function runReportFixture(): RunReport {
         "5. Never use the words advised, promised or guaranteed.\n" +
         "6. Keep the summary under 200 words.",
       previewStructure:
-        "inherited from the live Genesys setting (format: BulletPoints, insights: 3, participant labels: yes)",
+        "inherited from the live Genesys setting (language: en-au, settingType: Prompt)",
       transcriptsEvaluated: TRANSCRIPTS.length,
       skipped: SKIPPED,
     },

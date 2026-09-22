@@ -140,7 +140,9 @@ When the user opts in, fetch the configuration with `get_summary_setting(summary
 
 > **The `prompt` field is the sole source of instructions for the AI model.**
 
-All other fields in the configuration object — `summaryType`, `format`, `participantLabels`, `predefinedInsights`, `maskPII`, etc. — are platform metadata used by the Genesys UI. They do not influence model output. **Ignore them entirely when deriving requirements.**
+All other fields in the configuration object — `summaryType`, `format`, `participantLabels`, `predefinedInsights`, `maskPII`, etc. — are platform metadata used by the Genesys UI. They do not influence model output. **Ignore them entirely when deriving requirements.** `language` is the one exception, and only because it selects the output language.
+
+This cuts both ways. Because those fields are inert, a requirement about formatting, section structure or how a speaker is named is testable *only* if the prompt states it. A config set to `format: BulletPoints` whose prompt never asks for bullet points will not produce them — so the requirement belongs in the prompt, and a test case failing it is a genuine defect rather than a configuration mismatch.
 
 Process:
 1. Read the `prompt` field in full
@@ -151,9 +153,11 @@ Process:
 6. Populate the requirements table in ID order
 7. Set the source line to `summary prompt` and copy `dateModified` from the setting
 
-### Other settingTypes
+### Other settingTypes — out of scope
 
-For non-Prompt setting types, consult the Genesys documentation for that type to determine which fields drive model behaviour, then apply the same atomic/testable/traceable principles.
+This pipeline is designed for `settingType: "Prompt"` only. Every stage of it — requirements, test cases, scoring, improvement recommendations — reads the prompt and nothing else, so against any other setting type it is reasoning about an input the model does not use.
+
+The tools warn rather than refuse: `get_summary_setting`, `save_version` and `start_eval_run` return a `warning` field when the live setting is not `Prompt`. Do not quietly carry on. Tell the user the configuration is out of scope, and stop unless they explicitly want to continue knowing the results will not reflect production behaviour.
 
 ---
 

@@ -14769,12 +14769,12 @@ var TOOL_DEFINITIONS = [
   // ─── Summary config ─────────────────────────────────────────────────────────
   {
     name: "list_summary_settings",
-    description: "List all summary configurations defined in the Genesys org.",
+    description: "List all summary configurations defined in the Genesys org, with each one's settingType. Only settingType 'Prompt' configs are in scope for this pipeline \u2014 for any other type the model's behaviour comes from fields the pipeline does not read.",
     inputSchema: { type: "object", properties: {} }
   },
   {
     name: "get_summary_setting",
-    description: "Fetch a specific summary configuration by ID, including its current prompt and all settings.",
+    description: "Fetch a specific summary configuration by ID, including its current prompt and all settings. Only the prompt and language affect generated summaries when settingType is 'Prompt'; summaryType, format, maskPII, predefinedInsights and participantLabels are inert metadata. Returns a 'warning' field if settingType is not 'Prompt' \u2014 surface it rather than proceeding silently.",
     inputSchema: {
       type: "object",
       properties: {
@@ -14864,12 +14864,18 @@ var TOOL_DEFINITIONS = [
         },
         prompt: { type: "string", description: "Custom prompt to test (required if not using summary_setting_id)" },
         language: { type: "string", description: "Language code (default: en-au)" },
-        summary_type: { type: "string", description: "Summary type (default: Concise)" },
-        format: { type: "string", description: "Output format (default: TextBlock)" },
+        summary_type: {
+          type: "string",
+          description: "Inert metadata, not applied to Prompt settings (default: Concise)"
+        },
+        format: {
+          type: "string",
+          description: "Inert metadata, not applied to Prompt settings (default: TextBlock). To control output format, say so in the prompt."
+        },
         predefined_insights: {
           type: "array",
           items: { type: "string" },
-          description: "Predefined insights to include"
+          description: "Inert metadata, not applied to Prompt settings"
         }
       }
     }
@@ -15651,11 +15657,16 @@ submit_eval_scores accepts score: null for any dimension whose applicabilityCond
 Null scores are excluded from overallScore, overallPassed, pass rates, and failure analysis.
 start_eval_run includes applicability_condition on every dimension in the test_cases payload \u2014 check it first before scoring.
 
-## Summary Setting Updates and Previews \u2014 structure comes from the live config
-The summary setting is a full object (language, format, participantLabels, maskPII, predefinedInsights, timeoutDuration).
-update_summary_setting reads the live setting and PUTs it back whole, changing only the prompt \u2014 Genesys rejects a partial body.
-Preview generation and version snapshots inherit that same structure so previews match production output; only the prompt varies.
-If start_eval_run reports preview_structure as "fallback defaults", the live setting could not be read \u2014 say so, because formatting dimensions may then fail for the wrong reason.
+## The prompt is the only input \u2014 settingType "Prompt"
+This pipeline only works with summary configurations whose settingType is "Prompt". Under that type the model reads the prompt and nothing else; language selects the output language.
+summaryType, format, maskPII, predefinedInsights and participantLabels are platform metadata. Genesys does not apply them, so never cite them when deriving requirements, authoring test cases, explaining a score or recommending a change.
+This has a consequence worth stating plainly: a formatting, structure or speaker-naming failure is ALWAYS a defect in the prompt. It can never be excused as a config setting or a preview artefact. If the output must use bullet points or call the customer "member", the prompt has to say so \u2014 setting format: BulletPoints does nothing.
+If a tool returns a warning that settingType is not "Prompt", stop and tell the user the results describe the wrong input.
+
+## Summary Setting Updates and Previews \u2014 every field is preserved, two are read
+update_summary_setting reads the live setting and PUTs it back whole, changing only the prompt \u2014 Genesys rejects a partial body, and omitting a field would wipe it from the customer's config.
+Preview generation and version snapshots inherit the same full object for the same reason. Only prompt and language affect what comes back.
+preview_structure reports the language and settingType a run used. "fallback defaults" means the live setting could not be read and language defaulted to en-au \u2014 mention it if the config is not English, but do not treat it as a caveat on formatting results.
 
 ## Eval Scoring \u2014 interactions with no summary
 A transcript whose summary is "The interaction is too short to create a summary." is skipped entirely, not scored.
@@ -18937,8 +18948,10 @@ function renderChrome() {
     chips.push('<span class="chip danger"><b>Untested requirements</b> <strong>' +
       MODEL.coverage.uncoveredRequirementIds.length + "</strong></span>");
   }
+  // Not "danger": a fallback base only means the live language could not be confirmed.
+  // The prompt still drove every summary, so the scores below stand on their own.
   if (r.previewStructure && r.previewStructure.indexOf("fallback") === 0) {
-    chips.push('<span class="chip danger">Preview structure: fallback defaults</span>');
+    chips.push('<span class="chip warn">Preview language unconfirmed \\u00b7 defaulted to en-au</span>');
   }
   document.getElementById("chips").innerHTML = chips.join("");
 
@@ -20653,13 +20666,20 @@ async function list_transcripts(args) {
 async function list_summary_settings(_args) {
   return withTokenRefresh(async () => {
     const settings = await listSummarySettings();
-    return json(settings.map((s) => ({ id: s.id, name: s.name, language: s.language, prompt: s.prompt?.slice(0, 100) })));
+    return json(settings.map((s) => ({
+      id: s.id,
+      name: s.name,
+      language: s.language,
+      settingType: s.settingType,
+      prompt: s.prompt?.slice(0, 100)
+    })));
   });
 }
 async function get_summary_setting(args) {
   return withTokenRefresh(async () => {
     const setting = await getSummarySetting(str(args, "summary_setting_id"));
-    return json(setting);
+    const warning = unsupportedSettingTypeWarning(setting);
+    return json(warning ? { ...setting, warning } : setting);
   });
 }
 async function create_summary_setting(args) {
@@ -20744,6 +20764,16 @@ async function loadLiveSettingForPreview(configName) {
   } catch {
     return null;
   }
+}
+function unsupportedSettingTypeWarning(setting) {
+  if (!setting || setting.settingType === "Prompt") return null;
+  return `This summary configuration has settingType "${setting.settingType}", not "Prompt". The pipeline evaluates the prompt field alone, so for this config it is reasoning about the wrong input: requirements, test cases and scores will not reflect what production actually generates. Results are not trustworthy \u2014 confirm the setting type before acting on them.`;
+}
+function describePreviewBase(base) {
+  if (!base) {
+    return 'fallback defaults \u2014 the live setting could not be read, so language defaults to en-au. Confirm that matches production; every other field is inert for settingType "Prompt".';
+  }
+  return `inherited from the live Genesys setting (language: ${base.language}, settingType: ${base.settingType})`;
 }
 function buildPreviewSetting(opts) {
   const { base, name, prompt, language, timeoutDuration } = opts;
@@ -21171,12 +21201,15 @@ async function save_version(args) {
   const status = rawStatus ?? (args.summary_setting_id ? "deployed" : "candidate");
   let setting;
   let structureSource;
+  let settingTypeWarning = null;
   if (args.summary_setting_id) {
     setting = await getSummarySetting(str(args, "summary_setting_id"));
     structureSource = "read from the live Genesys setting";
+    settingTypeWarning = unsupportedSettingTypeWarning(setting);
   } else if (args.prompt) {
     const liveSetting = await loadLiveSettingForPreview(configName);
-    structureSource = liveSetting ? "inherited from the live Genesys setting (only the prompt is local)" : "fallback defaults \u2014 the live setting could not be read, so format, participant labels, PII masking and predefined insights may not match production. Check the snapshot before deploying.";
+    structureSource = liveSetting ? "inherited from the live Genesys setting (only the prompt is local)" : "fallback defaults \u2014 the live setting could not be read, so the non-prompt fields are placeholders. Harmless for generation, but check the snapshot before deploying it, since a deploy replaces the live config wholesale.";
+    settingTypeWarning = unsupportedSettingTypeWarning(liveSetting);
     setting = {
       ...FALLBACK_PREVIEW_STRUCTURE,
       ...liveSetting ?? {},
@@ -21197,7 +21230,8 @@ async function save_version(args) {
     summaryConfigName: configName,
     snapshotAt: snapshot.snapshotAt,
     notes: snapshot.notes,
-    structure_source: structureSource
+    structure_source: structureSource,
+    ...settingTypeWarning ? { warning: settingTypeWarning } : {}
   });
 }
 async function list_versions(args) {
@@ -21600,7 +21634,8 @@ These interactions are too brief for the summary engine to act on. Add longer in
       );
     }
     transcriptPayloads = scorablePayloads;
-    const previewStructure = mode === "existing" ? "n/a \u2014 evaluating existing production summaries" : previewBase ? `inherited from the live Genesys setting (format: ${previewBase.format}, insights: ${previewBase.predefinedInsights?.length ?? 0}, participant labels: ${previewBase.participantLabels ? "yes" : "no"})` : "fallback defaults \u2014 the live setting could not be read, so previews may be structured differently from production output";
+    const previewStructure = mode === "existing" ? "n/a \u2014 evaluating existing production summaries" : describePreviewBase(previewBase);
+    const settingTypeWarning = unsupportedSettingTypeWarning(previewBase);
     const pendingMeta = createPendingEvalRun(configName, testSetName, {
       summaryConfigName: configName,
       testSetName,
@@ -21653,6 +21688,7 @@ These interactions are too brief for the summary engine to act on. Add longer in
       prompt_text: prompt ?? null,
       total_transcripts: transcriptPayloads.length,
       preview_structure: previewStructure,
+      ...settingTypeWarning ? { warning: settingTypeWarning } : {},
       skipped_transcripts: skippedTranscripts.length,
       skipped_detail: skippedTranscripts.map((s) => ({
         transcript_id: s.transcriptId,

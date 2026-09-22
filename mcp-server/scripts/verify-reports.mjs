@@ -171,7 +171,7 @@ function writeRun(runNumber, { version, prompt, scores, skipped = [], passRate }
     promptText: prompt,
     promptVersionNumber: version,
     promptVersionStatus: version === 1 ? "deployed" : "candidate",
-    previewStructure: "inherited from the live Genesys setting (format: BulletPoints, insights: 3, participant labels: yes)",
+    previewStructure: "inherited from the live Genesys setting (language: en-au, settingType: Prompt)",
   });
 
   write(`${dir}/TC-Verify.json`, {
