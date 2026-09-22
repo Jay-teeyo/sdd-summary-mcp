@@ -70,7 +70,7 @@ node sdd-summary-mcp/deploy.js --kiro
 node sdd-summary-mcp/deploy.js --cursor
 ```
 
-On Kiro, add `--kirocrew` to also register the server with KiroCrew so a dashboard session can host the pipeline, and `--verify` to check an existing registration without writing anything.
+On Kiro, add `--kirocrew` to also register the server with KiroCrew so a dashboard session can host the pipeline, and `--verify` to check an existing registration without writing anything. The interactive run asks about KiroCrew by itself when it finds it installed, so the flag is mainly for scripts.
 
 **4. Finish setup — this differs by editor**
 
