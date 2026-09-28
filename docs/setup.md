@@ -170,6 +170,8 @@ That click is deliberately yours. It is KiroCrew's consent step for auto-approvi
 
 **Leave the page's trust setting on `Normal`.** The pipeline's own per-tool pre-approvals still apply. `YOLO` and `Trust all tools` override the per-tool scoping the pipeline relies on.
 
+**Then bind the chat tab to your project directory before saying "begin".** Enabling the server delivers the tools; it does not deliver the guidance. `kirocrew.json` declares its steering as `file://.kiro/steering/**/*.md` — a relative glob, resolved against the session's working directory. A tab that is not pointed at your project therefore loads no `sdd-summary-pipeline.md`, and the agent has all 45 tools with no procedure for using them. The symptom is a session that can name the tools but narrates the pipeline instead of running it.
+
 > **Eval scoring still needs the terminal.** KiroCrew's agent has no `use_subagent`, so the scorer subagents that a full eval run fans out to cannot be spawned from a dashboard session. Connecting, building an interaction filter, previews and reports all work there; eval runs need `kiro-cli chat`.
 
 ##### Why a flag is needed at all

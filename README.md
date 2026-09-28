@@ -70,7 +70,7 @@ node sdd-summary-mcp/deploy.js --kiro
 node sdd-summary-mcp/deploy.js --cursor
 ```
 
-On Kiro, add `--kirocrew` to also register the server with KiroCrew so a dashboard session can host the pipeline, and `--verify` to check an existing registration without writing anything. The interactive run asks about KiroCrew by itself when it finds it installed, so the flag is mainly for scripts.
+On Kiro, `--kirocrew` also registers the server with KiroCrew so a dashboard session can host the pipeline, and `--verify` checks an existing registration without writing anything. Neither is something to remember — an interactive run asks about KiroCrew when it finds it installed. See [Also using the KiroCrew dashboard](#also-using-the-kirocrew-dashboard) for the full path.
 
 **4. Finish setup — this differs by editor**
 
@@ -81,6 +81,8 @@ On Kiro, add `--kirocrew` to also register the server with KiroCrew so a dashboa
 Nothing to do. Kiro starts the server on demand and hot-reloads config changes, so there is no toggle and no window reload.
 
 To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`sdd-summary`** with **45 tools**.
+
+Using the KiroCrew dashboard as well? That takes a few more steps — see [below](#also-using-the-kirocrew-dashboard).
 
 </td><td>
 
@@ -119,9 +121,35 @@ Open a new chat in Cursor and say **"begin"**.
 
 The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
 
-> **On Kiro the pipeline runs from `kiro-cli chat`.** The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent under the CLI. A KiroCrew dashboard session runs KiroCrew's own agent instead, so a plain deploy leaves it with none of these tools.
+> **On Kiro the pipeline runs from `kiro-cli chat`.** The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent under the CLI. Any other agent sees no `@sdd-summary/*` tools.
+
+#### Also using the KiroCrew dashboard
+
+Optional, and Kiro only. A dashboard session runs KiroCrew's own agent rather than your project's, so a plain deploy leaves it with none of the pipeline's tools. Four steps get it there.
+
+**1. Say yes when the deploy asks.** When `deploy.js` finds KiroCrew installed it offers to register the server. It defaults to **no**, because this is the one step that writes outside your project. In a script, pass `--kirocrew` instead.
+
+**2. Enable it in the dashboard.** Go to **Capabilities → MCP Servers → Chat Tools**, switch **`sdd-summary`** on, then press **Refresh Tools**.
+
+This click is deliberately left to you — it is KiroCrew's consent step for auto-approving a server's tools, and a deploy script shouldn't hand 45 auto-approved tools to every dashboard session on your machine unasked.
+
+**3. Leave the page's trust setting on `Normal`.** The pipeline's own per-tool pre-approvals still apply. **`YOLO`** and **`Trust all tools`** override the per-tool scoping it relies on.
+
+**4. Bind the chat tab to your project directory**, then say **"begin"**.
+
+Don't skip this. KiroCrew resolves its steering glob relative to the session's working directory, so a tab that isn't pointed at your project gets the 45 tools but none of the pipeline guidance — the agent then knows every tool and none of the procedure.
+
+To check a registration at any time, writing nothing:
+
+```bash
+node sdd-summary-mcp/deploy.js --verify
+```
+
+> **Eval runs still need the terminal.** KiroCrew's agent has no `use_subagent`, so the scorer subagents an eval run fans out to cannot be spawned from a dashboard session. Connecting, building an interaction filter, generating previews and reports all work there; eval runs need `kiro-cli chat`.
 >
-> To reach the dashboard too, deploy with `--kirocrew` and then enable the server under **Capabilities → MCP Servers → Chat Tools**. Eval scoring still needs the CLI — KiroCrew's agent has no `use_subagent`, so the scorer subagents cannot be spawned there. See [KiroCrew dashboard](docs/setup.md#the-kirocrew-dashboard---kirocrew).
+> Registration uses absolute paths, so **one registration serves one project**. Re-running `--kirocrew` from another project repoints it and tells you so. For what the flag writes and why it's needed at all, see [KiroCrew dashboard](docs/setup.md#the-kirocrew-dashboard---kirocrew).
+
+#### Resulting layout
 
 You end up with one of these:
 
