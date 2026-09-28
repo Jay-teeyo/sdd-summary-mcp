@@ -599,6 +599,10 @@ export function mergeEvalScoresToTestCaseFiles(
 
 /**
  * Updates _pending.json with finalized aggregate stats.
+ *
+ * `coverage` is recorded only for a run finalized with scores missing. It is what makes a
+ * partial run legible later: the rates alone look identical to a complete run's, so
+ * anything quoting them — reports, run listings, comparisons — needs the flag to say so.
  */
 export function finalizePendingEvalRun(
   configName: string,
@@ -606,6 +610,7 @@ export function finalizePendingEvalRun(
   runNumber: number,
   aggregatePassRate: number,
   testCasePassRates: Record<string, number>,
+  coverage?: { recorded: number; expected: number; missingTranscriptIds: string[] },
 ): void {
   const p = path.join(evalRunDir(configName, testSetName, runNumber), "_pending.json");
   if (!fs.existsSync(p)) return;
@@ -613,6 +618,12 @@ export function finalizePendingEvalRun(
   meta.finalizedAt = new Date().toISOString();
   meta.aggregatePassRate = aggregatePassRate;
   meta.testCasePassRates = testCasePassRates;
+  if (coverage && coverage.recorded < coverage.expected) {
+    meta.partial = true;
+    meta.recordedScores = coverage.recorded;
+    meta.expectedScores = coverage.expected;
+    meta.missingTranscriptIds = coverage.missingTranscriptIds;
+  }
   writeJson(p, meta);
 }
 

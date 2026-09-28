@@ -327,6 +327,19 @@ export interface EvalRunPendingMeta {
   /** Per-test-case pass rates, populated by finalize_eval_run */
   testCasePassRates?: Record<string, number>;
   /**
+   * Set by finalize_eval_run when the run was finalized with scores missing
+   * (allow_partial=true). Every rate above is then computed over `recordedScores` of
+   * `expectedScores` records, so it is not comparable with a complete run. Absent on a
+   * complete run — read it before quoting a pass rate anywhere.
+   */
+  partial?: boolean;
+  /** Score records present at finalize time. Only written when `partial` is true. */
+  recordedScores?: number;
+  /** Score records the run should have had: transcriptIds × testCaseNames. Only written when `partial` is true. */
+  expectedScores?: number;
+  /** Transcripts that were missing one or more scores at finalize time. Only written when `partial` is true. */
+  missingTranscriptIds?: string[];
+  /**
    * The prompt text used to generate summaries for this run.
    * For prompt_test mode: the candidate prompt (from version file or inline).
    * For existing mode: the prompt from the version snapshot at run start time, if available.

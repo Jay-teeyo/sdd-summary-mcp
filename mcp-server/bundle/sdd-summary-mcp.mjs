@@ -15267,13 +15267,17 @@ Call once per (transcript_id \xD7 test_case_name) combination.`,
   },
   {
     name: "finalize_eval_run",
-    description: "Aggregate all submitted scores for a run and write the final output files. Call this after ALL subagents have finished calling submit_eval_scores \u2014 do not call early.\n\nWHAT IT DOES:\nMerges intermediate per-transcript files into one {TestCaseName}.json per test case, deletes intermediates, computes overall and per-test-case pass rates and average scores, updates _pending.json, and writes both reports: dashboard.html for this run and improvements.html for the test set.\n\nWHAT IT RETURNS:\nA human-readable breakdown including: version tested (e.g. 'Version 1 (candidate)'), the full prompt under test, per-dimension failure analysis with sample evaluator reasoning, and explicit instructions for the improvement recommendations step.\n\nMANDATORY NEXT STEP \u2014 save_improvement_recommendations:\nAfter finalize_eval_run returns, you MUST read its output carefully and write improvements.md using the failure analysis and prompt provided. Then call save_improvement_recommendations to persist it. Do not skip this step.",
+    description: "Aggregate all submitted scores for a run and write the final output files. Call this after ALL subagents have finished calling submit_eval_scores \u2014 do not call early.\n\nThis tool REFUSES to finalize a run that is missing scores, and names the transcripts to re-score. A finished subagent is not proof its batch landed, so expect this to fire occasionally; re-run the named transcripts and finalize once.\n\nWHAT IT DOES:\nMerges intermediate per-transcript files into one {TestCaseName}.json per test case, deletes intermediates, computes overall and per-test-case pass rates and average scores, updates _pending.json, and writes both reports: dashboard.html for this run and improvements.html for the test set.\n\nWHAT IT RETURNS:\nA human-readable breakdown including: version tested (e.g. 'Version 1 (candidate)'), the full prompt under test, per-dimension failure analysis with sample evaluator reasoning, and explicit instructions for the improvement recommendations step.\n\nMANDATORY NEXT STEP \u2014 save_improvement_recommendations:\nAfter finalize_eval_run returns, you MUST read its output carefully and write improvements.md using the failure analysis and prompt provided. Then call save_improvement_recommendations to persist it. Do not skip this step.",
     inputSchema: {
       type: "object",
       properties: {
         summary_config_name: { type: "string" },
         test_set_name: { type: "string" },
-        run_number: { type: "number", description: "run_number returned by start_eval_run" }
+        run_number: { type: "number", description: "run_number returned by start_eval_run" },
+        allow_partial: {
+          type: "boolean",
+          description: "Finalize even though scores are missing for some transcript/test-case pairs. Leave unset. By default a short run is refused, because a pass rate computed over part of the suite still looks authoritative. Only set this when the missing scores are never going to arrive and a partial result is genuinely wanted \u2014 the run is then marked partial and the pass rate covers only the records present. Re-running the missing transcripts is almost always the right move instead."
+        }
       },
       required: ["summary_config_name", "test_set_name", "run_number"]
     }
@@ -16662,13 +16666,19 @@ function mergeEvalScoresToTestCaseFiles(configName, testSetName, runNumber, test
   fs2.readdirSync(dir).filter((f) => f.includes("__") && f.endsWith(".json")).forEach((f) => fs2.unlinkSync(path2.join(dir, f)));
   return merged;
 }
-function finalizePendingEvalRun(configName, testSetName, runNumber, aggregatePassRate, testCasePassRates) {
+function finalizePendingEvalRun(configName, testSetName, runNumber, aggregatePassRate, testCasePassRates, coverage) {
   const p = path2.join(evalRunDir(configName, testSetName, runNumber), "_pending.json");
   if (!fs2.existsSync(p)) return;
   const meta = readJson(p);
   meta.finalizedAt = (/* @__PURE__ */ new Date()).toISOString();
   meta.aggregatePassRate = aggregatePassRate;
   meta.testCasePassRates = testCasePassRates;
+  if (coverage && coverage.recorded < coverage.expected) {
+    meta.partial = true;
+    meta.recordedScores = coverage.recorded;
+    meta.expectedScores = coverage.expected;
+    meta.missingTranscriptIds = coverage.missingTranscriptIds;
+  }
   writeJson(p, meta);
 }
 function listRunStates(configName) {
@@ -21995,7 +22005,11 @@ If the run is genuinely meant to be partial, pass allow_partial=true. The pass r
     testCasePassRates[file.testCaseName] = file.passRate;
   }
   const finalizedMeta = getPendingEvalRun(configName, testSetName, runNumber);
-  finalizePendingEvalRun(configName, testSetName, runNumber, overallPassRate, testCasePassRates);
+  finalizePendingEvalRun(configName, testSetName, runNumber, overallPassRate, testCasePassRates, {
+    recorded: coverage.recorded,
+    expected: coverage.expected,
+    missingTranscriptIds: coverage.missingTranscriptIds
+  });
   const reports = writeReportsForRun(configName, testSetName, runNumber);
   const breakdown = merged.map((f) => `  \u2022 ${f.testCaseName}: avg ${f.averageScore.toFixed(2)} \xB7 ${(f.passRate * 100).toFixed(0)}% pass`).join("\n");
   const dimFailureLines = [];
@@ -22026,17 +22040,22 @@ ${"\u2500".repeat(60)}` : `
 
 PROMPT UNDER TEST [${versionLabel}]:
 (Prompt text not recorded \u2014 re-run with version_number to capture it.)`;
+  const partialBanner = partial2 ? `
+\u26A0 PARTIAL RUN \u2014 ${coverage.recorded} of ${coverage.expected} scores recorded. Missing scores for ${coverage.missingTranscriptIds.length} transcript(s): ${coverage.missingTranscriptIds.slice(0, 20).join(", ")}${coverage.missingTranscriptIds.length > 20 ? ", \u2026" : ""}
+  Every rate below covers only the records present. Do not compare it with a complete
+  run or quote it as this test set's pass rate without saying it is partial.
+` : "";
   return ok(
     `\u2500\u2500\u2500 Eval Run ${runNumber} Finalized \u2500\u2500\u2500
-
+` + partialBanner + `
 Test set:        ${testSetName}
 Config:          ${configName}
 Mode:            ${pending.useExistingSummaries ? "existing summaries" : "prompt test"}
 Version:         ${versionLabel}
 Transcripts:     ${pending.transcriptIds.length}
 ` + (pending.skippedTranscripts?.length ? `Skipped:         ${pending.skippedTranscripts.length} (too short to summarise \u2014 excluded from all pass rates)
-` : "") + `Results saved:   ${scores.length}
-Overall pass:    ${(overallPassRate * 100).toFixed(1)}%
+` : "") + `Results saved:   ${scores.length}${partial2 ? ` of ${coverage.expected} expected` : ""}
+Overall pass:    ${(overallPassRate * 100).toFixed(1)}%${partial2 ? " (partial \u2014 see above)" : ""}
 
 By test case:
 ${breakdown}

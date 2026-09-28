@@ -2967,7 +2967,11 @@ export async function finalize_eval_run(args: Args) {
   }
 
   const finalizedMeta = storage.getPendingEvalRun(configName, testSetName, runNumber)!;
-  storage.finalizePendingEvalRun(configName, testSetName, runNumber, overallPassRate, testCasePassRates);
+  storage.finalizePendingEvalRun(configName, testSetName, runNumber, overallPassRate, testCasePassRates, {
+    recorded: coverage.recorded,
+    expected: coverage.expected,
+    missingTranscriptIds: coverage.missingTranscriptIds,
+  });
 
   // Auto-generate this run's dashboard and refresh the improvements report
   const reports = writeReportsForRun(configName, testSetName, runNumber);
@@ -3011,8 +3015,20 @@ export async function finalize_eval_run(args: Args) {
     ? `\n\nPROMPT UNDER TEST [${versionLabel}]:\n${"─".repeat(60)}\n${pending.promptText}\n${"─".repeat(60)}`
     : `\n\nPROMPT UNDER TEST [${versionLabel}]:\n(Prompt text not recorded — re-run with version_number to capture it.)`;
 
+  // A partial run's rates are indistinguishable from a complete run's at a glance, so the
+  // caveat goes above them rather than in a footnote — this number must not be quoted bare.
+  const partialBanner = partial
+    ? `\n⚠ PARTIAL RUN — ${coverage.recorded} of ${coverage.expected} scores recorded. ` +
+      `Missing scores for ${coverage.missingTranscriptIds.length} transcript(s): ` +
+      `${coverage.missingTranscriptIds.slice(0, 20).join(", ")}` +
+      `${coverage.missingTranscriptIds.length > 20 ? ", …" : ""}\n` +
+      `  Every rate below covers only the records present. Do not compare it with a complete\n` +
+      `  run or quote it as this test set's pass rate without saying it is partial.\n`
+    : "";
+
   return ok(
-    `─── Eval Run ${runNumber} Finalized ───\n\n` +
+    `─── Eval Run ${runNumber} Finalized ───\n` +
+    partialBanner + `\n` +
     `Test set:        ${testSetName}\n` +
     `Config:          ${configName}\n` +
     `Mode:            ${pending.useExistingSummaries ? "existing summaries" : "prompt test"}\n` +
@@ -3021,8 +3037,8 @@ export async function finalize_eval_run(args: Args) {
     (pending.skippedTranscripts?.length
       ? `Skipped:         ${pending.skippedTranscripts.length} (too short to summarise — excluded from all pass rates)\n`
       : "") +
-    `Results saved:   ${scores.length}\n` +
-    `Overall pass:    ${(overallPassRate * 100).toFixed(1)}%\n\n` +
+    `Results saved:   ${scores.length}${partial ? ` of ${coverage.expected} expected` : ""}\n` +
+    `Overall pass:    ${(overallPassRate * 100).toFixed(1)}%${partial ? " (partial — see above)" : ""}\n\n` +
     `By test case:\n${breakdown}\n\n` +
     `Output: eval-runs/${testSetName}/${String(runNumber).padStart(4, "0")}/\n` +
     merged.map((f) => `  ${f.testCaseName}.json  (${f.totalTranscripts} transcripts)`).join("\n") + "\n\n" +
