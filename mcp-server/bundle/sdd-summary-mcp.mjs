@@ -14894,7 +14894,7 @@ var TOOL_DEFINITIONS = [
   // ─── Test cases ──────────────────────────────────────────────────────────────
   {
     name: "generate_test_case",
-    description: "Generate an evaluation test case (rubric) for a specific summary configuration, based on example transcripts and their ideal summaries. Returns step-by-step authoring instructions and reference examples. IMPORTANT: the returned instructions require the agent to reason about applicability_condition for every dimension before calling save_test_case. If the agent is uncertain whether a dimension applies 'always' or only conditionally, it MUST stop and ask the user to clarify \u2014 never default to 'always' without being sure. Only call save_test_case once all applicability_conditions are confirmed.",
+    description: "Generate an evaluation test case (rubric) for a specific summary configuration, based on example transcripts and their ideal summaries. Returns step-by-step authoring instructions and reference examples. Test cases are derived from requirements/final/requirements.md, not from the prompt directly: every dimension must cite the BR- ids it validates, so read the requirements first. IMPORTANT: the returned instructions require the agent to reason about applicability_condition for every dimension before calling save_test_case. If the agent is uncertain whether a dimension applies 'always' or only conditionally, it MUST stop and ask the user to clarify \u2014 never default to 'always' without being sure. Only call save_test_case once all applicability_conditions are confirmed.",
     inputSchema: {
       type: "object",
       properties: {
@@ -14927,7 +14927,7 @@ var TOOL_DEFINITIONS = [
   },
   {
     name: "save_test_case",
-    description: "Save an evaluation test case (rubric) to a summary configuration's test-cases folder. Each test case is identified by its name and contains evaluation dimensions with pass/fail criteria. REQUIRED: every dimension must have applicability_condition set. Use 'always' for dimensions that apply to every transcript unconditionally. Use a plain-English condition string for dimensions that only apply when a specific condition is true in the transcript or summary (e.g. 'Summary contains bullets.', 'Only applies when a third party participated.'). Never call this tool with applicability_condition still set to 'always' for a dimension you are uncertain about \u2014 ask the user first.",
+    description: "Save an evaluation test case (rubric) to a summary configuration's test-cases folder. Each test case is identified by its name and contains evaluation dimensions with pass/fail criteria. REQUIRED on every dimension: requirement_ids tracing to requirements/final/requirements.md, plus non-empty pass_criteria and fail_criteria. All three are refused if blank, and unknown requirement ids are refused too \u2014 a dimension that traces to nothing makes its requirement read as untested in every run dashboard, and empty criteria leave the scorer guessing. The response reports which requirements are still uncovered, so keep calling until none are. REQUIRED: every dimension must have applicability_condition set. Use 'always' for dimensions that apply to every transcript unconditionally. Use a plain-English condition string for dimensions that only apply when a specific condition is true in the transcript or summary (e.g. 'Summary contains bullets.', 'Only applies when a third party participated.'). Never call this tool with applicability_condition still set to 'always' for a dimension you are uncertain about \u2014 ask the user first.",
     inputSchema: {
       type: "object",
       properties: {
@@ -14950,12 +14950,30 @@ var TOOL_DEFINITIONS = [
                 type: "string",
                 description: 'When this dimension should be evaluated. Use "always" for dimensions that apply to every transcript. Use a plain-English condition for dimensions that only apply conditionally (e.g. "Only applies when the call involves a third party"). REQUIRED on every dimension \u2014 must always be set, never omitted. Evaluators will check this condition first: if the condition is not met for a transcript, they submit score: null (N/A) which is excluded from pass-rate calculations.'
               },
-              pass_criteria: { type: "string" },
-              fail_criteria: { type: "string" },
+              pass_criteria: {
+                type: "string",
+                description: "What a passing summary looks like for this dimension, specifically enough to judge against. This is the text the scorer reasons from \u2014 a dimension with an empty pass_criteria is scored on the evaluator's guess at what the name means. Rejected if blank."
+              },
+              fail_criteria: {
+                type: "string",
+                description: "What a failing summary looks like for this dimension. Rejected if blank, for the same reason as pass_criteria."
+              },
               pass_threshold: { type: "number", description: "Minimum score (0\u20131) to pass this dimension. Default 0.8." },
-              requirement_ids: { type: "array", items: { type: "string" }, description: 'Business requirement IDs this dimension validates, e.g. ["BR-Acme_CallSummary-001"]' }
+              requirement_ids: {
+                type: "array",
+                items: { type: "string" },
+                description: 'REQUIRED. The BR- ids from requirements/final/requirements.md that this dimension validates, e.g. ["BR-Acme_CallSummary-001"]. Ids are checked against that file and unknown ones are rejected, so do not invent or guess them. This is what makes a dimension traceable: a requirement with no dimension pointing at it is reported as untested in every run dashboard. If a dimension you want genuinely validates nothing in requirements.md, the requirement is missing from that file \u2014 add it there first rather than leaving this blank.'
+              }
             },
-            required: ["name", "description", "weight", "applicability_condition", "pass_criteria", "fail_criteria"]
+            required: [
+              "name",
+              "description",
+              "weight",
+              "applicability_condition",
+              "pass_criteria",
+              "fail_criteria",
+              "requirement_ids"
+            ]
           }
         }
       },
@@ -20956,11 +20974,57 @@ async function save_test_case(args) {
     }),
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
+  const problems = [];
+  for (const [i, dim] of testCase.dimensions.entries()) {
+    const where = `dimensions[${i}] "${dim.name || "(unnamed)"}"`;
+    if (!dim.passCriteria.trim()) problems.push(`${where}: pass_criteria is empty.`);
+    if (!dim.failCriteria.trim()) problems.push(`${where}: fail_criteria is empty.`);
+    if (!dim.requirementIds || dim.requirementIds.length === 0) {
+      problems.push(`${where}: requirement_ids is empty.`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Test case "${name}" was not saved \u2014 ${problems.length} problem(s):
+
+` + problems.map((p) => `  \u2022 ${p}`).join("\n") + `
+
+pass_criteria and fail_criteria are what the scorer judges against; a dimension carrying only a name and description is scored on the evaluator's guess. requirement_ids is what makes the dimension traceable \u2014 without it the run report counts the requirement as untested.
+
+If a dimension genuinely validates nothing in requirements/final/requirements.md, the requirement is missing from that file: add it there first rather than leaving the link blank.`
+    );
+  }
+  const parsed = loadRequirements(configName);
+  if (!parsed.unavailable) {
+    const known = new Set(parsed.requirements.map((r) => r.id));
+    const unknown2 = [
+      ...new Set(
+        testCase.dimensions.flatMap((d) => (d.requirementIds ?? []).filter((id) => !known.has(id)))
+      )
+    ];
+    if (unknown2.length > 0) {
+      throw new Error(
+        `Test case "${name}" was not saved \u2014 ${unknown2.length} requirement id(s) do not exist in requirements/final/requirements.md:
+
+` + unknown2.map((id) => `  \u2022 ${id}`).join("\n") + `
+
+There are ${parsed.requirements.length} requirements on file, ${parsed.filePath ?? ""}. Read it for the real ids, or add the missing requirement to it first.`
+      );
+    }
+  }
   saveTestCase(configName, testCase);
+  const linked = [...new Set(testCase.dimensions.flatMap((d) => d.requirementIds ?? []))];
+  const coveredAcrossAll = new Set(
+    listTestCases(configName).flatMap((tc) => tc.dimensions.flatMap((d) => d.requirementIds ?? []))
+  );
+  const stillUncovered = parsed.unavailable ? [] : parsed.requirements.filter((r) => !coveredAcrossAll.has(r.id)).map((r) => r.id);
   return json({
     name: testCase.name,
     summaryConfigName: configName,
-    dimensions: testCase.dimensions.length
+    dimensions: testCase.dimensions.length,
+    requirements_linked_by_this_test_case: linked,
+    requirements_still_uncovered: stillUncovered,
+    coverage_note: parsed.unavailable ? "requirements.md could not be read, so coverage was not checked." : stillUncovered.length === 0 ? `All ${parsed.requirements.length} requirements are now covered by at least one dimension.` : `${coveredAcrossAll.size} of ${parsed.requirements.length} requirements covered. The ids above have no dimension validating them yet.`
   });
 }
 async function list_test_cases(args) {
@@ -21761,6 +21825,26 @@ async function get_eval_batch(args) {
     note: `Score every one of these ${transcripts.length} transcripts against all ${testCases.length} test cases, then call submit_eval_scores once per pair (${transcripts.length * testCases.length} calls). You do not need to pass summary_text \u2014 the run already holds the exact text being scored.` + (missing.length > 0 ? ` STOP and report instead of scoring: no stored summary for ${missing.join(", ")}.` : "")
   });
 }
+function computeRunCoverage(configName, pending) {
+  const recorded = getEvalScores(configName, pending.testSetName, pending.runNumber);
+  const have = new Set(recorded.map((r) => `${r.transcriptId}\0${r.testCaseName}`));
+  const missing = [];
+  for (const transcriptId of pending.transcriptIds) {
+    for (const testCaseName of pending.testCaseNames) {
+      if (!have.has(`${transcriptId}\0${testCaseName}`)) {
+        missing.push({ transcript_id: transcriptId, test_case_name: testCaseName });
+      }
+    }
+  }
+  return {
+    expected: pending.transcriptIds.length * pending.testCaseNames.length,
+    recorded: recorded.length,
+    missing,
+    // What a re-run is actually keyed on: a batch is a set of transcript ids, so this is
+    // the list to hand back to use_subagent.
+    missingTranscriptIds: [...new Set(missing.map((m) => m.transcript_id))]
+  };
+}
 async function submit_eval_scores(args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
@@ -21833,13 +21917,22 @@ async function submit_eval_scores(args) {
     overallPassed,
     overallScore
   });
+  const coverage = computeRunCoverage(configName, pending);
+  const perTranscriptMissing = coverage.missing.filter((m) => m.transcript_id === transcriptId);
   return json({
     saved: true,
     transcript_id: transcriptId,
     test_case_name: testCaseName,
     overall_score: overallScore.toFixed(3),
     overall_passed: overallPassed,
-    dimensions_scored: dimensionScores.length
+    dimensions_scored: dimensionScores.length,
+    this_transcript: {
+      recorded: pending.testCaseNames.length - perTranscriptMissing.length,
+      expected: pending.testCaseNames.length,
+      still_missing: perTranscriptMissing.map((m) => m.test_case_name)
+    },
+    run_total: { recorded: coverage.recorded, expected: coverage.expected },
+    note: perTranscriptMissing.length > 0 ? `Transcript ${transcriptLabel} still needs: ${perTranscriptMissing.map((m) => m.test_case_name).join(", ")}.` : `Transcript ${transcriptLabel} is fully scored. Do not report your batch complete until every transcript you were assigned reads the same.`
   });
 }
 function writeReportsForRun(configName, testSetName, runNumber) {
@@ -21878,6 +21971,23 @@ async function finalize_eval_run(args) {
   if (scores.length === 0) {
     return ok(`No scores submitted for run ${runNumber} yet. Ensure all subagents have completed before finalizing.`);
   }
+  const coverage = computeRunCoverage(configName, pending);
+  if (coverage.missing.length > 0 && args.allow_partial !== true) {
+    const byTranscript = coverage.missingTranscriptIds.map((id) => {
+      const cases = coverage.missing.filter((m) => m.transcript_id === id).map((m) => m.test_case_name);
+      return `  \u2022 ${id} \u2014 missing ${cases.length}/${pending.testCaseNames.length}: ${cases.join(", ")}`;
+    }).join("\n");
+    throw new Error(
+      `Run ${runNumber} is incomplete: ${coverage.recorded} of ${coverage.expected} scores recorded, ${coverage.missing.length} missing across ${coverage.missingTranscriptIds.length} transcript(s).
+
+${byTranscript}
+
+A subagent can report success having written nothing, so a finished stage is not proof its batch landed \u2014 this is what that looks like. Re-run scoring for the transcript ids above, then finalize once.
+
+If the run is genuinely meant to be partial, pass allow_partial=true. The pass rate will then be computed over the ${coverage.recorded} records present, and the run will be marked partial.`
+    );
+  }
+  const partial2 = coverage.missing.length > 0;
   const merged = mergeEvalScoresToTestCaseFiles(configName, testSetName, runNumber, pending.testCaseNames);
   const overallPassRate = scores.filter((s) => s.overallPassed).length / scores.length;
   const testCasePassRates = {};
@@ -22218,12 +22328,30 @@ async function get_pipeline_state(args) {
     runs: {
       total: runs.length,
       finalized: finalised.length,
-      in_progress: unfinalised.map((r) => ({
-        test_set_name: r.testSetName,
-        run_number: r.runNumber,
-        started_at: r.startedAt,
-        note: "Started but never finalized \u2014 call finalize_eval_run or treat it as abandoned."
-      })),
+      // Score coverage is reported here because this is where the orchestration guidance
+      // sends you to find out what landed. A finished scoring stage is not evidence its
+      // batch was recorded, and the subagent transcript that could once confirm it expires
+      // within minutes — so the run's own files have to be able to answer.
+      in_progress: unfinalised.map((r) => {
+        const pending = getPendingEvalRun(configName, r.testSetName, r.runNumber);
+        const coverage = pending ? computeRunCoverage(configName, pending) : null;
+        return {
+          test_set_name: r.testSetName,
+          run_number: r.runNumber,
+          started_at: r.startedAt,
+          scores: coverage ? {
+            recorded: coverage.recorded,
+            expected: coverage.expected,
+            complete: coverage.missing.length === 0,
+            missing_count: coverage.missing.length,
+            // The ids to re-batch. Capped so a run that recorded nothing does not
+            // bury the rest of the state in a list of every transcript.
+            missing_transcript_ids: coverage.missingTranscriptIds.slice(0, 40),
+            missing_transcript_ids_truncated: coverage.missingTranscriptIds.length > 40
+          } : null,
+          note: coverage === null ? "Started but never finalized, and its metadata could not be read." : coverage.missing.length === 0 ? "All scores recorded \u2014 safe to call finalize_eval_run." : `Incomplete: ${coverage.recorded}/${coverage.expected} scores recorded. Re-run scoring for missing_transcript_ids, then finalize. finalize_eval_run refuses a partial run unless allow_partial=true.`
+        };
+      }),
       latest_finalized: finalised[0] ? {
         test_set_name: finalised[0].testSetName,
         run_number: finalised[0].runNumber,

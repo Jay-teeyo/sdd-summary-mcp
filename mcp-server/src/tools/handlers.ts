@@ -33,6 +33,7 @@ import type {
   TestCase,
   TestSet,
   EvalRunMeta,
+  EvalRunPendingMeta,
   EvalRunResult,
   SkippedTranscript,
 } from "../types.js";
@@ -1545,11 +1546,87 @@ export async function save_test_case(args: Args) {
     createdAt: new Date().toISOString(),
   };
 
+  // WHY THESE ARE CHECKED HERE AND NOT LEFT TO THE SCHEMA
+  // ----------------------------------------------------
+  // A JSON Schema `required` array only forces a key to be present, not to say anything.
+  // passCriteria and failCriteria were already required and still arrived as "" on every
+  // dimension of every test case in a real workspace, which left the scorer judging them
+  // with nothing but a name and a description. requirementIds was merely optional, and was
+  // omitted wholesale — so requirement coverage reported every requirement as untested
+  // while the test cases plainly exercised most of them.
+  //
+  // Refusing the save is the only feedback that actually lands: an empty field costs
+  // nothing to write and its absence is invisible until a dashboard contradicts itself
+  // several steps later.
+  const problems: string[] = [];
+  for (const [i, dim] of testCase.dimensions.entries()) {
+    const where = `dimensions[${i}] "${dim.name || "(unnamed)"}"`;
+    if (!dim.passCriteria.trim()) problems.push(`${where}: pass_criteria is empty.`);
+    if (!dim.failCriteria.trim()) problems.push(`${where}: fail_criteria is empty.`);
+    if (!dim.requirementIds || dim.requirementIds.length === 0) {
+      problems.push(`${where}: requirement_ids is empty.`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Test case "${name}" was not saved — ${problems.length} problem(s):\n\n` +
+      problems.map((p) => `  • ${p}`).join("\n") +
+      `\n\npass_criteria and fail_criteria are what the scorer judges against; a dimension ` +
+      `carrying only a name and description is scored on the evaluator's guess. ` +
+      `requirement_ids is what makes the dimension traceable — without it the run report ` +
+      `counts the requirement as untested.\n\n` +
+      `If a dimension genuinely validates nothing in requirements/final/requirements.md, the ` +
+      `requirement is missing from that file: add it there first rather than leaving the link blank.`,
+    );
+  }
+
+  // Unknown ids are rejected rather than stored. A typo'd or invented id silently produces
+  // a requirement that looks untested plus a dimension that traces nowhere — build.ts
+  // already surfaces these as unknownRequirementIds after the fact, which is too late to
+  // be useful.
+  const parsed = loadRequirements(configName);
+  if (!parsed.unavailable) {
+    const known = new Set(parsed.requirements.map((r) => r.id));
+    const unknown = [
+      ...new Set(
+        testCase.dimensions.flatMap((d) => (d.requirementIds ?? []).filter((id) => !known.has(id))),
+      ),
+    ];
+    if (unknown.length > 0) {
+      throw new Error(
+        `Test case "${name}" was not saved — ${unknown.length} requirement id(s) do not exist in ` +
+        `requirements/final/requirements.md:\n\n` +
+        unknown.map((id) => `  • ${id}`).join("\n") +
+        `\n\nThere are ${parsed.requirements.length} requirements on file, ${parsed.filePath ?? ""}. ` +
+        `Read it for the real ids, or add the missing requirement to it first.`,
+      );
+    }
+  }
+
   storage.saveTestCase(configName, testCase);
+
+  // Coverage is returned so authoring can be closed as a loop here, rather than the gap
+  // surfacing as an "untested requirements" chip on a dashboard after a run has been scored.
+  const linked = [...new Set(testCase.dimensions.flatMap((d) => d.requirementIds ?? []))];
+  const coveredAcrossAll = new Set(
+    storage.listTestCases(configName).flatMap((tc) => tc.dimensions.flatMap((d) => d.requirementIds ?? [])),
+  );
+  const stillUncovered = parsed.unavailable
+    ? []
+    : parsed.requirements.filter((r) => !coveredAcrossAll.has(r.id)).map((r) => r.id);
+
   return json({
     name: testCase.name,
     summaryConfigName: configName,
     dimensions: testCase.dimensions.length,
+    requirements_linked_by_this_test_case: linked,
+    requirements_still_uncovered: stillUncovered,
+    coverage_note: parsed.unavailable
+      ? "requirements.md could not be read, so coverage was not checked."
+      : stillUncovered.length === 0
+        ? `All ${parsed.requirements.length} requirements are now covered by at least one dimension.`
+        : `${coveredAcrossAll.size} of ${parsed.requirements.length} requirements covered. ` +
+          `The ids above have no dimension validating them yet.`,
   });
 }
 
@@ -2604,6 +2681,54 @@ export async function get_eval_batch(args: Args) {
   });
 }
 
+/**
+ * Score coverage for a run: how many transcript × test-case records exist against how
+ * many the run demands, and exactly which are absent.
+ *
+ * WHY THIS IS NEEDED
+ * ------------------
+ * A scoring subagent can report success having written nothing — a stage on the wrong
+ * role has no submit_eval_scores at all, and one that ends in plain text delivers
+ * nothing back to its parent. "The stage finished" is therefore not evidence that its
+ * batch landed. The only way to check used to be reading the subagent's own transcript,
+ * which expires within minutes of the stage ending, so a run could become unverifiable
+ * purely by being looked at too late.
+ *
+ * Both halves of the answer are already on disk: `transcriptIds` (skipped transcripts
+ * are excluded from it) crossed with `testCaseNames`, against the per-record files
+ * submit_eval_scores writes. Nothing extra has to be tracked while a run is open.
+ */
+function computeRunCoverage(
+  configName: string,
+  pending: EvalRunPendingMeta,
+): {
+  expected: number;
+  recorded: number;
+  missing: Array<{ transcript_id: string; test_case_name: string }>;
+  missingTranscriptIds: string[];
+} {
+  const recorded = storage.getEvalScores(configName, pending.testSetName, pending.runNumber);
+  const have = new Set(recorded.map((r) => `${r.transcriptId}\u0000${r.testCaseName}`));
+
+  const missing: Array<{ transcript_id: string; test_case_name: string }> = [];
+  for (const transcriptId of pending.transcriptIds) {
+    for (const testCaseName of pending.testCaseNames) {
+      if (!have.has(`${transcriptId}\u0000${testCaseName}`)) {
+        missing.push({ transcript_id: transcriptId, test_case_name: testCaseName });
+      }
+    }
+  }
+
+  return {
+    expected: pending.transcriptIds.length * pending.testCaseNames.length,
+    recorded: recorded.length,
+    missing,
+    // What a re-run is actually keyed on: a batch is a set of transcript ids, so this is
+    // the list to hand back to use_subagent.
+    missingTranscriptIds: [...new Set(missing.map((m) => m.transcript_id))],
+  };
+}
+
 export async function submit_eval_scores(args: Args) {
   const configName = str(args, "summary_config_name");
   const testSetName = str(args, "test_set_name");
@@ -2717,6 +2842,13 @@ export async function submit_eval_scores(args: Args) {
     overallScore,
   });
 
+  // Progress is returned on every save so a scorer can tell a complete batch from a
+  // partial one before it reports back. Submitting 25 scores otherwise yields 25
+  // unrelated confirmations and no sense of whether anything is outstanding, which is
+  // how a stage ends up claiming success with records missing.
+  const coverage = computeRunCoverage(configName, pending);
+  const perTranscriptMissing = coverage.missing.filter((m) => m.transcript_id === transcriptId);
+
   return json({
     saved: true,
     transcript_id: transcriptId,
@@ -2724,6 +2856,17 @@ export async function submit_eval_scores(args: Args) {
     overall_score: overallScore.toFixed(3),
     overall_passed: overallPassed,
     dimensions_scored: dimensionScores.length,
+    this_transcript: {
+      recorded: pending.testCaseNames.length - perTranscriptMissing.length,
+      expected: pending.testCaseNames.length,
+      still_missing: perTranscriptMissing.map((m) => m.test_case_name),
+    },
+    run_total: { recorded: coverage.recorded, expected: coverage.expected },
+    note:
+      perTranscriptMissing.length > 0
+        ? `Transcript ${transcriptLabel} still needs: ${perTranscriptMissing.map((m) => m.test_case_name).join(", ")}.`
+        : `Transcript ${transcriptLabel} is fully scored. Do not report your batch complete ` +
+          `until every transcript you were assigned reads the same.`,
   });
 }
 
@@ -2782,6 +2925,34 @@ export async function finalize_eval_run(args: Args) {
   if (scores.length === 0) {
     return ok(`No scores submitted for run ${runNumber} yet. Ensure all subagents have completed before finalizing.`);
   }
+
+  // REFUSING A PARTIAL RUN
+  // ----------------------
+  // Checking only for zero scores catches the wrong failure. Kiro's crew is fail-fast:
+  // one erroring stage cancels its siblings, so the realistic outcome is *some* batches
+  // landing, not none. Finalizing then averages whatever arrived, writes a dashboard, and
+  // presents a pass rate computed over part of the suite as the run's result — a number
+  // that looks authoritative and is wrong, which is worse than no number at all.
+  const coverage = computeRunCoverage(configName, pending);
+  if (coverage.missing.length > 0 && args.allow_partial !== true) {
+    const byTranscript = coverage.missingTranscriptIds
+      .map((id) => {
+        const cases = coverage.missing.filter((m) => m.transcript_id === id).map((m) => m.test_case_name);
+        return `  • ${id} — missing ${cases.length}/${pending.testCaseNames.length}: ${cases.join(", ")}`;
+      })
+      .join("\n");
+    throw new Error(
+      `Run ${runNumber} is incomplete: ${coverage.recorded} of ${coverage.expected} scores recorded, ` +
+      `${coverage.missing.length} missing across ${coverage.missingTranscriptIds.length} transcript(s).\n\n` +
+      `${byTranscript}\n\n` +
+      `A subagent can report success having written nothing, so a finished stage is not proof its ` +
+      `batch landed — this is what that looks like. Re-run scoring for the transcript ids above, ` +
+      `then finalize once.\n\n` +
+      `If the run is genuinely meant to be partial, pass allow_partial=true. The pass rate will then ` +
+      `be computed over the ${coverage.recorded} records present, and the run will be marked partial.`,
+    );
+  }
+  const partial = coverage.missing.length > 0;
 
   // Merge intermediate per-transcript files → one {testCaseName}.json per test case
   const merged = storage.mergeEvalScoresToTestCaseFiles(configName, testSetName, runNumber, pending.testCaseNames);
@@ -3248,12 +3419,39 @@ export async function get_pipeline_state(args: Args) {
     runs: {
       total: runs.length,
       finalized: finalised.length,
-      in_progress: unfinalised.map((r) => ({
-        test_set_name: r.testSetName,
-        run_number: r.runNumber,
-        started_at: r.startedAt,
-        note: "Started but never finalized — call finalize_eval_run or treat it as abandoned.",
-      })),
+      // Score coverage is reported here because this is where the orchestration guidance
+      // sends you to find out what landed. A finished scoring stage is not evidence its
+      // batch was recorded, and the subagent transcript that could once confirm it expires
+      // within minutes — so the run's own files have to be able to answer.
+      in_progress: unfinalised.map((r) => {
+        const pending = storage.getPendingEvalRun(configName, r.testSetName, r.runNumber);
+        const coverage = pending ? computeRunCoverage(configName, pending) : null;
+        return {
+          test_set_name: r.testSetName,
+          run_number: r.runNumber,
+          started_at: r.startedAt,
+          scores: coverage
+            ? {
+                recorded: coverage.recorded,
+                expected: coverage.expected,
+                complete: coverage.missing.length === 0,
+                missing_count: coverage.missing.length,
+                // The ids to re-batch. Capped so a run that recorded nothing does not
+                // bury the rest of the state in a list of every transcript.
+                missing_transcript_ids: coverage.missingTranscriptIds.slice(0, 40),
+                missing_transcript_ids_truncated: coverage.missingTranscriptIds.length > 40,
+              }
+            : null,
+          note:
+            coverage === null
+              ? "Started but never finalized, and its metadata could not be read."
+              : coverage.missing.length === 0
+                ? "All scores recorded — safe to call finalize_eval_run."
+                : `Incomplete: ${coverage.recorded}/${coverage.expected} scores recorded. Re-run scoring ` +
+                  `for missing_transcript_ids, then finalize. finalize_eval_run refuses a partial run ` +
+                  `unless allow_partial=true.`,
+        };
+      }),
       latest_finalized: finalised[0]
         ? {
             test_set_name: finalised[0].testSetName,

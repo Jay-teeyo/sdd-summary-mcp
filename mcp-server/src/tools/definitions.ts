@@ -423,6 +423,8 @@ export const TOOL_DEFINITIONS: Tool[] = [
     description:
       "Generate an evaluation test case (rubric) for a specific summary configuration, based on example transcripts and their ideal summaries. " +
       "Returns step-by-step authoring instructions and reference examples. " +
+      "Test cases are derived from requirements/final/requirements.md, not from the prompt directly: every " +
+      "dimension must cite the BR- ids it validates, so read the requirements first. " +
       "IMPORTANT: the returned instructions require the agent to reason about applicability_condition for every dimension before calling save_test_case. " +
       "If the agent is uncertain whether a dimension applies 'always' or only conditionally, it MUST stop and ask the user to clarify — never default to 'always' without being sure. " +
       "Only call save_test_case once all applicability_conditions are confirmed.",
@@ -461,6 +463,11 @@ export const TOOL_DEFINITIONS: Tool[] = [
     description:
       "Save an evaluation test case (rubric) to a summary configuration's test-cases folder. " +
       "Each test case is identified by its name and contains evaluation dimensions with pass/fail criteria. " +
+      "REQUIRED on every dimension: requirement_ids tracing to requirements/final/requirements.md, plus " +
+      "non-empty pass_criteria and fail_criteria. All three are refused if blank, and unknown requirement ids " +
+      "are refused too — a dimension that traces to nothing makes its requirement read as untested in every " +
+      "run dashboard, and empty criteria leave the scorer guessing. The response reports which requirements " +
+      "are still uncovered, so keep calling until none are. " +
       "REQUIRED: every dimension must have applicability_condition set. " +
       "Use 'always' for dimensions that apply to every transcript unconditionally. " +
       "Use a plain-English condition string for dimensions that only apply when a specific condition is true in the transcript or summary (e.g. 'Summary contains bullets.', 'Only applies when a third party participated.'). " +
@@ -491,12 +498,41 @@ export const TOOL_DEFINITIONS: Tool[] = [
                   "REQUIRED on every dimension — must always be set, never omitted. Evaluators will check this condition first: " +
                   "if the condition is not met for a transcript, they submit score: null (N/A) which is excluded from pass-rate calculations.",
               },
-              pass_criteria: { type: "string" },
-              fail_criteria: { type: "string" },
+              pass_criteria: {
+                type: "string",
+                description:
+                  "What a passing summary looks like for this dimension, specifically enough to judge against. " +
+                  "This is the text the scorer reasons from — a dimension with an empty pass_criteria is scored " +
+                  "on the evaluator's guess at what the name means. Rejected if blank.",
+              },
+              fail_criteria: {
+                type: "string",
+                description:
+                  "What a failing summary looks like for this dimension. Rejected if blank, for the same reason " +
+                  "as pass_criteria.",
+              },
               pass_threshold: { type: "number", description: "Minimum score (0–1) to pass this dimension. Default 0.8." },
-              requirement_ids: { type: "array", items: { type: "string" }, description: "Business requirement IDs this dimension validates, e.g. [\"BR-Acme_CallSummary-001\"]" },
+              requirement_ids: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "REQUIRED. The BR- ids from requirements/final/requirements.md that this dimension validates, " +
+                  "e.g. [\"BR-Acme_CallSummary-001\"]. Ids are checked against that file and unknown ones are " +
+                  "rejected, so do not invent or guess them. This is what makes a dimension traceable: a " +
+                  "requirement with no dimension pointing at it is reported as untested in every run dashboard. " +
+                  "If a dimension you want genuinely validates nothing in requirements.md, the requirement is " +
+                  "missing from that file — add it there first rather than leaving this blank.",
+              },
             },
-            required: ["name", "description", "weight", "applicability_condition", "pass_criteria", "fail_criteria"],
+            required: [
+              "name",
+              "description",
+              "weight",
+              "applicability_condition",
+              "pass_criteria",
+              "fail_criteria",
+              "requirement_ids",
+            ],
           },
         },
       },
