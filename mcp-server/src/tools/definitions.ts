@@ -898,6 +898,9 @@ export const TOOL_DEFINITIONS: Tool[] = [
     description:
       "Aggregate all submitted scores for a run and write the final output files. " +
       "Call this after ALL subagents have finished calling submit_eval_scores — do not call early.\n\n" +
+      "This tool REFUSES to finalize a run that is missing scores, and names the transcripts to re-score. " +
+      "A finished subagent is not proof its batch landed, so expect this to fire occasionally; re-run the " +
+      "named transcripts and finalize once.\n\n" +
       "WHAT IT DOES:\n" +
       "Merges intermediate per-transcript files into one {TestCaseName}.json per test case, deletes intermediates, " +
       "computes overall and per-test-case pass rates and average scores, updates _pending.json, " +
@@ -916,6 +919,15 @@ export const TOOL_DEFINITIONS: Tool[] = [
         summary_config_name: { type: "string" },
         test_set_name: { type: "string" },
         run_number: { type: "number", description: "run_number returned by start_eval_run" },
+        allow_partial: {
+          type: "boolean",
+          description:
+            "Finalize even though scores are missing for some transcript/test-case pairs. Leave unset. " +
+            "By default a short run is refused, because a pass rate computed over part of the suite still " +
+            "looks authoritative. Only set this when the missing scores are never going to arrive and a " +
+            "partial result is genuinely wanted — the run is then marked partial and the pass rate covers " +
+            "only the records present. Re-running the missing transcripts is almost always the right move instead.",
+        },
       },
       required: ["summary_config_name", "test_set_name", "run_number"],
     },
