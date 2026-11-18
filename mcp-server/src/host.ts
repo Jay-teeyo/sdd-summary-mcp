@@ -10,7 +10,7 @@
  * fail loudly — the agent simply has no such tool, so the parallel eval mode
  * quietly stops working.
  *
- * Rather than shipping two bundles, the deploy script writes SDDSUM_HOST into
+ * Rather than shipping two bundles, the deploy script writes COPILOT_SUMMARY_HOST into
  * the generated MCP config and the guidance text is selected from it here.
  *
  * An unset or unrecognised value is NOT an error: it yields deliberately
@@ -22,7 +22,7 @@
 export type HostKind = "cursor" | "kiro" | "generic";
 
 export function getHost(): HostKind {
-  const raw = (process.env.SDDSUM_HOST ?? "").trim().toLowerCase();
+  const raw = (process.env.COPILOT_SUMMARY_HOST ?? "").trim().toLowerCase();
   if (raw === "cursor") return "cursor";
   if (raw === "kiro") return "kiro";
   return "generic";
@@ -34,7 +34,7 @@ export function getHost(): HostKind {
  * guidance all have to agree on it — a mismatch means the crew tool refuses
  * the stage with "Agents not available for crew stages".
  */
-export const KIRO_SCORER_AGENT = "sdd-summary-scorer";
+export const KIRO_SCORER_AGENT = "copilot-summary-optimizer-scorer";
 
 /** The model Kiro scoring stages run on. Cheapest and fastest available tier. */
 export const KIRO_SCORER_MODEL = "claude-haiku-4.5";

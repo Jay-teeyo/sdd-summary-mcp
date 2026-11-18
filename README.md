@@ -1,4 +1,4 @@
-# SDD Summary — Genesys Cloud Summary Prompt Testing Pipeline
+# Copilot Summary Optimizer — Genesys Cloud Summary Prompt Testing Pipeline
 
 A tooling bundle for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**. It works in **Kiro** and in **Cursor**.
 
@@ -39,15 +39,15 @@ From the menu bar: **View → Terminal**. It opens in the workspace root, so the
 **3. Clone and deploy — one command**
 
 ```bash
-git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp && node sdd-summary-mcp/deploy.js
+git clone https://github.com/GenesysCloudBlueprints/copilot-summary-optimizer-mcp-blueprint.git copilot-summary-optimizer-mcp && node copilot-summary-optimizer-mcp/deploy.js
 ```
 
 On **Windows PowerShell**, `&&` is a syntax error — it only exists in PowerShell 7, and Windows
 ships 5.1. Run the two commands on separate lines instead:
 
 ```powershell
-git clone https://github.com/Jay-teeyo/sdd-summary-mcp.git sdd-summary-mcp
-node sdd-summary-mcp/deploy.js
+git clone https://github.com/GenesysCloudBlueprints/copilot-summary-optimizer-mcp-blueprint.git copilot-summary-optimizer-mcp
+node copilot-summary-optimizer-mcp/deploy.js
 ```
 
 Run it from the project root. `deploy.js` deploys into the current directory by default, which is exactly where you want it.
@@ -66,8 +66,8 @@ It will ask which editor you use:
 To skip the question — useful in a script — pass the host directly:
 
 ```bash
-node sdd-summary-mcp/deploy.js --kiro
-node sdd-summary-mcp/deploy.js --cursor
+node copilot-summary-optimizer-mcp/deploy.js --kiro
+node copilot-summary-optimizer-mcp/deploy.js --cursor
 ```
 
 On Kiro, `--kirocrew` also registers the server with KiroCrew so a dashboard session can host the pipeline, and `--verify` checks an existing registration without writing anything. Neither is something to remember — an interactive run asks about KiroCrew when it finds it installed. See [Also using the KiroCrew dashboard](#also-using-the-kirocrew-dashboard) for the full path.
@@ -80,7 +80,7 @@ On Kiro, `--kirocrew` also registers the server with KiroCrew so a dashboard ses
 
 Nothing to do. Kiro starts the server on demand and hot-reloads config changes, so there is no toggle and no window reload.
 
-To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`sdd-summary`** with **45 tools**.
+To confirm, run `/mcp` in a chat or `kiro-cli mcp list` — you should see **`copilot-summary-optimizer`** with **45 tools**.
 
 Using the KiroCrew dashboard as well? That takes a few more steps — see [below](#also-using-the-kirocrew-dashboard).
 
@@ -89,7 +89,7 @@ Using the KiroCrew dashboard as well? That takes a few more steps — see [below
 Two manual steps:
 
 1. **View → Command Palette → "Developer: Reload Window"**
-2. Open **Customize** in the sidebar → **MCPs** → toggle **`sdd-summary`** on. It should then report **45 tools**.
+2. Open **Customize** in the sidebar → **MCPs** → toggle **`copilot-summary-optimizer`** on. It should then report **45 tools**.
 
 **Writing the config does not enable the server** and Cursor has no setting to pre-enable it, so this toggle is required. If the entry is missing entirely the config wasn't found — check step 1 opened the project folder itself.
 
@@ -110,7 +110,7 @@ kiro-cli chat
 
 Then say **"begin"**.
 
-It must be `kiro-cli chat`, started in this directory. `chat.defaultAgent` resolves to `sdd-summary` there, and no `--agent` flag is needed.
+It must be `kiro-cli chat`, started in this directory. `chat.defaultAgent` resolves to `copilot-summary-optimizer` there, and no `--agent` flag is needed.
 
 </td><td>
 
@@ -121,7 +121,7 @@ Open a new chat in Cursor and say **"begin"**.
 
 The agent checks whether you already have a Genesys OAuth client and walks you through creating one only if you don't.
 
-> **On Kiro the pipeline runs from `kiro-cli chat`.** The `sdd-summary` MCP server is declared inside `.kiro/agents/sdd-summary.json`, so it loads for that agent under the CLI. Any other agent sees no `@sdd-summary/*` tools.
+> **On Kiro the pipeline runs from `kiro-cli chat`.** The `copilot-summary-optimizer` MCP server is declared inside `.kiro/agents/copilot-summary-optimizer.json`, so it loads for that agent under the CLI. Any other agent sees no `@copilot-summary-optimizer/*` tools.
 
 #### Also using the KiroCrew dashboard
 
@@ -129,7 +129,7 @@ Optional, and Kiro only. A dashboard session runs KiroCrew's own agent rather th
 
 **1. Say yes when the deploy asks.** When `deploy.js` finds KiroCrew installed it offers to register the server. It defaults to **no**, because this is the one step that writes outside your project. In a script, pass `--kirocrew` instead.
 
-**2. Enable it in the dashboard.** Go to **Capabilities → MCP Servers → Chat Tools**, switch **`sdd-summary`** on, then press **Refresh Tools**.
+**2. Enable it in the dashboard.** Go to **Capabilities → MCP Servers → Chat Tools**, switch **`copilot-summary-optimizer`** on, then press **Refresh Tools**.
 
 This click is deliberately left to you — it is KiroCrew's consent step for auto-approving a server's tools, and a deploy script shouldn't hand 45 auto-approved tools to every dashboard session on your machine unasked.
 
@@ -142,7 +142,7 @@ Don't skip this. KiroCrew resolves its steering glob relative to the session's w
 To check a registration at any time, writing nothing:
 
 ```bash
-node sdd-summary-mcp/deploy.js --verify
+node copilot-summary-optimizer-mcp/deploy.js --verify
 ```
 
 > **Eval runs still need the terminal.** KiroCrew's agent has no `use_subagent`, so the scorer subagents an eval run fans out to cannot be spawned from a dashboard session. Connecting, building an interaction filter, generating previews and reports all work there; eval runs need `kiro-cli chat`.
@@ -157,15 +157,15 @@ You end up with one of these:
 my-summary-project/                    ← Kiro
 ├── .kiro/
 │   ├── agents/
-│   │   ├── sdd-summary.json           ← server + 36 pre-approved tools + steering
-│   │   └── sdd-summary-scorer.json    ← eval scoring subagent
-│   ├── settings/cli.json              ← makes sdd-summary this project's default agent
+│   │   ├── copilot-summary-optimizer.json           ← server + 36 pre-approved tools + steering
+│   │   └── copilot-summary-optimizer-scorer.json    ← eval scoring subagent
+│   ├── settings/cli.json              ← makes copilot-summary-optimizer this project's default agent
 │   ├── steering/
-│   │   └── sdd-summary-pipeline.md    ← pipeline guidance
-│   └── sdd-summary/
-│       └── sdd-summary-mcp.mjs        ← the vendored server bundle
+│   │   └── copilot-summary-optimizer-pipeline.md    ← pipeline guidance
+│   └── copilot-summary-optimizer/
+│       └── copilot-summary-optimizer-mcp.mjs        ← the vendored server bundle
 ├── .gitignore                         ← written/extended for you
-└── sdd-summary-mcp/                   ← this repo, gitignored
+└── copilot-summary-optimizer-mcp/                   ← this repo, gitignored
 ```
 
 ```
@@ -175,10 +175,10 @@ my-summary-project/                    ← Cursor
 │   ├── permissions.json               ← pre-approved tools, so eval runs don't stall
 │   ├── rules/                         ← pipeline guidance
 │   ├── skills/                        ← pipeline skills (when present)
-│   └── sdd-summary/
-│       └── sdd-summary-mcp.mjs        ← the vendored server bundle
+│   └── copilot-summary-optimizer/
+│       └── copilot-summary-optimizer-mcp.mjs        ← the vendored server bundle
 ├── .gitignore                         ← written/extended for you
-└── sdd-summary-mcp/                   ← this repo, gitignored
+└── copilot-summary-optimizer-mcp/                   ← this repo, gitignored
 ```
 
 Neither config contains an **absolute path**, so the project keeps working if it's moved, renamed, or handed to a colleague. Cursor gets there via `${workspaceFolder}`; Kiro doesn't expand that placeholder, so it uses a workspace-relative path instead — Kiro launches the server with the workspace root as its working directory, which makes a relative path resolve correctly. If the project already has config files of its own, the script merges into them and preserves anything else you had configured.
@@ -186,13 +186,13 @@ Neither config contains an **absolute path**, so the project keeps working if it
 To update later, from the project root:
 
 ```bash
-cd sdd-summary-mcp && git pull && cd .. && node sdd-summary-mcp/deploy.js
+cd copilot-summary-optimizer-mcp && git pull && cd .. && node copilot-summary-optimizer-mcp/deploy.js
 ```
 
 In Windows PowerShell:
 
 ```powershell
-cd sdd-summary-mcp; git pull; cd ..; node sdd-summary-mcp/deploy.js
+cd copilot-summary-optimizer-mcp; git pull; cd ..; node copilot-summary-optimizer-mcp/deploy.js
 ```
 
 The vendored bundle is a snapshot, so re-running `deploy.js` is what actually applies a server change. On Cursor, reload the window afterwards; on Kiro the change is hot-reloaded.
@@ -207,7 +207,7 @@ Installs once and applies to every workspace. Not recommended — see the scope 
 
 ```bash
 # Local install — works offline, no git or network needed
-ln -s /path/to/SDD-Summary ~/.cursor/plugins/local/sdd-summary
+ln -s /path/to/copilot-summary-optimizer ~/.cursor/plugins/local/copilot-summary-optimizer
 ```
 
 Or in Cursor, open **Customize → Plugins** and paste this repository's URL into the plugin search. Marketplace installs additionally offer a project-scope choice at install time. Then run **Developer: Reload Window**.
@@ -219,9 +219,9 @@ Or in Cursor, open **Customize → Plugins** and paste this repository's URL int
 Under every option, working data is written to **the workspace you have open**, never to the install location:
 
 - `summaryconfig-lifecycle/` — transcripts, test cases, eval runs, version history
-- `.sdd-summary/` — credentials and tokens
+- `.copilot-summary-optimizer/` — credentials and tokens
 
-Both are workspace-relative, so re-deploying or reinstalling never touches your data. They hold OAuth tokens and customer transcripts, so they must never be committed — `deploy.js` adds them to the project's `.gitignore` for you, along with the nested `sdd-summary-mcp/` clone.
+Both are workspace-relative, so re-deploying or reinstalling never touches your data. They hold OAuth tokens and customer transcripts, so they must never be committed — `deploy.js` adds them to the project's `.gitignore` for you, along with the nested `copilot-summary-optimizer-mcp/` clone.
 
 ---
 
@@ -235,7 +235,7 @@ In Genesys Admin → **Integrations → OAuth → Add Client**:
 
 | Field | Value |
 |---|---|
-| **App Name** | `SDD Summary MCP` (or any name) |
+| **App Name** | `Copilot Summary Optimizer MCP` (or any name) |
 | **Grant Types** | ✅ **Code Authorization** |
 | **Redirect URI** | `http://localhost:8787/callback` |
 
@@ -320,7 +320,7 @@ Full reference: ask the agent to call `get_pipeline_guide()`, or see [`docs/work
 ## Repository Structure
 
 ```
-SDD-Summary/
+copilot-summary-optimizer/
 ├── deploy.js                      ← project-scoped deploy (asks Kiro or Cursor)
 ├── deploy/
 │   ├── shared.js                  ← common deploy helpers
@@ -344,7 +344,7 @@ SDD-Summary/
     ├── src/                       ← TypeScript source
     ├── build.mjs                  ← esbuild bundler
     ├── bundle/
-    │   └── sdd-summary-mcp.mjs    ← COMMITTED single-file server
+    │   └── copilot-summary-optimizer-mcp.mjs    ← COMMITTED single-file server
     └── dist/                      ← local tsc output (gitignored)
 ```
 
@@ -353,8 +353,8 @@ SDD-Summary/
 The server bundle is byte-identical for both editors; only the wiring differs.
 
 - **`mcp.json`** holds the canonical pre-approved tool list under `alwaysAllow`. That key is not in either host's schema — each deploy target translates it into what the host actually reads (Cursor: `permissions.json` → `mcpAllowlist`; Kiro: `allowedTools` in the agent config). Add a tool there once and both hosts pick it up.
-- **`rules/sdd-summary-pipeline.mdc`** is the single guidance source. Cursor consumes it verbatim. The Kiro target rewrites the frontmatter (`alwaysApply: true` → `inclusion: always`) and swaps the region between the `<!-- HOST-SPECIFIC:EVAL-ORCHESTRATION -->` markers for `kiro/eval-orchestration.md`. If those markers are missing the deploy **fails loudly**, rather than shipping Cursor's instructions to a Kiro user.
-- **`SDDSUM_HOST`** is set by each target, so the server's own `get_pipeline_guide()` output names the right parallel-agent mechanism. See `mcp-server/src/host.ts`.
+- **`rules/copilot-summary-optimizer-pipeline.mdc`** is the single guidance source. Cursor consumes it verbatim. The Kiro target rewrites the frontmatter (`alwaysApply: true` → `inclusion: always`) and swaps the region between the `<!-- HOST-SPECIFIC:EVAL-ORCHESTRATION -->` markers for `kiro/eval-orchestration.md`. If those markers are missing the deploy **fails loudly**, rather than shipping Cursor's instructions to a Kiro user.
+- **`COPILOT_SUMMARY_HOST`** is set by each target, so the server's own `get_pipeline_guide()` output names the right parallel-agent mechanism. See `mcp-server/src/host.ts`.
 
 Per-config working data lives in the **consuming workspace**, not here:
 
@@ -379,20 +379,20 @@ The committed bundle is what the editor actually runs, so **any source change re
 cd mcp-server
 npm install          # first time only
 npm run typecheck    # verify types
-npm run bundle       # regenerate bundle/sdd-summary-mcp.mjs
+npm run bundle       # regenerate bundle/copilot-summary-optimizer-mcp.mjs
 ```
 
 Then re-run `deploy.js` against your test project to refresh its vendored copy. On Cursor, reload the window afterwards; on Kiro the change is hot-reloaded.
 
 To develop against a live copy on Cursor, symlink the repo as a local plugin (Option B above) — edits become active on the next rebundle plus window reload.
 
-`SDDSUM_HOST` selects the host-specific guidance the server emits (`cursor`, `kiro`, or unset for neutral wording). To check what a host will actually see, set it when running the server by hand.
+`COPILOT_SUMMARY_HOST` selects the host-specific guidance the server emits (`cursor`, `kiro`, or unset for neutral wording). To check what a host will actually see, set it when running the server by hand.
 
 ---
 
 ## Security
 
-- **Never commit credentials.** `.sdd-summary/` is gitignored, as is `.cursor/mcp.json`.
+- **Never commit credentials.** `.copilot-summary-optimizer/` is gitignored, as is `.cursor/mcp.json`.
 - **Never commit customer data.** `summaryconfig-lifecycle/` contains transcripts with PII and is gitignored in full.
 - Tokens are user-scoped and expire in roughly 30 minutes; any API call reopens the browser on expiry.
 - `update_summary_setting` and `update_copilot_config` write to live Genesys and are deliberately **not** pre-approved on either host — they always require explicit confirmation. On Kiro the eval scoring subagent has them removed outright via `disabledTools`, so a scoring stage cannot reach live Genesys even by mistake.

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * SDD Summary — Cursor deploy target (project-scoped).
+ * Copilot Summary Optimizer — Cursor deploy target (project-scoped).
  *
  * Behaviour is unchanged from the original single-file deploy.js. Cursor's
  * documented project-scoped mechanisms are `.cursor/mcp.json`,
@@ -25,7 +25,7 @@ const path = require('path');
 const fs = require('fs');
 const S = require('./shared');
 
-const VENDOR_REL = path.join('.cursor', 'sdd-summary');
+const VENDOR_REL = path.join('.cursor', 'copilot-summary-optimizer');
 
 function deployCursor(target) {
   const { serverDef, allowTools } = S.readServerDefinition();
@@ -37,11 +37,11 @@ function deployCursor(target) {
   // ─── 2. Merge .cursor/mcp.json ──────────────────────────────────────────────
   // Cursor expands ${workspaceFolder}, so no absolute path is written.
   serverDef.args = [
-    '${workspaceFolder}/' + path.posix.join('.cursor', 'sdd-summary', S.BUNDLE_NAME),
+    '${workspaceFolder}/' + path.posix.join('.cursor', 'copilot-summary-optimizer', S.BUNDLE_NAME),
   ];
   // Tell the server which host it is running under, so its guidance names
   // Cursor's parallel-agent mechanism rather than Kiro's. See mcp-server/src/host.ts.
-  serverDef.env = Object.assign({}, serverDef.env, { SDDSUM_HOST: 'cursor' });
+  serverDef.env = Object.assign({}, serverDef.env, { COPILOT_SUMMARY_HOST: 'cursor' });
 
   const targetMcpPath = path.join(target, '.cursor', 'mcp.json');
   let targetCfg = { mcpServers: {} };

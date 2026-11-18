@@ -1,6 +1,6 @@
 'use strict';
 /**
- * SDD Summary — Kiro deploy target (project-scoped).
+ * Copilot Summary Optimizer — Kiro deploy target (project-scoped).
  *
  * WHAT KIRO NEEDS THAT CURSOR DOES NOT
  * ------------------------------------
@@ -47,9 +47,9 @@ const path = require('path');
 const fs = require('fs');
 const S = require('./shared');
 
-const VENDOR_REL = path.join('.kiro', 'sdd-summary');
-const MAIN_AGENT = 'sdd-summary';
-const SCORER_AGENT = 'sdd-summary-scorer';
+const VENDOR_REL = path.join('.kiro', 'copilot-summary-optimizer');
+const MAIN_AGENT = 'copilot-summary-optimizer';
+const SCORER_AGENT = 'copilot-summary-optimizer-scorer';
 
 const MARKER_OPEN = '<!-- HOST-SPECIFIC:EVAL-ORCHESTRATION -->';
 const MARKER_CLOSE = '<!-- /HOST-SPECIFIC:EVAL-ORCHESTRATION -->';
@@ -121,7 +121,7 @@ function buildSteering(rulePath, kiroBlockPath) {
  *
  * WHY THE DRIFT CHECK BELOW EXISTS
  * --------------------------------
- * The template's own `@sdd-summary/*` entries are DISCARDED and regenerated from
+ * The template's own `@copilot-summary-optimizer/*` entries are DISCARDED and regenerated from
  * mcp.json — but the template is also the artefact copied by hand for a
  * user-scope install (see docs/setup.md Option B), where no deploy ever runs and
  * its list IS the effective one. So the two must agree, and nothing structural
@@ -149,7 +149,7 @@ function writeAgent(target, agentName, allowTools) {
   // Point the server at the vendored bundle, relative to the workspace root.
   // Verified: Kiro launches the server with the workspace root as its CWD, so a
   // relative path resolves and the config stays free of absolute paths.
-  const relArg = path.posix.join('.kiro', 'sdd-summary', S.BUNDLE_NAME);
+  const relArg = path.posix.join('.kiro', 'copilot-summary-optimizer', S.BUNDLE_NAME);
   if (agent.mcpServers && agent.mcpServers[S.SERVER_KEY]) {
     agent.mcpServers[S.SERVER_KEY].args = [relArg];
   }
@@ -212,14 +212,14 @@ function deployKiro(target) {
   S.ok(`.kiro/agents/${SCORER_AGENT}.json written (eval scoring subagent)`);
 
   // ─── 3. Steering (transformed from the Cursor rule) ─────────────────────────
-  const rule = path.join(S.SOURCE_RULES, 'sdd-summary-pipeline.mdc');
+  const rule = path.join(S.SOURCE_RULES, 'copilot-summary-optimizer-pipeline.mdc');
   const kiroBlock = path.join(S.SOURCE_KIRO, 'eval-orchestration.md');
   if (fs.existsSync(rule) && fs.existsSync(kiroBlock)) {
     const steering = buildSteering(rule, kiroBlock);
-    const destPath = path.join(target, '.kiro', 'steering', 'sdd-summary-pipeline.md');
+    const destPath = path.join(target, '.kiro', 'steering', 'copilot-summary-optimizer-pipeline.md');
     fs.mkdirSync(path.dirname(destPath), { recursive: true });
     fs.writeFileSync(destPath, steering);
-    S.ok('.kiro/steering/sdd-summary-pipeline.md written (Kiro orchestration substituted)');
+    S.ok('.kiro/steering/copilot-summary-optimizer-pipeline.md written (Kiro orchestration substituted)');
   } else {
     S.warn('Pipeline rule or Kiro orchestration block missing — steering not written.');
   }
@@ -321,7 +321,7 @@ ${
     : ''
 }
     To verify the install: ${S.bold('/mcp')} in chat, or ${S.bold('kiro-cli mcp list')}.
-    It should report the ${S.bold('sdd-summary')} server with ${S.bold('45 tools')}.${
+    It should report the ${S.bold('copilot-summary-optimizer')} server with ${S.bold('45 tools')}.${
       crew
         ? `\n    For the KiroCrew side: ${S.bold('node deploy.js --verify ' + path.basename(target))}`
         : ''

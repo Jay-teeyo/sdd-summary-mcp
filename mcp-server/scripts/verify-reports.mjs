@@ -21,8 +21,8 @@ const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "sdd-report-verify-"));
 const CONFIG = "VerifyConfig";
 const TEST_SET = "Verify-Suite";
 
-process.env.SDDSUM_LIFECYCLE_PATH = workspace;
-process.env.SDDSUM_STORAGE_PATH = path.join(workspace, ".sdd-summary");
+process.env.COPILOT_SUMMARY_LIFECYCLE_PATH = workspace;
+process.env.COPILOT_SUMMARY_STORAGE_PATH = path.join(workspace, ".copilot-summary-optimizer");
 
 // ─── Synthetic workspace ──────────────────────────────────────────────────────
 

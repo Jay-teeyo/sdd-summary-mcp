@@ -1,0 +1,81 @@
+{
+  "name": "copilot-summary-optimizer",
+  "description": "Genesys Cloud Agent Copilot / AI Studio summary prompt testing pipeline. Fetches transcripts, authors requirements and test cases, runs evaluations, and iterates on prompts.",
+  "prompt": "You run the Copilot Summary Optimizer testing pipeline for Genesys Cloud Agent Copilot / AI Studio summary configurations.\n\nThe pipeline procedure is in your steering context and is authoritative \u2014 follow it rather than improvising an order. Call get_pipeline_guide() for the complete tool reference.\n\nTwo rules override any inclination to be helpful by pressing on:\n\n1. When you ask the user anything \u2014 a gate, an approval, a clarification \u2014 END YOUR TURN on the question. Never work while a question is outstanding and never leave two open. An unanswered question stays live with no timestamp, so its answer can arrive much later and read as a fresh instruction to redo finished work.\n\n2. Before acting on any instruction that names a version or a run number, call get_pipeline_state(summary_config_name=...). It reads local files only. If the instruction names a version or run that already exists, it describes finished work \u2014 say so and ask, rather than burning preview API calls redoing it or pushing a live prompt backwards.\n\nupdate_summary_setting and update_copilot_config write to live Genesys. They are deliberately NOT pre-approved and always require explicit user confirmation.",
+  "tools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "shell",
+    "use_subagent",
+    "@copilot-summary-optimizer"
+  ],
+  "allowedTools": [
+    "read",
+    "grep",
+    "glob",
+    "@copilot-summary-optimizer/get_pipeline_guide",
+    "@copilot-summary-optimizer/connect",
+    "@copilot-summary-optimizer/login",
+    "@copilot-summary-optimizer/complete_login",
+    "@copilot-summary-optimizer/smoke_test_auth",
+    "@copilot-summary-optimizer/build_interaction_filter",
+    "@copilot-summary-optimizer/search_conversations",
+    "@copilot-summary-optimizer/fetch_transcript",
+    "@copilot-summary-optimizer/fetch_transcripts_bulk",
+    "@copilot-summary-optimizer/fetch_existing_summaries_bulk",
+    "@copilot-summary-optimizer/get_existing_summaries",
+    "@copilot-summary-optimizer/list_transcripts",
+    "@copilot-summary-optimizer/list_summary_settings",
+    "@copilot-summary-optimizer/get_summary_setting",
+    "@copilot-summary-optimizer/list_assistants",
+    "@copilot-summary-optimizer/get_copilot_config",
+    "@copilot-summary-optimizer/generate_preview_summary",
+    "@copilot-summary-optimizer/generate_test_case",
+    "@copilot-summary-optimizer/save_test_case",
+    "@copilot-summary-optimizer/list_test_cases",
+    "@copilot-summary-optimizer/save_test_set",
+    "@copilot-summary-optimizer/list_test_sets",
+    "@copilot-summary-optimizer/prepare_prompt_test",
+    "@copilot-summary-optimizer/start_eval_run",
+    "@copilot-summary-optimizer/get_eval_batch",
+    "@copilot-summary-optimizer/submit_eval_scores",
+    "@copilot-summary-optimizer/finalize_eval_run",
+    "@copilot-summary-optimizer/list_eval_runs",
+    "@copilot-summary-optimizer/save_version",
+    "@copilot-summary-optimizer/list_versions",
+    "@copilot-summary-optimizer/save_improvement_recommendations",
+    "@copilot-summary-optimizer/generate_eval_run_dashboard",
+    "@copilot-summary-optimizer/generate_improvements_dashboard",
+    "@copilot-summary-optimizer/generate_rollup_report",
+    "@copilot-summary-optimizer/regenerate_reports",
+    "@copilot-summary-optimizer/get_pipeline_state"
+  ],
+  "toolsSettings": {
+    "crew": {
+      "availableAgents": [
+        "copilot-summary-optimizer-scorer"
+      ],
+      "trustedAgents": [
+        "copilot-summary-optimizer-scorer"
+      ]
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/**/SKILL.md"
+  ],
+  "mcpServers": {
+    "copilot-summary-optimizer": {
+      "command": "node",
+      "args": [
+        ".kiro/copilot-summary-optimizer/copilot-summary-optimizer-mcp.mjs"
+      ],
+      "env": {
+        "COPILOT_SUMMARY_HOST": "kiro"
+      },
+      "timeout": 120000
+    }
+  }
+}

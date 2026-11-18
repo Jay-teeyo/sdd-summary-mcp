@@ -31,7 +31,7 @@ export const TOOL_DEFINITIONS: Tool[] = [
   {
     name: "get_pipeline_guide",
     description:
-      "Returns the complete SDD Summary pipeline reference guide as markdown. " +
+      "Returns the complete Copilot Summary Optimizer pipeline reference guide as markdown. " +
       "Call this at the start of a session to get the full workflow documentation: " +
       "pipeline step order, authentication, transcript fetching, evaluation modes, " +
       "version management rules, deployment gate, report rules, rate limiting notes, " +

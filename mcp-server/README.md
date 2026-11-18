@@ -1,4 +1,4 @@
-# SDD Summary Optimiser — MCP Server
+# Copilot Summary Optimizer Optimiser — MCP Server
 
 An MCP (Model Context Protocol) server for developing, testing, and iteratively improving **Genesys Cloud Agent Copilot / AI Studio summary prompts**.
 
@@ -16,13 +16,13 @@ This server is not configured by hand. `deploy.js` at the repository root asks w
 | Kiro global agents | Every workspace | Agent files in `~/.kiro/agents/` with an absolute path to the bundle |
 | Cursor plugin install | Every workspace | Repo-root `mcp.json` resolved via `${CURSOR_PLUGIN_ROOT}` |
 
-All of them run the committed single-file bundle at `bundle/sdd-summary-mcp.mjs`. There is no dependency install or build step on the consuming machine.
+All of them run the committed single-file bundle at `bundle/copilot-summary-optimizer-mcp.mjs`. There is no dependency install or build step on the consuming machine.
 
 Project scope is recommended because this server exposes 45 Genesys-specific tools plus always-applied guidance; at user scope those load into unrelated projects. On Cursor there is no documented way to disable a user-scoped plugin per project; on Kiro global steering loads in every workspace and the global agent needs an absolute bundle path, losing portability.
 
 ### What differs between the two hosts
 
-The server code is host-agnostic apart from one thing: the guidance it emits about spawning parallel scoring subagents, since the editors expose different mechanisms. `SDDSUM_HOST` selects that text — see `src/host.ts`.
+The server code is host-agnostic apart from one thing: the guidance it emits about spawning parallel scoring subagents, since the editors expose different mechanisms. `COPILOT_SUMMARY_HOST` selects that text — see `src/host.ts`.
 
 The packaging differs more:
 
@@ -31,7 +31,7 @@ The packaging differs more:
 | Server declared in | `.kiro/agents/*.json` | `.cursor/mcp.json` |
 | Bundle path style | Workspace-relative (Kiro's CWD *is* the workspace root) | `${workspaceFolder}` |
 | Tool pre-approval | `allowedTools` in the agent config | `.cursor/permissions.json` → `mcpAllowlist` |
-| Scoring subagents | `use_subagent`, `role: sdd-summary-scorer` | Task tool |
+| Scoring subagents | `use_subagent`, `role: copilot-summary-optimizer-scorer` | Task tool |
 
 Kiro expands neither `${workspaceFolder}` nor `${CURSOR_PLUGIN_ROOT}`, which is why its config uses a relative path and omits the storage variables entirely.
 
@@ -50,10 +50,10 @@ Required scopes: `ai-studio`, `analytics`, `assistants`, `conversations`, `notif
 cd mcp-server
 npm install          # first time only
 npm run typecheck    # verify types without emitting
-npm run bundle       # regenerate bundle/sdd-summary-mcp.mjs
+npm run bundle       # regenerate bundle/copilot-summary-optimizer-mcp.mjs
 ```
 
-`bundle/sdd-summary-mcp.mjs` is a **committed artefact**, because nothing on the consuming side ever runs a build: the deploy script vendors this file straight into the target project, and a Cursor plugin install clones the repository without building at all. Any change under `src/` therefore requires `npm run bundle` plus a commit, or the change will not reach users.
+`bundle/copilot-summary-optimizer-mcp.mjs` is a **committed artefact**, because nothing on the consuming side ever runs a build: the deploy script vendors this file straight into the target project, and a Cursor plugin install clones the repository without building at all. Any change under `src/` therefore requires `npm run bundle` plus a commit, or the change will not reach users.
 
 `npm run build` (plain `tsc` into `dist/`) remains available for local type-checking and debugging, but `dist/` is gitignored and is not what the editor runs.
 
@@ -62,14 +62,14 @@ Report templates are `.html`/`.css`/`.js` files inlined into the bundle at build
 To verify a bundle in isolation:
 
 ```bash
-node bundle/sdd-summary-mcp.mjs
-# should print: SDD Summary MCP server running (stdio)
+node bundle/copilot-summary-optimizer-mcp.mjs
+# should print: Copilot Summary Optimizer MCP server running (stdio)
 ```
 
 To see what a given host's guidance will actually look like, set the host when running it by hand:
 
 ```bash
-SDDSUM_HOST=kiro node bundle/sdd-summary-mcp.mjs
+COPILOT_SUMMARY_HOST=kiro node bundle/copilot-summary-optimizer-mcp.mjs
 ```
 ---
 
@@ -100,19 +100,19 @@ prepare_prompt_test(summary_config_name=..., test_set_name=..., version_number=N
 start_eval_run → [score batches] → finalize_eval_run
 ```
 
-Spawn one subagent per batch in parallel. On Kiro use `use_subagent` with `role: "sdd-summary-scorer"` and `model: "claude-haiku-4.5"`; on Cursor use the Task tool with `composer-2.5-fast`. See [`../docs/eval-guide.md`](../docs/eval-guide.md).
+Spawn one subagent per batch in parallel. On Kiro use `use_subagent` with `role: "copilot-summary-optimizer-scorer"` and `model: "claude-haiku-4.5"`; on Cursor use the Task tool with `composer-2.5-fast`. See [`../docs/eval-guide.md`](../docs/eval-guide.md).
 
 ---
 
 ## Environment Variables
 
-Credentials normally come from `login()`, which parses the Authorization URL and stores the result under `.sdd-summary/`. The deploy sets only the host marker and, on Cursor, the two path variables.
+Credentials normally come from `login()`, which parses the Authorization URL and stores the result under `.copilot-summary-optimizer/`. The deploy sets only the host marker and, on Cursor, the two path variables.
 
 | Variable | Description |
 |---|---|
-| `SDDSUM_HOST` | `cursor` or `kiro`. Selects host-specific guidance — chiefly the subagent spawn mechanism. Unset yields host-neutral wording. See `src/host.ts`. |
-| `SDDSUM_STORAGE_PATH` | Path for `.sdd-summary/` (OAuth config + tokens). Cursor deploy sets `${workspaceFolder}/.sdd-summary`; on Kiro it is left unset. |
-| `SDDSUM_LIFECYCLE_PATH` | Path for `summaryconfig-lifecycle/`. Cursor deploy sets `${workspaceFolder}/summaryconfig-lifecycle`; on Kiro it is left unset. |
+| `COPILOT_SUMMARY_HOST` | `cursor` or `kiro`. Selects host-specific guidance — chiefly the subagent spawn mechanism. Unset yields host-neutral wording. See `src/host.ts`. |
+| `COPILOT_SUMMARY_STORAGE_PATH` | Path for `.copilot-summary-optimizer/` (OAuth config + tokens). Cursor deploy sets `${workspaceFolder}/.copilot-summary-optimizer`; on Kiro it is left unset. |
+| `COPILOT_SUMMARY_LIFECYCLE_PATH` | Path for `summaryconfig-lifecycle/`. Cursor deploy sets `${workspaceFolder}/summaryconfig-lifecycle`; on Kiro it is left unset. |
 | `GENESYS_CLIENT_ID` | **Avoid setting.** Shadows the stored config and causes logins against the wrong org. Let `login()` manage it. |
 | `GENESYS_REGION` | **Avoid setting.** Extracted from the Authorization URL automatically. |
 | `GENESYS_CLIENT_SECRET` | Not required. Only for the vestigial machine-to-machine fallback — omit for standard user login. |
@@ -183,7 +183,7 @@ Both hosts end up storing user data in the consuming project rather than the ins
 ## Local Storage Layout
 
 ```
-.sdd-summary/
+.copilot-summary-optimizer/
 ├── config.json             ← credentials + OAuth tokens (gitignored)
 └── transcripts/            ← legacy single-transcript storage
 
@@ -209,4 +209,4 @@ summaryconfig-lifecycle/
                 └── improvements.md
 ```
 
-**Security:** Add `.sdd-summary/` and all MCP config files to your `.gitignore` to avoid committing credentials. The root `.gitignore` already covers this.
+**Security:** Add `.copilot-summary-optimizer/` and all MCP config files to your `.gitignore` to avoid committing credentials. The root `.gitignore` already covers this.

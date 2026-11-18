@@ -11,7 +11,7 @@ import { SERVER_INSTRUCTIONS } from "./pipelineGuide.js";
 import { SERVER_VERSION } from "./version.js";
 
 const server = new Server(
-  { name: "sdd-summary-mcp", version: SERVER_VERSION },
+  { name: "copilot-summary-optimizer-mcp", version: SERVER_VERSION },
   { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS },
 );
 
@@ -129,7 +129,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("SDD Summary MCP server running (stdio)");
+  console.error("Copilot Summary Optimizer MCP server running (stdio)");
 }
 
 main().catch((err) => {

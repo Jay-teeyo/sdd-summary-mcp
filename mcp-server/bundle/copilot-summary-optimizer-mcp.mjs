@@ -6948,7 +6948,7 @@ function assertNotFilesystemRoot(derived, dirName) {
   throw new Error(
     `Refusing to use "${derived}" for ${dirName}: it resolves to the filesystem root, not a project.
 This server was started from "${process.cwd()}", so there is no project directory to derive from \u2014 a KiroCrew dashboard session does this, as it launches MCP servers from /.
-Fix: set SDDSUM_STORAGE_PATH and SDDSUM_LIFECYCLE_PATH to absolute paths in the server's config. "node deploy.js --kiro --kirocrew <project>" writes both for you.`
+Fix: set COPILOT_SUMMARY_STORAGE_PATH and COPILOT_SUMMARY_LIFECYCLE_PATH to absolute paths in the server's config. "node deploy.js --kiro --kirocrew <project>" writes both for you.`
   );
 }
 function resolveConfiguredDir(value, fallbackName) {
@@ -6956,7 +6956,7 @@ function resolveConfiguredDir(value, fallbackName) {
   if (!value) return assertNotFilesystemRoot(fallback, fallbackName);
   if (value.includes("${")) {
     process.stderr.write(
-      `[sdd-summary] Ignoring unexpanded path "${value}" \u2014 falling back to ${fallback}
+      `[copilot-summary-optimizer] Ignoring unexpanded path "${value}" \u2014 falling back to ${fallback}
 `
     );
     return assertNotFilesystemRoot(fallback, fallbackName);
@@ -6970,10 +6970,10 @@ function resolveConfiguredDir(value, fallbackName) {
   return path.resolve(expanded);
 }
 function getStorageDir() {
-  return resolveConfiguredDir(process.env.SDDSUM_STORAGE_PATH, ".sdd-summary");
+  return resolveConfiguredDir(process.env.COPILOT_SUMMARY_STORAGE_PATH, ".copilot-summary-optimizer");
 }
 function getLifecycleDir() {
-  const resolved = resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, LIFECYCLE_DIR);
+  const resolved = resolveConfiguredDir(process.env.COPILOT_SUMMARY_LIFECYCLE_PATH, LIFECYCLE_DIR);
   if (fs.existsSync(resolved)) return resolved;
   const base = path.basename(resolved);
   if (!base.startsWith(".")) {
@@ -7033,7 +7033,7 @@ var init_config = __esm({
 
 // src/host.ts
 function getHost() {
-  const raw = (process.env.SDDSUM_HOST ?? "").trim().toLowerCase();
+  const raw = (process.env.COPILOT_SUMMARY_HOST ?? "").trim().toLowerCase();
   if (raw === "cursor") return "cursor";
   if (raw === "kiro") return "kiro";
   return "generic";
@@ -7094,7 +7094,7 @@ var KIRO_SCORER_AGENT, KIRO_SCORER_MODEL;
 var init_host = __esm({
   "src/host.ts"() {
     "use strict";
-    KIRO_SCORER_AGENT = "sdd-summary-scorer";
+    KIRO_SCORER_AGENT = "copilot-summary-optimizer-scorer";
     KIRO_SCORER_MODEL = "claude-haiku-4.5";
   }
 });
@@ -14584,7 +14584,7 @@ var TOOL_DEFINITIONS = [
   },
   {
     name: "get_pipeline_guide",
-    description: "Returns the complete SDD Summary pipeline reference guide as markdown. Call this at the start of a session to get the full workflow documentation: pipeline step order, authentication, transcript fetching, evaluation modes, version management rules, deployment gate, report rules, rate limiting notes, folder structure, and Genesys API facts. The server also surfaces a concise summary automatically via the MCP handshake \u2014 call this tool when you need the full details for any step.",
+    description: "Returns the complete Copilot Summary Optimizer pipeline reference guide as markdown. Call this at the start of a session to get the full workflow documentation: pipeline step order, authentication, transcript fetching, evaluation modes, version management rules, deployment gate, report rules, rate limiting notes, folder structure, and Genesys API facts. The server also surfaces a concise summary automatically via the MCP handshake \u2014 call this tool when you need the full details for any step.",
     inputSchema: { type: "object", properties: {}, required: [] }
   },
   // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -15619,7 +15619,7 @@ init_config();
 // src/pipelineGuide.ts
 init_host();
 var SERVER_INSTRUCTIONS = `
-SDD Summary MCP Server \u2014 Genesys Cloud AI Studio / Agent Copilot summary configuration testing pipeline.
+Copilot Summary Optimizer MCP Server \u2014 Genesys Cloud AI Studio / Agent Copilot summary configuration testing pipeline.
 
 ## Pipeline (always run steps in order)
 1. login() \u2192 complete_login()
@@ -15700,7 +15700,7 @@ Unlike an N/A dimension, the transcript is absent from the results \u2014 report
 Call get_pipeline_guide() for the complete workflow reference including API facts, schema details, and examples.
 `.trim();
 var FULL_PIPELINE_GUIDE = `
-# SDD Summary Pipeline \u2014 Full Reference Guide
+# Copilot Summary Optimizer Pipeline \u2014 Full Reference Guide
 
 This MCP server manages the full lifecycle of Genesys Cloud AI Studio / Agent Copilot summary configuration testing: from fetching transcripts through iterating on prompts to evaluating and deploying improvements.
 
@@ -18990,7 +18990,7 @@ function renderChrome() {
 
   document.getElementById("foot").innerHTML =
     "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
-    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">copilot-summary-optimizer-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
     '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
     "<span>Self-contained \\u2014 safe to copy or share as a single file</span>";
 }
@@ -19341,7 +19341,7 @@ function renderChrome() {
 
   document.getElementById("foot").innerHTML =
     "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
-    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">copilot-summary-optimizer-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
     '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
     "<span>Self-contained \\u2014 safe to copy or share as a single file</span>";
 }
@@ -19793,7 +19793,7 @@ function renderChrome() {
 
   document.getElementById("foot").innerHTML =
     "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
-    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">copilot-summary-optimizer-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
     '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
     "<span>Self-contained \\u2014 safe to copy or share as a single file</span>";
 }
@@ -20086,7 +20086,7 @@ your OAuth client page in Genesys Admin \u2192 IT and Integrations \u2192 OAuth 
   }
   if (!config2) {
     return ok(
-      'No Genesys credentials stored yet \u2014 this is a first run.\n\nDO NOT guess or proceed. Ask the user this question first, and wait:\n\n  "Do you already have a Genesys Cloud OAuth client set up for this?"\n\n\u2500\u2500\u2500 If they say YES \u2500\u2500\u2500\nAsk for the Authorization URL:\n  Genesys Admin \u2192 IT and Integrations \u2192 OAuth \u2192 open the client \u2192\n  scroll to the bottom \u2192 copy the "Authorization URL" field.\n\nPass whatever they paste straight to login(authorization_url="...").\nDO NOT judge, correct, or reject the URL. Two different formats are valid\nand BOTH are accepted \u2014 the client ID and region are parsed from either:\n  \u2022 https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  \u2022 https://login.{region}/oauth/authorize?client_id={id}\nThe Genesys UI field usually contains the FIRST (apps./directory) form.\nThat is correct and expected. If it does not parse, login() will say so \u2014\nlet the tool decide, do not pre-screen it.\n\n\u2500\u2500\u2500 If they say NO \u2500\u2500\u2500\nWalk them through creating one, one step at a time, confirming as you go.\nDo not paste all of this at once.\n\nStep 1 \u2014 Create the client\n  Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 Add Client\n    App Name:     SDD Summary MCP  (any name works)\n    Grant Types:  Code Authorization   \u2190 must be this one\n    Redirect URI: http://localhost:8787/callback   \u2190 must match exactly\n  No client secret is needed; this uses Authorization Code + PKCE.\n\nStep 2 \u2014 Add all 8 scopes under the Scope tab\n  ai-studio, analytics, assistants, conversations, notifications,\n  routing:readonly, speech-and-text-analytics:readonly, users:readonly\n  The three :readonly variants are what the Genesys scope picker offers \u2014\n  this server only reads from those three APIs.\n  Add every one now. A missing scope fails later in non-obvious ways \u2014\n  e.g. without `conversations`, voice transcripts work and only\n  messaging transcripts fail, with a 403 that looks unrelated.\n\nStep 3 \u2014 Save, then copy the Authorization URL\n  Reopen the client \u2192 scroll to the bottom \u2192 copy "Authorization URL".\n  It is usually the admin deep-link form, which is correct:\n    https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  The /oauth/authorize?client_id=... form is also accepted.\n\nThen call: login(authorization_url="<pasted URL>") with whatever they pasted.\nDo not reject or rewrite it \u2014 pass it through as-is.\n\nThat URL is all that is needed \u2014 client ID and region are parsed from it.\nDo not set GENESYS_CLIENT_ID as an environment variable; it shadows the\nstored config and causes logins against the wrong org.'
+      'No Genesys credentials stored yet \u2014 this is a first run.\n\nDO NOT guess or proceed. Ask the user this question first, and wait:\n\n  "Do you already have a Genesys Cloud OAuth client set up for this?"\n\n\u2500\u2500\u2500 If they say YES \u2500\u2500\u2500\nAsk for the Authorization URL:\n  Genesys Admin \u2192 IT and Integrations \u2192 OAuth \u2192 open the client \u2192\n  scroll to the bottom \u2192 copy the "Authorization URL" field.\n\nPass whatever they paste straight to login(authorization_url="...").\nDO NOT judge, correct, or reject the URL. Two different formats are valid\nand BOTH are accepted \u2014 the client ID and region are parsed from either:\n  \u2022 https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  \u2022 https://login.{region}/oauth/authorize?client_id={id}\nThe Genesys UI field usually contains the FIRST (apps./directory) form.\nThat is correct and expected. If it does not parse, login() will say so \u2014\nlet the tool decide, do not pre-screen it.\n\n\u2500\u2500\u2500 If they say NO \u2500\u2500\u2500\nWalk them through creating one, one step at a time, confirming as you go.\nDo not paste all of this at once.\n\nStep 1 \u2014 Create the client\n  Genesys Admin \u2192 Integrations \u2192 OAuth \u2192 Add Client\n    App Name:     Copilot Summary Optimizer MCP  (any name works)\n    Grant Types:  Code Authorization   \u2190 must be this one\n    Redirect URI: http://localhost:8787/callback   \u2190 must match exactly\n  No client secret is needed; this uses Authorization Code + PKCE.\n\nStep 2 \u2014 Add all 8 scopes under the Scope tab\n  ai-studio, analytics, assistants, conversations, notifications,\n  routing:readonly, speech-and-text-analytics:readonly, users:readonly\n  The three :readonly variants are what the Genesys scope picker offers \u2014\n  this server only reads from those three APIs.\n  Add every one now. A missing scope fails later in non-obvious ways \u2014\n  e.g. without `conversations`, voice transcripts work and only\n  messaging transcripts fail, with a 403 that looks unrelated.\n\nStep 3 \u2014 Save, then copy the Authorization URL\n  Reopen the client \u2192 scroll to the bottom \u2192 copy "Authorization URL".\n  It is usually the admin deep-link form, which is correct:\n    https://apps.{region}/directory/#/admin/access-management/authorized-apps/{id}\n  The /oauth/authorize?client_id=... form is also accepted.\n\nThen call: login(authorization_url="<pasted URL>") with whatever they pasted.\nDo not reject or rewrite it \u2014 pass it through as-is.\n\nThat URL is all that is needed \u2014 client ID and region are parsed from it.\nDo not set GENESYS_CLIENT_ID as an environment variable; it shadows the\nstored config and causes logins against the wrong org.'
     );
   }
   const loginBase = config2.loginUrl ?? `https://login.${config2.region}`;
@@ -22405,7 +22405,7 @@ async function get_pipeline_guide(_args) {
 
 // src/index.ts
 var server = new Server(
-  { name: "sdd-summary-mcp", version: SERVER_VERSION },
+  { name: "copilot-summary-optimizer-mcp", version: SERVER_VERSION },
   { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS }
 );
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -22495,7 +22495,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request2) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("SDD Summary MCP server running (stdio)");
+  console.error("Copilot Summary Optimizer MCP server running (stdio)");
 }
 main().catch((err) => {
   console.error("Fatal:", err);

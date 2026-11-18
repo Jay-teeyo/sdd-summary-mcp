@@ -1,7 +1,7 @@
 /**
  * Bundles the MCP server into a single self-contained ES module.
  *
- * The output at bundle/sdd-summary-mcp.mjs is a COMMITTED artefact, because
+ * The output at bundle/copilot-summary-optimizer-mcp.mjs is a COMMITTED artefact, because
  * Cursor installs a plugin by cloning its repository and never runs a build or
  * dependency install step. Anything the server needs at runtime therefore has
  * to already be inside that one file.
@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const outfile = join(root, "bundle", "sdd-summary-mcp.mjs");
+const outfile = join(root, "bundle", "copilot-summary-optimizer-mcp.mjs");
 const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 mkdirSync(dirname(outfile), { recursive: true });
@@ -41,13 +41,10 @@ await esbuild.build({
       "const require = __createRequire(import.meta.url);",
     ].join("\n"),
   },
-  define: {
-    "process.env.SDDSUM_VERSION": JSON.stringify(version),
-  },
   // Report templates are authored as .html/.css/.js and inlined here, so the deployed
   // bundle carries them and cannot fall out of step with the code that renders them.
   plugins: [templateTextPlugin],
 });
 
 const kb = (statSync(outfile).size / 1024).toFixed(0);
-console.log(`Bundled sdd-summary-mcp v${version} → bundle/sdd-summary-mcp.mjs (${kb} KB)`);
+console.log(`Bundled copilot-summary-optimizer-mcp v${version} → bundle/copilot-summary-optimizer-mcp.mjs (${kb} KB)`);

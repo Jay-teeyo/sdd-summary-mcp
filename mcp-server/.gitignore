@@ -1,5 +1,5 @@
 node_modules/
 dist/
-.sdd-summary/
+.copilot-summary-optimizer/
 *.env
 .env*

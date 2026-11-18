@@ -346,7 +346,7 @@ export async function login(args: Args) {
       "Do not paste all of this at once.\n\n" +
       "Step 1 — Create the client\n" +
       "  Genesys Admin → Integrations → OAuth → Add Client\n" +
-      "    App Name:     SDD Summary MCP  (any name works)\n" +
+      "    App Name:     Copilot Summary Optimizer MCP  (any name works)\n" +
       "    Grant Types:  Code Authorization   ← must be this one\n" +
       "    Redirect URI: http://localhost:8787/callback   ← must match exactly\n" +
       "  No client secret is needed; this uses Authorization Code + PKCE.\n\n" +
