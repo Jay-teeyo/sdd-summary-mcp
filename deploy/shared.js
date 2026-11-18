@@ -14,14 +14,14 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const SOURCE_BUNDLE = path.join(ROOT, 'mcp-server', 'bundle', 'sdd-summary-mcp.mjs');
+const SOURCE_BUNDLE = path.join(ROOT, 'mcp-server', 'bundle', 'copilot-summary-optimizer-mcp.mjs');
 const SOURCE_MCP_JSON = path.join(ROOT, 'mcp.json');
 const SOURCE_RULES = path.join(ROOT, 'rules');
 const SOURCE_SKILLS = path.join(ROOT, 'skills');
 const SOURCE_KIRO = path.join(ROOT, 'kiro');
 
-const BUNDLE_NAME = 'sdd-summary-mcp.mjs';
-const SERVER_KEY = 'sdd-summary';
+const BUNDLE_NAME = 'copilot-summary-optimizer-mcp.mjs';
+const SERVER_KEY = 'copilot-summary-optimizer';
 
 // ─── Console formatting ───────────────────────────────────────────────────────
 
@@ -166,7 +166,7 @@ function protectGitignore(target) {
   // Both lifecycle spellings are listed: the directory is now visible, but a
   // project deployed before the rename keeps writing to the dotted one, and a
   // re-deploy must not leave that tree committable.
-  const NEEDED = ['.sdd-summary/', 'summaryconfig-lifecycle/', '.summaryconfig-lifecycle/'];
+  const NEEDED = ['.copilot-summary-optimizer/', 'summaryconfig-lifecycle/', '.summaryconfig-lifecycle/'];
 
   // When this repo has been cloned INSIDE the target project — a common and
   // convenient layout — it must be ignored too, or git treats it as an embedded
@@ -186,7 +186,7 @@ function protectGitignore(target) {
   const missing = NEEDED.filter((n) => {
     if (existing === null) return true;
     // Match as its own line, with or without a leading slash or trailing slash,
-    // so an existing "/.sdd-summary" is recognised.
+    // so an existing "/.copilot-summary-optimizer" is recognised.
     const bare = n.replace(/\/$/, '');
     return !existing.split(/\r?\n/).some((line) => {
       const t = line.trim().replace(/^\//, '').replace(/\/$/, '');
@@ -200,9 +200,9 @@ function protectGitignore(target) {
   }
 
   const comment = sourceIsNested
-    ? '# SDD Summary — OAuth tokens, customer transcripts (PII), and the nested\n' +
+    ? '# Copilot Summary Optimizer — OAuth tokens, customer transcripts (PII), and the nested\n' +
       '# server clone. None of these belong in your project history.\n'
-    : '# SDD Summary — OAuth tokens and customer transcripts (PII). Never commit.\n';
+    : '# Copilot Summary Optimizer — OAuth tokens and customer transcripts (PII). Never commit.\n';
 
   const block =
     (existing === null ? '' : existing.endsWith('\n') ? '\n' : '\n\n') +

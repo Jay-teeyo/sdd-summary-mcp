@@ -181,13 +181,13 @@ Scoring stages are spawned with the **`use_subagent`** tool — one stage per ba
 | Setting | Value |
 |---------|-------|
 | Tool | `use_subagent` |
-| `role` | `sdd-summary-scorer` |
+| `role` | `copilot-summary-optimizer-scorer` |
 | `model` | `claude-haiku-4.5` |
 | Task | Score each transcript × test case in its batch and call `submit_eval_scores` for each |
 
 Three Kiro-specific rules:
 
-- **The `role` is load-bearing.** A Kiro subagent loads MCP servers from its *own* agent configuration, so only the `sdd-summary-scorer` agent has `submit_eval_scores`. A stage given any other role cannot record scores and will not say so — it will improvise or report success having written nothing. `deploy.js` installs that agent at `.kiro/agents/sdd-summary-scorer.json`; if the crew tool refuses the role (*"Agents not available for crew stages"*), the deploy did not run or did not complete.
+- **The `role` is load-bearing.** A Kiro subagent loads MCP servers from its *own* agent configuration, so only the `copilot-summary-optimizer-scorer` agent has `submit_eval_scores`. A stage given any other role cannot record scores and will not say so — it will improvise or report success having written nothing. `deploy.js` installs that agent at `.kiro/agents/copilot-summary-optimizer-scorer.json`; if the crew tool refuses the role (*"Agents not available for crew stages"*), the deploy did not run or did not complete.
 - **Every stage must call the `summary` tool before ending.** A stage that finishes with plain text delivers nothing back to the parent, so its batch appears unscored even though its `submit_eval_scores` calls succeeded.
 - **The crew is fail-fast.** If one stage errors, its still-running siblings are cancelled, so a single bad batch can leave the run started with only some batches submitted. Never call `finalize_eval_run` assuming everything landed — call `get_pipeline_state(summary_config_name=...)` to see which run is open and what was recorded, re-run only the missing batches, then finalize once.
 

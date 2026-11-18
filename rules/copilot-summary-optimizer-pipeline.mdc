@@ -1,13 +1,13 @@
 ---
-description: SDD Summary MCP server — full testing pipeline for coding agents
+description: Copilot Summary Optimizer MCP server — full testing pipeline for coding agents
 alwaysApply: true
 ---
 
-# SDD Summary Testing Pipeline
+# Copilot Summary Optimizer Testing Pipeline
 
-The `sdd-summary` MCP server tests and iterates on Genesys Cloud summary configurations (Agent Copilot / AI Studio summaries). Call `get_pipeline_guide()` for the full tool reference.
+The `copilot-summary-optimizer` MCP server tests and iterates on Genesys Cloud summary configurations (Agent Copilot / AI Studio summaries). Call `get_pipeline_guide()` for the full tool reference.
 
-Working data is written to the **currently open workspace**, under `summaryconfig-lifecycle/` and `.sdd-summary/` — not to the plugin directory.
+Working data is written to the **currently open workspace**, under `summaryconfig-lifecycle/` and `.copilot-summary-optimizer/` — not to the plugin directory.
 
 ## Pipeline Order
 
@@ -84,7 +84,7 @@ The admin deep-link form looks nothing like an OAuth authorize URL, but it is th
 **If no** — walk them through creating it, one step at a time, confirming each before moving on. Do not paste the whole thing at once.
 
 1. **Create the client** — Genesys Admin → Integrations → OAuth → Add Client
-   - App Name: anything (e.g. `SDD Summary MCP`)
+   - App Name: anything (e.g. `Copilot Summary Optimizer MCP`)
    - Grant Types: **Code Authorization**
    - Redirect URI: `http://localhost:8787/callback` — must match exactly
    - No client secret needed; this is Authorization Code + PKCE.

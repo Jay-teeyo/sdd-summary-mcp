@@ -1,6 +1,6 @@
 # Genesys Cloud OAuth Client Setup
 
-This guide walks through configuring a Genesys Cloud OAuth client for use with the SDD Summary MCP server.
+This guide walks through configuring a Genesys Cloud OAuth client for use with the Copilot Summary Optimizer MCP server.
 
 ---
 
@@ -26,7 +26,7 @@ For most workflows — especially `generate_preview_summary` and prompt_test eva
 
 | Field | Value |
 |---|---|
-| **App Name** | `SDD Summary MCP` (or any descriptive name) |
+| **App Name** | `Copilot Summary Optimizer MCP` (or any descriptive name) |
 | **Description** | Optional — e.g. "Local MCP server for summary configuration testing" |
 | **Token Duration** | Default (86400 seconds / 24 hours) is fine |
 | **Grant Types** | ✅ **Code Authorization** (required for user login + PKCE) <br> ✅ **Client Credentials** (optional, for machine-to-machine fallback) |
@@ -107,7 +107,7 @@ login(
 
 The `login` tool will:
 1. Extract the `client_id`, login base URL, and API region from the URL.
-2. Save the configuration to `.sdd-summary/config.json` for future sessions.
+2. Save the configuration to `.copilot-summary-optimizer/config.json` for future sessions.
 3. Open the Genesys Cloud login page in your browser. If the browser does not open automatically, the tool response includes the full URL to open manually.
 4. Start a temporary local server on `http://localhost:8787/callback` to receive the OAuth callback.
 

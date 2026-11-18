@@ -13,7 +13,7 @@
 import { spawnInstructionBrief, spawnInstructionFull } from "./host.js";
 
 export const SERVER_INSTRUCTIONS = `
-SDD Summary MCP Server — Genesys Cloud AI Studio / Agent Copilot summary configuration testing pipeline.
+Copilot Summary Optimizer MCP Server — Genesys Cloud AI Studio / Agent Copilot summary configuration testing pipeline.
 
 ## Pipeline (always run steps in order)
 1. login() → complete_login()
@@ -95,7 +95,7 @@ Call get_pipeline_guide() for the complete workflow reference including API fact
 `.trim();
 
 export const FULL_PIPELINE_GUIDE = `
-# SDD Summary Pipeline — Full Reference Guide
+# Copilot Summary Optimizer Pipeline — Full Reference Guide
 
 This MCP server manages the full lifecycle of Genesys Cloud AI Studio / Agent Copilot summary configuration testing: from fetching transcripts through iterating on prompts to evaluating and deploying improvements.
 

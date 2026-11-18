@@ -23,8 +23,8 @@
 # Written by the MCP server at login time. Contains bearer tokens and client IDs.
 # Covered at BOTH the repo root and mcp-server/ (server may write to either
 # location depending on its working directory when started).
-.sdd-summary/
-mcp-server/.sdd-summary/
+.copilot-summary-optimizer/
+mcp-server/.copilot-summary-optimizer/
 
 # ─── Node build output and dependencies ───────────────────────────────────────
 # dist/ is the local tsc output, used for type-checking and debugging only.
@@ -49,3 +49,5 @@ archived/
 
 # Rendered report previews from fixture data (npm run preview:reports)
 mcp-server/.reports-preview/
+
+handoff.md

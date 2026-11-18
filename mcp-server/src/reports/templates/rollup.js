@@ -435,7 +435,7 @@ function renderChrome() {
 
   document.getElementById("foot").innerHTML =
     "<span>Generated " + date(MODEL.generator.generatedAt, true) + "</span>" +
-    '<span class="mono">sdd-summary-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
+    '<span class="mono">copilot-summary-optimizer-mcp v' + esc(MODEL.generator.serverVersion) + "</span>" +
     '<span class="mono">report schema v' + MODEL.generator.schemaVersion + "</span>" +
     "<span>Self-contained \u2014 safe to copy or share as a single file</span>";
 }

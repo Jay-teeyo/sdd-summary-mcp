@@ -1,6 +1,6 @@
 'use strict';
 /**
- * SDD Summary — optional KiroCrew dashboard registration (`--kirocrew`).
+ * Copilot Summary Optimizer — optional KiroCrew dashboard registration (`--kirocrew`).
  *
  * The project-scoped Kiro install (deploy/kiro.js) only reaches `kiro-cli chat`.
  * A KiroCrew dashboard session runs KiroCrew's OWN agent, `~/.kiro/agents/
@@ -9,9 +9,9 @@
  *
  * WHY NOT JUST INSTALL THE AGENT GLOBALLY
  * ---------------------------------------
- * That was tried and reverted. Copying sdd-summary.json into ~/.kiro/agents/ does
+ * That was tried and reverted. Copying copilot-summary-optimizer.json into ~/.kiro/agents/ does
  * make it selectable under Agent Capabilities, but a dashboard tab still came up
- * with zero @sdd-summary/* tools. The reason is in KiroCrew's own source:
+ * with zero @copilot-summary-optimizer/* tools. The reason is in KiroCrew's own source:
  * `includeMcpJson` is pinned false on every agent it owns (kiro_crew/agent.py
  * describes it as framework-owned containment), so kiro-cli never reads any
  * settings/mcp.json for those sessions. Verified false on kirocrew,
@@ -27,7 +27,7 @@
  *
  * and when the user enables a server on the dashboard's MCP Servers page,
  * kiro_crew/dashboard/handlers/mcp.py copies that spec into kirocrew.json's
- * `mcpServers`, mounts `@sdd-summary` in `tools`, and adds it to `allowedTools`
+ * `mcpServers`, mounts `@copilot-summary-optimizer` in `tools`, and adds it to `allowedTools`
  * when no governance ceiling applies. So: write the registry entry here, and let
  * the user's one click do the mounting.
  *
@@ -44,7 +44,7 @@
  * The project install uses a relative bundle path because Kiro launches an stdio
  * server with the workspace root as its CWD. KiroCrew does NOT: it probes with
  * `/` as the working directory. Verified from its quarantine log, which recorded
- * `Cannot find module '/.kiro/sdd-summary/sdd-summary-mcp.mjs'` — the project's
+ * `Cannot find module '/.kiro/copilot-summary-optimizer/copilot-summary-optimizer-mcp.mjs'` — the project's
  * relative path resolved against the filesystem root.
  *
  * That same `/` CWD is why the storage env vars are set here and omitted by
@@ -84,14 +84,14 @@ function isInstalled() {
 function buildSpec(target) {
   return {
     command: 'node',
-    args: [path.join(target, '.kiro', 'sdd-summary', S.BUNDLE_NAME)],
+    args: [path.join(target, '.kiro', 'copilot-summary-optimizer', S.BUNDLE_NAME)],
     env: {
-      SDDSUM_HOST: 'kiro',
-      SDDSUM_STORAGE_PATH: path.join(target, '.sdd-summary'),
+      COPILOT_SUMMARY_HOST: 'kiro',
+      COPILOT_SUMMARY_STORAGE_PATH: path.join(target, '.copilot-summary-optimizer'),
       // The visible spelling. A project deployed before the rename still has the
       // dotted tree, and getLifecycleDir() falls back to it when this path does
       // not exist, so naming the new one cannot orphan old runs.
-      SDDSUM_LIFECYCLE_PATH: path.join(target, 'summaryconfig-lifecycle'),
+      COPILOT_SUMMARY_LIFECYCLE_PATH: path.join(target, 'summaryconfig-lifecycle'),
     },
     timeout: 120000,
   };
@@ -128,7 +128,7 @@ function writeRegistry(target) {
 function previousTargetOf(spec) {
   const arg = spec && Array.isArray(spec.args) ? spec.args[0] : null;
   if (!arg || !path.isAbsolute(arg)) return null;
-  // The arg is <target>/.kiro/sdd-summary/<bundle>, so the directory holding the
+  // The arg is <target>/.kiro/copilot-summary-optimizer/<bundle>, so the directory holding the
   // bundle is two levels below the target.
   return path.resolve(path.dirname(arg), '..', '..');
 }
@@ -316,7 +316,7 @@ function probeBundle(spec) {
       params: {
         protocolVersion: '2024-11-05',
         capabilities: {},
-        clientInfo: { name: 'sdd-summary-deploy-verify', version: '1.0' },
+        clientInfo: { name: 'copilot-summary-optimizer-deploy-verify', version: '1.0' },
       },
     });
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
@@ -383,7 +383,7 @@ async function verifyKiroCrew(target) {
 
   // ── Storage must not be left to KiroCrew's / working directory ──────────────
   const env = registered.env || {};
-  for (const key of ['SDDSUM_STORAGE_PATH', 'SDDSUM_LIFECYCLE_PATH']) {
+  for (const key of ['COPILOT_SUMMARY_STORAGE_PATH', 'COPILOT_SUMMARY_LIFECYCLE_PATH']) {
     if (!env[key] || !path.isAbsolute(env[key])) {
       S.err(`${key} is not set to an absolute path.`);
       console.log(

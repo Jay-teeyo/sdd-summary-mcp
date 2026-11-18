@@ -37,7 +37,7 @@ function listJsonFiles(dir: string): string[] {
     .map((f) => f.replace(/\.json$/, ""));
 }
 
-// ─── Legacy global directories (.sdd-summary) ────────────────────────────────
+// ─── Legacy global directories (.copilot-summary-optimizer) ────────────────────────────────
 
 function legacyDir(subdir: string): string {
   return ensureDir(path.join(getStorageDir(), subdir));

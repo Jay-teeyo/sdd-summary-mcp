@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SDD Summary — deploy into a single project (project-scoped install).
+ * Copilot Summary Optimizer — deploy into a single project (project-scoped install).
  *
  *   node deploy.js [/path/to/target/project]
  *   node deploy.js --kiro
@@ -73,7 +73,7 @@ for (const arg of process.argv.slice(2)) {
     verifyOnly = true;
   } else if (arg === '-h' || arg === '--help') {
     console.log(`
-  SDD Summary — project-scoped deploy
+  Copilot Summary Optimizer — project-scoped deploy
 
     node deploy.js [target]           ask which editor, then deploy
     node deploy.js --kiro [target]    deploy for Kiro
@@ -199,7 +199,7 @@ function askKiroCrew() {
 async function main() {
   console.log('\n');
   S.hr();
-  console.log(S.bold('  SDD Summary — project-scoped deploy'));
+  console.log(S.bold('  Copilot Summary Optimizer — project-scoped deploy'));
   S.hr();
   console.log('');
 

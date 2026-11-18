@@ -1,11 +1,11 @@
 {
-  "name": "sdd-summary-mcp",
+  "name": "copilot-summary-optimizer-mcp",
   "version": "2.0.0",
   "description": "MCP server for developing, testing, and improving Genesys Cloud Agent Copilot summary prompts",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "sdd-summary-mcp": "dist/index.js"
+    "copilot-summary-optimizer-mcp": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",

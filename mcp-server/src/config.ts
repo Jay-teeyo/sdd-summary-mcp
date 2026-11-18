@@ -54,7 +54,7 @@ function findProjectRoot(start: string): string {
  * The fallback above is only correct when the host launches the server inside the
  * project. A KiroCrew dashboard session does not: it spawns MCP servers with `/`
  * as the working directory. `findProjectRoot` finds no marker on the way up from
- * `/`, returns `/`, and the fallback becomes `/.sdd-summary` — OAuth tokens and
+ * `/`, returns `/`, and the fallback becomes `/.copilot-summary-optimizer` — OAuth tokens and
  * every transcript aimed at the filesystem root.
  *
  * macOS would probably turn that into a permission error somewhere further in,
@@ -62,7 +62,7 @@ function findProjectRoot(start: string): string {
  * silently starts a second empty data tree, which reads as total data loss. So
  * name the cause while we still know it, and name the fix.
  *
- * Note this guards the DERIVED path only. An explicit SDDSUM_* value is the
+ * Note this guards the DERIVED path only. An explicit COPILOT_SUMMARY_* value is the
  * user's stated intent and is left alone.
  */
 function assertNotFilesystemRoot(derived: string, dirName: string): string {
@@ -75,7 +75,7 @@ function assertNotFilesystemRoot(derived: string, dirName: string): string {
       `This server was started from "${process.cwd()}", so there is no project ` +
       `directory to derive from — a KiroCrew dashboard session does this, as it ` +
       `launches MCP servers from /.\n` +
-      `Fix: set SDDSUM_STORAGE_PATH and SDDSUM_LIFECYCLE_PATH to absolute paths ` +
+      `Fix: set COPILOT_SUMMARY_STORAGE_PATH and COPILOT_SUMMARY_LIFECYCLE_PATH to absolute paths ` +
       `in the server's config. "node deploy.js --kiro --kirocrew <project>" ` +
       `writes both for you.`,
   );
@@ -102,7 +102,7 @@ function resolveConfiguredDir(value: string | undefined, fallbackName: string): 
 
   if (value.includes("${")) {
     process.stderr.write(
-      `[sdd-summary] Ignoring unexpanded path "${value}" — falling back to ${fallback}\n`,
+      `[copilot-summary-optimizer] Ignoring unexpanded path "${value}" — falling back to ${fallback}\n`,
     );
     return assertNotFilesystemRoot(fallback, fallbackName);
   }
@@ -118,11 +118,11 @@ function resolveConfiguredDir(value: string | undefined, fallbackName: string): 
 }
 
 /**
- * Resolve the .sdd-summary storage directory (global config + legacy data).
- * Priority: SDDSUM_STORAGE_PATH env var → <project root>/.sdd-summary
+ * Resolve the .copilot-summary-optimizer storage directory (global config + legacy data).
+ * Priority: COPILOT_SUMMARY_STORAGE_PATH env var → <project root>/.copilot-summary-optimizer
  */
 export function getStorageDir(): string {
-  return resolveConfiguredDir(process.env.SDDSUM_STORAGE_PATH, ".sdd-summary");
+  return resolveConfiguredDir(process.env.COPILOT_SUMMARY_STORAGE_PATH, ".copilot-summary-optimizer");
 }
 
 /** Current lifecycle directory name. Deliberately visible — see getLifecycleDir(). */
@@ -131,13 +131,13 @@ const LIFECYCLE_DIR = "summaryconfig-lifecycle";
 /**
  * Resolve the summaryconfig-lifecycle root directory.
  * Each summary configuration gets its own subdirectory here.
- * Priority: SDDSUM_LIFECYCLE_PATH env var → <project root>/summaryconfig-lifecycle
+ * Priority: COPILOT_SUMMARY_LIFECYCLE_PATH env var → <project root>/summaryconfig-lifecycle
  *
  * WHY THIS IS NOT A DOTFILE
  * -------------------------
  * This tree is the user's working output — transcripts, test cases, eval runs and
  * the generated HTML reports — so it is meant to be browsed. A leading dot hid it
- * from Kiro's file viewer entirely. Secrets live in `.sdd-summary/` instead, which
+ * from Kiro's file viewer entirely. Secrets live in `.copilot-summary-optimizer/` instead, which
  * stays hidden. Both are gitignored by the deploy regardless of visibility, since
  * transcripts carry customer PII.
  *
@@ -146,11 +146,11 @@ const LIFECYCLE_DIR = "summaryconfig-lifecycle";
  * starting a second empty one beside it would look like data loss.
  */
 export function getLifecycleDir(): string {
-  const resolved = resolveConfiguredDir(process.env.SDDSUM_LIFECYCLE_PATH, LIFECYCLE_DIR);
+  const resolved = resolveConfiguredDir(process.env.COPILOT_SUMMARY_LIFECYCLE_PATH, LIFECYCLE_DIR);
   if (fs.existsSync(resolved)) return resolved;
 
   // Checked against the RESOLVED path rather than only the default, because the
-  // Cursor deploy always sets SDDSUM_LIFECYCLE_PATH — testing the env var first
+  // Cursor deploy always sets COPILOT_SUMMARY_LIFECYCLE_PATH — testing the env var first
   // would skip this for exactly the installs that need it.
   const base = path.basename(resolved);
   if (!base.startsWith(".")) {

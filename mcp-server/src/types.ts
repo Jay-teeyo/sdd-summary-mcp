@@ -25,7 +25,7 @@ export interface AppConfig {
   genesys?: GenesysConfig;
   /** Stored user token from Authorization Code + PKCE flow */
   userToken?: UserToken;
-  /** Optional: path to .sdd-summary directory. Defaults to CWD/.sdd-summary */
+  /** Optional: path to .copilot-summary-optimizer directory. Defaults to CWD/.copilot-summary-optimizer */
   storagePath?: string;
 }
 

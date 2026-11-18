@@ -1,14 +1,14 @@
 {
   "mcpServers": {
-    "sdd-summary": {
+    "copilot-summary-optimizer": {
       "command": "node",
       "args": [
-        "${CURSOR_PLUGIN_ROOT}/mcp-server/bundle/sdd-summary-mcp.mjs"
+        "${CURSOR_PLUGIN_ROOT}/mcp-server/bundle/copilot-summary-optimizer-mcp.mjs"
       ],
       "env": {
-        "SDDSUM_HOST": "cursor",
-        "SDDSUM_STORAGE_PATH": "${workspaceFolder}/.sdd-summary",
-        "SDDSUM_LIFECYCLE_PATH": "${workspaceFolder}/summaryconfig-lifecycle"
+        "COPILOT_SUMMARY_HOST": "cursor",
+        "COPILOT_SUMMARY_STORAGE_PATH": "${workspaceFolder}/.copilot-summary-optimizer",
+        "COPILOT_SUMMARY_LIFECYCLE_PATH": "${workspaceFolder}/summaryconfig-lifecycle"
       },
       "alwaysAllow": [
         "get_pipeline_guide",
